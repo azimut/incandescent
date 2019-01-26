@@ -4,8 +4,9 @@
 (defvar *cloud-tex* nil)
 ;; (defparameter *dimensions* '(400 300))
 ;; (defparameter *dimensions* '(800 600))
-(defparameter *dimensions* '(532 400))
-
+;;(defparameter *dimensions* '(532 400))
+(defparameter *dimensions* '(227 128))
+;;(loop for i from '(1 2 3 4) collect i)
 (defun init ()
   ;; (unless *cloud-tex*
   ;;   (setf *cloud-tex*
@@ -43,21 +44,21 @@
   (let* ((res (surface-resolution (current-surface)))
          (time (mynow)))
 
-    (setf (resolution (current-viewport)) res)
-    ;;(setf (resolution (current-viewport)) (v! *dimensions*))
+    ;;(setf (resolution (current-viewport)) res)
+    (setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
     ;;(setf (pos *camera1*) *light-pos*)
     (update-all-the-things *actors*)
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
-            :collect (draw actor *currentcamera* time)))
+         :collect (draw actor *currentcamera* time)))
     (as-frame
-      (with-setf* ((depth-mask) nil
-                   (cull-face) nil
-                   (clear-color) (v! 0 0 0 1))
-        (map-g #'generic-2d-pipe *bs*
-               :sam *sam*)))))
+     (with-setf* ((depth-mask) nil
+                  (cull-face) nil
+                  (clear-color) (v! 0 0 0 1))
+       (map-g #'generic-2d-pipe *bs*
+              :sam *sam*)))))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
