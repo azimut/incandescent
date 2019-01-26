@@ -6,6 +6,26 @@
   :license  "MIT"
   :version "0.0.1"
   :serial t
-  :depends-on (#:cepl #:rtg-math.vari #:cepl.sdl2 #:swank #:livesupport #:cepl.skitter.sdl2 #:dirt)
+  :depends-on (#:cepl
+               #:alexandria
+               #:with-setf
+               #:rtg-math.vari
+               #:cepl.sdl2
+               #:swank
+               #:nineveh
+               #:classimp
+               #:livesupport
+               #:cepl.skitter.sdl2
+               #:dirt)
   :components ((:file "package")
-               (:file "incandescent")))
+               (:file "incandescent")
+               (:file "lib/assets")
+               (:file "lib/assimp")
+               (:file "lib/misc-gpu")
+               (:file "actors")
+               (:file "camera")
+               (:file "cubemap")
+               (:file "postprocess")
+               (:file "draw")
+               (:file "render")
+               (:file "main")))
