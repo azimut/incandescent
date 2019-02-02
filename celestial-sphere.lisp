@@ -1,4 +1,4 @@
-(in-package #:shiny)
+(in-package #:incandescent)
 
 (defclass celestial-sphere (actor)
   ((buf :initform (sphere))))

@@ -86,11 +86,11 @@
    :uv-repeat 1f0
    :uv-speed .1
    :metallic .1
-   :albedo    (get-tex "static/37.Paint01-1k/paint_albedo.jpg" NIL T :rgb8)
-   :ao        (get-tex "static/37.Paint01-1k/paint_ao.jpg" NIL T :r8)
-   :height    (get-tex "static/37.Paint01-1k/paint_height.jpg" NIL T :r8)
-   :normal    (get-tex "static/37.Paint01-1k/paint_normal.jpg" NIL T :rgb8)
-   :roughness (get-tex "static/37.Paint01-1k/paint_roughness.jpg" NIL T :r8)))
+   :albedo    (get-tex "static/37.Paint01-1k/paint01_albedo.jpg" NIL T :rgb8)
+   :ao        (get-tex "static/37.Paint01-1k/paint01_ao.jpg" NIL T :r8)
+   :height    (get-tex "static/37.Paint01-1k/paint01_height.jpg" NIL T :r8)
+   :normal    (get-tex "static/37.Paint01-1k/paint01_normal.jpg" NIL T :rgb8)
+   :roughness (get-tex "static/37.Paint01-1k/paint01_roughness.jpg" NIL T :r8)))
 
 (defclass cubemap (actor) ())
 (defun make-cubemap ()

@@ -1,4 +1,4 @@
-(in-package #:shiny)
+(in-package #:incandescent)
 
 (defvar *particle-fbo* nil)
 (defvar *sam-particle-fbo* nil)

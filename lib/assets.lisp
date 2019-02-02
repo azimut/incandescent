@@ -191,7 +191,7 @@
                (dirt:load-image-to-texture
                 (if absolutep
                     path
-                    (asdf:system-relative-pathname :shiny path))
+                    (asdf:system-relative-pathname :incandescent path))
                 image-format
                 mipmap
                 t))))))
@@ -205,6 +205,6 @@
   (with-c-arrays-freed
       (ca (mapcar (lambda (p)
                     (dirt:load-image-to-c-array
-                     (asdf:system-relative-pathname :shiny p)))
+                     (asdf:system-relative-pathname :incandescent p)))
                   paths))
     (make-texture ca :element-type :rgb8 :cubes t)))

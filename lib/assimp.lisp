@@ -59,9 +59,10 @@
                        (assimp-mesh-uv a) (v! (x tc) (y tc)))))
         (make-buffer-stream v-arr :index-array i-arr)))))
 
-(defun assimp-load (file)
+(defun assimp-load-meshes (file &optional (scale 1f0))
   "empties and fills the *ASSIMP-MESHES* globals with assimp-flat
    instances ready to be render"
+  (declare (type single-float scale))
   (assert (probe-file file))
   (free-meshes)
   (let* ((scene (ai:import-into-lisp
@@ -71,7 +72,9 @@
          (meshes  (loop :for mesh :across (slot-value scene 'ai:meshes)
                      :collect mesh))
          (buffers (mapcar #'assimp-mesh-to-stream meshes))
-         (actors  (mapcar (lambda (buf) (make-instance 'assimp-flat :buf buf))
+         (actors  (mapcar (lambda (buf) (make-instance 'assimp-flat
+                                                  :buf buf
+                                                  :scale scale))
                           buffers)))
     (mapcar (lambda (actor) (push actor *assimp-meshes*))
             actors)))

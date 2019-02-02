@@ -226,26 +226,26 @@
                      (vec3 (/ 1f0 2.2)))
                 1)))))
     (loop
-      :for side :in *cubemap-sides*
-      :for rotation :in *cubemap-rotations*
-      :do
-      ;; Rotate camera
+       :for side :in *cubemap-sides*
+       :for rotation :in *cubemap-rotations*
+       :do
+       ;; Rotate camera
          (destructuring-bind (up from to) rotation
            (setf (rot camera)
                  (q:look-at up from to)))
-         ;; Normal draw - preferably a 16bit fbo to avoid dithering
+       ;; Normal draw - preferably a 16bit fbo to avoid dithering
          (with-fbo-bound (external-fbo)
            (clear external-fbo)
            (loop :for actor :in *actors* :do
-                    (draw actor camera 1f0)))
-         ;; Final draw to LDR (? the colors
+                (draw actor camera 1f0)))
+       ;; Final draw to LDR (? the colors
          (map-g-into fbo pipeline bs
                      :sam external-sample)
-         ;; Read from our created fbo texture
+       ;; Read from our created fbo texture
          (dirt:save-as-image
           (attachment-tex fbo 0)
           (asdf:system-relative-pathname
-           :shiny
+           :incandescent
            (concatenate 'string
                         "static/cubemap_" side "." image-format))))))
 
