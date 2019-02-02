@@ -92,6 +92,8 @@
    :normal    (get-tex "static/37.Paint01-1k/paint01_normal.jpg" NIL T :rgb8)
    :roughness (get-tex "static/37.Paint01-1k/paint01_roughness.jpg" NIL T :r8)))
 
+(defclass pbr-shadow (pbr) ())
+
 (defclass cubemap (actor) ())
 (defun make-cubemap ()
   (let ((obj (make-instance 'cubemap)))
@@ -140,7 +142,8 @@
 (defmethod update (actor))
 (defmethod update ((actor pbr)))
 (defmethod update ((actor pbr-simple))  )
-(defmethod update ((actor box)))
+(defmethod update ((actor box))
+  (setf (pos actor) (v! 0.0 -1 (+ (sin (mynow)) -6.0))))
 (defmethod update ((actor assimp-flat))
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )

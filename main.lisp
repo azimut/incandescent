@@ -15,9 +15,10 @@
   ;;   (setf *cloud-tex*
   ;;         (get-tex "static/Cloud04_8x8.tga")))
   (unless *shadow-fbo*
-    (setf *shadow-fbo* (make-fbo (list :d :dimensions *dimensions*)))
+    (setf *shadow-fbo* (make-fbo (list :d :dimensions '(1024 1024))))
     (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
-                               :wrap :clamp-to-edge)))
+                               :minify-filter :nearest
+                               :magnify-filter :nearest)))
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
   (unless *bs*
