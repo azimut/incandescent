@@ -404,5 +404,10 @@
   :vertex (vert g-pnt)
   :fragment (pbr-simple-frag :vec2 :vec3 :vec3))
 
-
-
+;;--------------------------------------------------
+;; 3d - plain pipe for shadowmap and others...(?
+(defun-g simplest-3d-frag ((uv :vec2) (frag-norm :vec3) (frag-pos :vec3))
+  (v! 0 0 0 0))
+(defpipeline-g simplest-3d-pipe ()
+  :vertex (vert g-pnt)
+  :fragment (simplest-3d-frag :vec2 :vec3 :vec3))

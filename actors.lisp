@@ -133,12 +133,14 @@
     obj))
 
 (defclass assimp-flat (actor) ())
-
+;;--------------------------------------------------
+;; UPDATE
+;;--------------------------------------------------
 (defgeneric update (actor))
 (defmethod update (actor))
 (defmethod update ((actor pbr)))
 (defmethod update ((actor pbr-simple))  )
 (defmethod update ((actor box)))
-
 (defmethod update ((actor assimp-flat))
-  (setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90))))
+  ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
+  )
