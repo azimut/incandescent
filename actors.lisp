@@ -135,6 +135,10 @@
     obj))
 
 (defclass assimp-flat (actor) ())
+(defclass assimp-thing (actor)
+  ((albedo  :initarg :albedo)
+   (normals :initarg :normals)))
+
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
@@ -147,3 +151,8 @@
 (defmethod update ((actor assimp-flat))
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )
+(defmethod update ((actor assimp-thing))
+  (with-slots (scale rot pos) actor
+    (setf pos (v! 0 -3 -9))
+    (setf rot (q:from-axis-angle (v! 0 1 0) (radians (mod (* 20 (mynow)) 360))))
+    (setf scale .2f0)))

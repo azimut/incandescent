@@ -1,96 +1,15 @@
 (in-package :incandescent)
 
 ;;--------------------------------------------------
-;; 3D - g-pnt with tangent info in tb-data AND textures
-
-(defun-g vert-with-tbdata
-    ((vert g-pnt) (tb tb-data)
-     &uniform
-     (model-world :mat4)
-     (world-view :mat4)
-     (view-clip :mat4)
-     (scale :float)
-     ;; Parallax vars
-     (light-pos :vec3)
-     (cam-pos :vec3))
-  (let* ((pos       (* scale (pos vert)))
-         (norm      (norm vert))
-         (uv        (treat-uvs (tex vert)))
-         (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* model-world (v! pos 1)))
-         (view-pos  (* world-view  world-pos))
-         (clip-pos  (* view-clip   view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
-         (tbn (mat3 t0 b0 n0)))
-    (values clip-pos
-            (treat-uvs uv)
-            norm
-            (s~ world-pos :xyz)            
-            tbn
-            (* tbn light-pos)
-            (* tbn cam-pos)
-            (* tbn (s~ world-pos :xyz)))))
-
-(defun-g frag-tex-tbn ((uv :vec2)
-                       (frag-norm :vec3)
-                       (frag-pos :vec3)
-                       (tbn :mat3)
-                       (tan-light-pos :vec3)
-                       (tan-cam-pos :vec3)
-                       (tan-frag-pos :vec3)
-                       &uniform
-                       (cam-pos :vec3)
-                       (albedo :sampler-2d)
-                       (normap :sampler-2d)
-                       (height-map :sampler-2d))
-  (let* ((light-pos *pointlight-pos*)
-         ;; Parallax
-         (tan-cam-dir (- tan-cam-pos tan-frag-pos))
-         (newuv (parallax-mapping uv tan-cam-dir height-map .1))
-         ;; ---------
-         (light-color (v! 1 1 1))
-         (light-strength 1f0)         
-         ;;--------------------
-         (vec-to-light (- light-pos frag-pos))
-         (dir-to-light (normalize vec-to-light))
-         ;;--------------------
-         (color (expt (s~ (texture albedo newuv) :xyz)
-                      (vec3 2.2)))
-         (normal (norm-from-map normap newuv))
-         (normal (normalize (* tbn normal))))
-    (values
-     ;; (v! final-color 1)
-     ;; (v! 1 1 1 1)
-     ;;frag-pos
-     (normalize frag-norm))))
-
-(defpipeline-g generic-tex-pipe ()
-  :vertex (vert-with-tbdata g-pnt tb-data)
-  :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
-                          ;; Parallax
-                          :vec3 :vec3 :vec3))
-
-;;--------------------------------------------------
 ;; 3D - g-pnt mesh without tangents
-(defparameter *mess* .0f0)
-(defparameter *messx* .0f0)
-(defparameter *messy* .0f0)
-(defparameter *mul* 0f0)
-(defun-g vert
-    ((vert g-pnt) &uniform
-     (model-world :mat4) (world-view :mat4) (view-clip :mat4)
-     (scale :float) (time :float))
-  (let* ((pos        (* scale (+ (v! (* *mul* (cos (* *messx* time gl-instance-id)))
-                                     (* *mul* (sin (* *messy* time gl-instance-id)))
-                                     (* *mul* (sin (* *mess* time gl-instance-id))))
-                                 (pos vert))))
+(defun-g vert ((vert g-pnt)
+               &uniform
+               (model-world :mat4)
+               (world-view :mat4)
+               (view-clip :mat4)
+               (scale :float)
+               (time :float))
+  (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
          (tex        (tex vert))
          (world-norm (* (m4:to-mat3 model-world) norm))

@@ -8,6 +8,7 @@
   :serial t
   :depends-on (#:cepl
                #:alexandria
+               #:serapeum
                #:with-setf
                #:rtg-math.vari
                #:cepl.sdl2
@@ -28,4 +29,5 @@
                (:file "postprocess")
                (:file "draw")
                (:file "render")
+               (:file "shadowmap")
                (:file "main")))

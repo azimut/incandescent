@@ -27,7 +27,7 @@
                  :rot (q:from-axis-angle (v! 1 0 0) (radians -45))
                  :pos (v! 0 10 0)))   ;; give it some height
 (defparameter *camera1* (make-instance 'orth))
-(defparameter *cameras* (list *camera* *camera-shadow*))
+(defparameter *cameras* (list *camera* *shadow-camera*))
 (defparameter *camera-cubemap* (make-instance 'pers :fov 90f0))
 (defparameter *currentcamera* *camera*)
 

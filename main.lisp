@@ -36,7 +36,7 @@
   (setf (clear-color) (v! 0 0 0 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  (make-box (v! 0 2 -6))
+  ;;(make-box (v! 0 2 -6))
   (make-piso (v! 0 -3 0))
   NIL)
 
