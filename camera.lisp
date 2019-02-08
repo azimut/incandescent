@@ -24,7 +24,7 @@
 (defparameter *shadow-camera*
   (make-instance 'orth
                  :frame-size (v2! 40) ;; zoom
-                 :rot (q:from-axis-angle (v! 1 0 0) (radians -45))
+                 :rot (q:from-axis-angle (v! 1 0 0) (radians -75))
                  :pos (v! 0 10 0)))   ;; give it some height
 (defparameter *camera1* (make-instance 'orth))
 (defparameter *cameras* (list *camera* *shadow-camera*))
@@ -67,4 +67,6 @@
 ;; UPDATE
 ;;--------------------------------------------------
 (defmethod update ((camera orth)))
-(defmethod update ((camera pers)))
+(defmethod update ((camera pers))
+  (setf (pos camera) (v! 0 10 40))
+  (setf (rot camera) (q:identity)))

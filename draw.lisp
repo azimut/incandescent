@@ -54,26 +54,25 @@
            :irradiance-map *s-cubemap-live*)))
 
 (defmethod draw ((actor pbr-simple) camera (time single-float))
-  (with-instances *instances*
-    (with-slots (buf scale color roughness metallic) actor
-      (map-g #'pbr-simple-pipe buf
-             :scale scale
-             :color color
-             :time time
-             ;; Lighting
-             :cam-pos (pos camera)
-             :light-pos *light-pos*
-             ;;
-             :model-world (model->world actor)
-             :world-view (world->view camera)
-             :view-clip  (projection camera)
-             ;; PBR
-             :roughness .1
-             :metallic .9
-             ;; IBL
-             :brdf-lut *s-brdf*
-             :prefilter-map *s-cubemap-prefilter*
-             :irradiance-map *s-cubemap-live*))))
+  (with-slots (buf scale color roughness metallic) actor
+    (map-g #'pbr-simple-pipe buf
+           :scale scale
+           :color color
+           :time time
+           ;; Lighting
+           :cam-pos (pos camera)
+           :light-pos *light-pos*
+           ;;
+           :model-world (model->world actor)
+           :world-view (world->view camera)
+           :view-clip  (projection camera)
+           ;; PBR
+           :roughness .1
+           :metallic .9
+           ;; IBL
+           :brdf-lut *s-brdf*
+           :prefilter-map *s-cubemap-prefilter*
+           :irradiance-map *s-cubemap-live*)))
 
 (defmethod draw ((actor cubemap) camera (time single-float))
   (with-slots (buf) actor

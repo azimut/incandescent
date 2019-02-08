@@ -134,10 +134,17 @@
     (push obj *actors*)
     obj))
 
-(defclass assimp-flat (actor) ())
+(defclass assimp-flat (actor)
+  ())
 (defclass assimp-thing (actor)
   ((albedo  :initarg :albedo)
    (normals :initarg :normals)))
+(defclass assimp-thing-with-bones (actor)
+  ((albedo            :initarg :albedo)
+   (normals           :initarg :normals)
+   (n-bones           :initarg :n-bones)
+   (bones-transforms  :initarg :bones-transforms)
+   (global-itransform :initarg :global-itransform)))
 
 ;;--------------------------------------------------
 ;; UPDATE
@@ -152,7 +159,17 @@
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )
 (defmethod update ((actor assimp-thing))
+  ;; (with-slots (scale rot pos) actor
+  ;;   (setf pos (v! 0 -3 -9))
+  ;;   (setf rot (q:from-axis-angle (v! 0 1 0) (radians (mod (* 20 (mynow)) 360))))
+  ;;   (setf scale .2f0))
+  )
+
+(defmethod update ((actor assimp-thing-with-bones))
   (with-slots (scale rot pos) actor
-    (setf pos (v! 0 -3 -9))
-    (setf rot (q:from-axis-angle (v! 0 1 0) (radians (mod (* 20 (mynow)) 360))))
-    (setf scale .2f0)))
+    (setf pos (v! 0 -2 0))
+    (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
+                                      (radians (mod (* 30 (mynow)) 360)))
+                   (q:from-axis-angle (v! 1 0 0)
+                                      (radians -90))))
+    (setf scale .4f0)))

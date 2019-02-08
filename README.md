@@ -5,6 +5,10 @@ CEPL based template that I use to make things. Started on [shiny](https://github
 
 Mostly a copy of [play-with-verts](https://github.com/cbaggers/play-with-verts) for now.
 
+### References
+* Shadowmap code from play-with-verts
+* Skeletal animations code based on [ogldev](http://ogldev.atspace.co.uk/www/tutorial38/tutorial38.html) and [https://bib.irb.hr/datoteka/890911.Final_0036473606_56.pdf](https://bib.irb.hr/datoteka/890911.Final_0036473606_56.pdf) code.
+
 ## License
 
 MIT

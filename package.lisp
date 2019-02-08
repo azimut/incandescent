@@ -9,6 +9,8 @@
           #:cepl.skitter
           #:livesupport)
   (:import-from #:alexandria
+                #:emptyp
+                #:when-let
                 #:first-elt
                 #:mappend
                 #:length=)
