@@ -96,20 +96,21 @@
          (bones (remove-duplicates bones :key #'ai:name :test #'string=)))
     bones))
 
-(defun get-bones-per-vertex (all-scene-bones mesh-bones n-vertices)
-  "returns an array of lists of tuples/cons pairs"
-  (declare (type list all-scene-bones)
+(defun get-bones-per-vertex (all-unique-scene-bones mesh-bones n-vertices)
+  "returns an array of lists of tuples/cons pairs
+   ex: #(((1 . .9) (2 .1)) ((10 .2) (20 .8)))"
+  (declare (type list all-unique-scene-bones)
            (type array mesh-bones)
            (type fixnum n-vertices))
   (let ((v-to-bones (make-array n-vertices :initial-element NIL)))
     (loop
        :for bone :across mesh-bones
-       :for bone-id := (position (ai:name bone) all-scene-bones
+       :for bone-id := (position (ai:name bone) all-unique-scene-bones
                                  :test #'string=
                                  :key  #'ai:name) :do
          (loop :for weight :across (ai:weights bone) :do
               (with-slots ((v ai:id) (w ai:weight)) weight
-                (when (and (> w .1) ;; discard bones with low influence
+                (when (and (>= w .1) ;; discard bones with low influence
                            (< (length (aref v-to-bones v))
                               *max-bones-per-vertex*))
                   (push (cons bone-id w)

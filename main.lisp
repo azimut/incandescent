@@ -21,6 +21,7 @@
   ;;   (setf *cloud-tex*
   ;;         (get-tex "static/Cloud04_8x8.tga")))
   (unless *huesos*
+    (assimp-load-meshes "/home/sendai/quicklisp/local-projects/incandescent/static/guard/boblampclean.md5mesh")
     (setf *mann* (ai:import-into-lisp "/home/sendai/quicklisp/local-projects/incandescent/static/guard/boblampclean.md5mesh"))
     (setf *huesos*  (make-gpu-array NIL :element-type :mat4 :dimensions 32))
     (push-g (coerce (get-bones-tranforms *mann*) 'list) *huesos*)
