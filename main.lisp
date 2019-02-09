@@ -61,8 +61,8 @@
   ;;--------------------------------------------------
   (setf *actors* nil)
   ;;(make-box (v! 0 2 -6))
-  (make-piso (v! 0 -3 0)))
-NIL
+  (make-piso (v! 0 -3 0))
+  NIL)
 
 (defun draw! ()
   (let* ((res (surface-resolution (current-surface)))
@@ -106,3 +106,4 @@ NIL
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
+

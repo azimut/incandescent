@@ -9,7 +9,7 @@
 
 (defparameter *light-pos* (v! 0 1000 300))
 (defparameter *light-color* (v! .9 .9 .9))
-(defparameter *exposure* 1f0)
+(defparameter *exposure* 2f0)
 (defparameter *parallax-scale* .01f0)
 
 (defun update-all-the-things (l)
@@ -167,9 +167,9 @@
 
 (defmethod update ((actor assimp-thing-with-bones))
   (with-slots (scale rot pos) actor
-    (setf pos (v! 0 -2 0))
-    (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
+    (setf pos (v! 0 0 0))
+    (setf rot (q:* (q:from-axis-angle (v! 1 1 1)
                                       (radians (mod (* 30 (mynow)) 360)))
-                   (q:from-axis-angle (v! 1 0 0)
+                   (q:from-axis-angle (v! 1 1 0)
                                       (radians -90))))
-    (setf scale .4f0)))
+    (setf scale 1f0)))

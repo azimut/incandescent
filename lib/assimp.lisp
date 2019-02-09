@@ -7,8 +7,13 @@
 (defparameter *max-bones-per-vertex* 4)
 (defvar *number-of-bones* 0)
 
-(m4:transpose (m4:translation (v! 0.1 0.263762 0.1)))
-(m4:scale (v! 1.0 1.0000002 1.0000002))
+;; flip-u-vs:          needed to unwrap texture correctly
+;; gen-smooth-normals: needed for meshes without normals
+;; triangulate:        use it ALWAYS
+;; calc-tangent-space: generates arc/bi tan from normals
+(defvar *processing-flags* '(:ai-process-triangulate
+                             :ai-process-flip-u-vs
+                             :ai-process-calc-tangent-space))
 
 (defun m4-init-rotate (v)
   (declare (vec3 v))
@@ -19,8 +24,8 @@
 ;; UBO
 ;;--------------------------------------------------
 ;; max HARDCODED bones length
-(defstruct-g (bone-transforms :layout :std-140)
-  (transform (:mat4 60)))
+;; (defstruct-g (bone-transforms :layout :std-140)
+;;   (transform (:mat4 60)))
 
 ;; (defstruct-g bone-transforms
 ;;   (transform (:mat4 35)))
@@ -40,12 +45,12 @@
   (uv            :vec2 :accessor tex)
   (tangent       :vec3 :accessor tangent)
   (bitangent     :vec3 :accessor bitangent)
-  (bones-ids     :ivec4 :accessor ids)
+  (bones-ids     :vec4 :accessor ids)
   (bones-weights :vec4 :accessor weights))
 
-(defstruct-g assimp-bones
-  (bones-ids :ivec4)
-  (bones-weights :vec4))
+;; (defstruct-g assimp-bones
+;;   (bones-ids :vec4)
+;;   (bones-weights :vec4))
 
 ;;--------------------------------------------------
 ;; Pretty printers
@@ -102,7 +107,8 @@
   (declare (type list all-unique-scene-bones)
            (type array mesh-bones)
            (type fixnum n-vertices))
-  (let ((v-to-bones (make-array n-vertices :initial-element NIL)))
+  (let ((v-to-bones (make-array n-vertices
+                                :initial-element NIL)))
     (loop
        :for bone :across mesh-bones
        :for bone-id := (position (ai:name bone) all-unique-scene-bones
@@ -117,37 +123,68 @@
                         (aref v-to-bones v))))))
     v-to-bones))
 
-(defun get-nodes-transforms (scene)
-  "ANIMATIONLESS
-   returns a hash with the m4 matrices of each node/bone,
-   properly handling the parent/children transformations"
-  (declare (ai:scene scene))
-  (let ((nodes-transforms (make-hash-table :test #'equal)))
-    (labels ((walk-node (node parent-transform)
-               (with-slots ((name      ai:name)
-                            (transform ai:transform)
-                            (children  ai:children))
-                   node
-                 (let ((global (m4:* parent-transform transform)))
-                   (setf (gethash name nodes-transforms) global)
-                   (map 'vector
-                        (lambda (c) (walk-node c global))
-                        children)))))
-      (walk-node (ai:root-node scene)
-                 (m4:identity)))
-    nodes-transforms))
+(defgeneric get-nodes-transforms (scene node-type)
+  (:documentation "returns a hash of mat4's with each node transform")
+  (:method (scene (node-type (eql :static)))
+    (let* ((nodes-transforms (make-hash-table :test #'equal)))
+      (labels ((walk-node (node parent-transform)
+                 (with-slots ((name      ai:name)
+                              (transform ai:transform)
+                              (children  ai:children))
+                     node
+                   (let ((global (m4:* parent-transform transform)))
+                     (setf (gethash name nodes-transforms) global)
+                     (map 'vector
+                          (lambda (c) (walk-node c global))
+                          children)))))
+        (walk-node (ai:root-node scene)
+                   (m4:identity)))
+      nodes-transforms))
+  (:method (scene (node-type (eql :animated)))
+    (let* ((nodes-transforms (make-hash-table :test #'equal))
+           (animation (aref (ai:animations scene) 0))
+           (animation-index (ai:index animation)))
+      (labels ((walk-node (node parent-transform)
+                 (with-slots ((name      ai:name)
+                              (transform ai:transform)
+                              (children  ai:children))
+                     node
+                   (let* ((anim (gethash name animation-index))
+                          (arot (when anim
+                                  (m4:*
+                                   (m4:translation
+                                    (ai:value
+                                     (aref (ai:position-keys anim) 0)))
+                                   (q:to-mat4
+                                    (ai:value
+                                     (aref (ai:rotation-keys anim) 0)))
+                                   (m4:scale
+                                    (ai:value
+                                     (aref (ai:scaling-keys anim) 0))))))
+                          (transform (if arot arot transform))
+                          (global (m4:* parent-transform transform)))
+                     (setf (gethash name nodes-transforms) global)
+                     (map 'vector
+                          (lambda (c) (walk-node c global))
+                          children)))))
+        (walk-node (ai:root-node scene)
+                   (m4:identity)))
+      nodes-transforms)))
 
 (defun get-bones-tranforms (scene)
   "ANIMATIONLESS
    returns an array with the m4 matrices of each bone offset"
-  (let* ((root-offset  (ai:transform (ai:root-node scene)))
-         (root-offset  (m4:inverse root-offset))
-         (bones        (list-bones        scene))
-         (unique-bones (list-bones-unique scene))
-         (nodes-transforms (get-nodes-transforms scene))
+  (declare (ai:scene scene))
+  (let* ((root-offset      (ai:transform (ai:root-node scene)))
+         (root-offset      (m4:inverse root-offset))
+         (unique-bones     (list-bones-unique scene))
+         (node-type        (if (emptyp (ai:animations scene))
+                               :static
+                               :animated))
+         (nodes-transforms (get-nodes-transforms scene node-type))
          (bones-transforms (make-array (length unique-bones))))
     (loop
-       :for bone :in bones
+       :for bone :in unique-bones
        :for bone-id := (position (ai:name bone) unique-bones
                                  :test #'string=
                                  :key  #'ai:name) :do
@@ -305,11 +342,13 @@
                      (assimp-mesh-bitangent a) bt
                      (assimp-mesh-uv a) (v! (x tc) (y tc)))
                (setf (ids a)
-                     (v!int (serapeum:pad-end
-                             (map 'vector #'car bv) *max-bones-per-vertex* 0)))
+                     (print
+                      (v! (serapeum:pad-end
+                           (map 'vector #'car bv) *max-bones-per-vertex* 0))))
                (setf (weights a)
-                     (v! (serapeum:pad-end
-                          (map 'vector #'cdr bv) *max-bones-per-vertex*  0)))))
+                     (print
+                      (v! (serapeum:pad-end
+                           (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))))
         (make-instance 'assimp-thing-with-bones
                        :buf (make-buffer-stream v-arr :index-array i-arr)
                        :scale scale
@@ -323,25 +362,15 @@
   (assert (probe-file file))
   (free-meshes) ;; !!!
   (let* ((scene (ai:import-into-lisp file))
-         (processing-flags '(:ai-process-triangulate
-                             :ai-process-flip-u-vs
-                             :ai-process-calc-tangent-space))
          ;; add normals if missing
-         (processing-flags (print
-                            (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
-                                (cons :ai-process-gen-smooth-normals processing-flags)
-                                processing-flags)))
-         (scene (ai:import-into-lisp
-                 file
-                 ;; flip-u-vs:          needed to unwrap texture correctly
-                 ;; gen-smooth-normals: needed for meshes without normals
-                 ;; triangulate:        use it ALWAYS
-                 ;; calc-tangent-space: generates arc/bi tan from normals
-                 :processing-flags processing-flags))
+         (processing-flags
+          (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
+              (cons :ai-process-gen-smooth-normals *processing-flags*)
+              *processing-flags*))
+         (scene  (ai:import-into-lisp file :processing-flags processing-flags))
          (meshes (coerce (slot-value scene 'ai:meshes) 'list))
-         (all-bones (mappend (lambda (mesh) (coerce (ai:bones mesh) 'list)) meshes))
-         (has-bones (not (every #'null all-bones)))
-         (type (if has-bones :bones :textured))
+         (bones  (list-bones scene))
+         (type   (if (emptyp bones) :textured :bones))
          (file-path (uiop:pathname-directory-pathname file)))
     ;; add things upto we find an error, if any
     (mapcar (lambda (mesh)
@@ -449,13 +478,9 @@
                           (* (aref (weights vert) 2)
                              (aref offsets (int (aref (ids vert) 2))))
                           (* (aref (weights vert) 3)
-                             (aref offsets (int (aref (ids vert) 3)))))
+                             (aref offsets (int (aref (ids vert) 3))))
+                          )
                        (v! pos 1)))
-         ;; (world-pos (* (* ;;(aref (weights vert) 1)
-         ;;                ;;(m4:identity)
-         ;;                (* .001 (aref offsets (int (aref (ids vert) 0))))
-         ;;                )
-         ;;               (v! pos 1)))
          (world-pos (* model-world world-pos))
          ;;(world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
@@ -535,7 +560,6 @@
 ;;      ;;frag-pos
 ;;      ;;(normalize frag-norm)
 ;;      )))
-
 
 (defpipeline-g generic-tex-pipe ()
   :vertex (vert-with-tbdata g-pnt tb-data)
