@@ -82,8 +82,7 @@
   (free (slot-value actor 'buf)))
 
 (defun free-meshes ()
-  (loop :for mesh :in *assimp-meshes*
-     :do (free mesh))
+  (mapcar #'free *assimp-meshes*)
   (setf *assimp-meshes* NIL))
 
 (defun list-bones (scene)
@@ -102,10 +101,11 @@
     bones))
 
 (defun get-bones-per-vertex (all-unique-scene-bones mesh-bones n-vertices)
-  "returns an array of lists of tuples/cons pairs
+  "Returns an array of lists of tuples/cons pairs.
+   Run once at mesh LOAD time.
    ex: #(((1 . .9) (2 .1)) ((10 .2) (20 .8)))"
-  (declare (type list all-unique-scene-bones)
-           (type array mesh-bones)
+  (declare (type list   all-unique-scene-bones)
+           (type array  mesh-bones)
            (type fixnum n-vertices))
   (let ((v-to-bones (make-array n-vertices
                                 :initial-element NIL)))
@@ -113,14 +113,21 @@
        :for bone :across mesh-bones
        :for bone-id := (position (ai:name bone) all-unique-scene-bones
                                  :test #'string=
-                                 :key  #'ai:name) :do
-         (loop :for weight :across (ai:weights bone) :do
+                                 :key  #'ai:name)
+       :do
+         (loop
+            :for weight :across (ai:weights bone)
+            :do
               (with-slots ((v ai:id) (w ai:weight)) weight
                 (when (and (>= w .1) ;; discard bones with low influence
                            (< (length (aref v-to-bones v))
                               *max-bones-per-vertex*))
                   (push (cons bone-id w)
-                        (aref v-to-bones v))))))
+                        (aref v-to-bones v))
+                  ;; Sort weights
+                  (setf (aref v-to-bones v)
+                        (sort (aref v-to-bones v) #'>
+                              :key #'cdr))))))
     v-to-bones))
 
 (defgeneric get-nodes-transforms (scene node-type)
@@ -132,7 +139,8 @@
                               (transform ai:transform)
                               (children  ai:children))
                      node
-                   (let ((global (m4:* parent-transform transform)))
+                   (let ((global (m4:* parent-transform
+                                       (m4:transpose transform))))
                      (setf (gethash name nodes-transforms) global)
                      (map 'vector
                           (lambda (c) (walk-node c global))
@@ -176,18 +184,16 @@
    returns an array with the m4 matrices of each bone offset"
   (declare (ai:scene scene))
   (let* ((root-offset      (ai:transform (ai:root-node scene)))
-         (root-offset      (m4:inverse root-offset))
+         (root-offset      (m4:inverse (m4:transpose root-offset)))
          (unique-bones     (list-bones-unique scene))
          (node-type        (if (emptyp (ai:animations scene))
-                               :static
-                               :animated))
+                               :animated
+                               :static))
          (nodes-transforms (get-nodes-transforms scene node-type))
          (bones-transforms (make-array (length unique-bones))))
     (loop
        :for bone :in unique-bones
-       :for bone-id := (position (ai:name bone) unique-bones
-                                 :test #'string=
-                                 :key  #'ai:name) :do
+       :for bone-id :from 0 :do
          (with-slots ((name   ai:name)
                       (offset ai:offset-matrix))
              bone
@@ -196,12 +202,12 @@
                    ;; I got a mesh that has 0 on the bones offsets...
                    ;; The mesh also didn't have animations so might be
                    ;; that was the reason...
-                   ;; (if (m4:0p offset)
-                   ;;     (m4:* root-offset
-                   ;;           node-transform))
-                   (m4:* root-offset
-                         node-transform
-                         offset)))))
+                   (if (m4:0p offset)
+                       (m4:* root-offset
+                             node-transform)
+                       (m4:* root-offset
+                             node-transform
+                             (m4:transpose offset)))))))
     bones-transforms))
 
 ;;--------------------------------------------------
@@ -346,9 +352,8 @@
                       (v! (serapeum:pad-end
                            (map 'vector #'car bv) *max-bones-per-vertex* 0))))
                (setf (weights a)
-                     (print
-                      (v! (serapeum:pad-end
-                           (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))))
+                     (v! (serapeum:pad-end
+                          (map 'vector #'cdr bv) *max-bones-per-vertex*  0)))))
         (make-instance 'assimp-thing-with-bones
                        :buf (make-buffer-stream v-arr :index-array i-arr)
                        :scale scale
@@ -475,10 +480,10 @@
                              (aref offsets (int (aref (ids vert) 0))))
                           (* (aref (weights vert) 1)
                              (aref offsets (int (aref (ids vert) 1))))
-                          (* (aref (weights vert) 2)
-                             (aref offsets (int (aref (ids vert) 2))))
-                          (* (aref (weights vert) 3)
-                             (aref offsets (int (aref (ids vert) 3))))
+                          ;; (* (aref (weights vert) 2) 0
+                          ;;    (aref offsets (int (aref (ids vert) 2))))
+                          ;; (* (aref (weights vert) 3) 0
+                          ;;    (aref offsets (int (aref (ids vert) 3))))
                           )
                        (v! pos 1)))
          (world-pos (* model-world world-pos))

@@ -168,8 +168,8 @@
 (defmethod update ((actor assimp-thing-with-bones))
   (with-slots (scale rot pos) actor
     (setf pos (v! 0 0 0))
-    (setf rot (q:* (q:from-axis-angle (v! 1 1 1)
+    (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
                                       (radians (mod (* 30 (mynow)) 360)))
-                   (q:from-axis-angle (v! 1 1 0)
+                   (q:from-axis-angle (v! 1 0 0)
                                       (radians -90))))
-    (setf scale 1f0)))
+    (setf scale .1f0)))

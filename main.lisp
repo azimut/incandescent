@@ -83,20 +83,13 @@
                       :scale scale
                       :model-world (model->world actor)
                       :world-view  (world->view *shadow-camera*)
-                      :view-clip   (projection *shadow-camera*)))))
+                      :view-clip   (projection  *shadow-camera*)))))
 
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
          :do (draw actor *currentcamera* time)))
 
-    ;; (let ((bones (get-bones-tranforms)))
-    ;;   (with-gpu-array-as-c-array (m (ubo-data *ubo*)
-    ;;                                 :access-type :write-only)
-    ;;     (loop :for i :from 0 :upto 25 :do
-    ;;          (loop :for j :from 0 :upto 15 :do
-    ;;               (setf (cffi:mem-aref (c-array-pointer m) :float (+ i j))
-    ;;                     (coerce (aref (aref bones i) j) 'single-float))))))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face) nil

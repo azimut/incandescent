@@ -25,7 +25,7 @@
   (make-instance 'orth
                  :frame-size (v2! 40) ;; zoom
                  :rot (q:from-axis-angle (v! 1 0 0) (radians -75))
-                 :pos (v! 0 10 0)))   ;; give it some height
+                 :pos (v! 0 5 20)))   ;; give it some height
 (defparameter *camera1* (make-instance 'orth))
 (defparameter *cameras* (list *camera* *shadow-camera*))
 (defparameter *camera-cubemap* (make-instance 'pers :fov 90f0))
@@ -68,6 +68,6 @@
 ;;--------------------------------------------------
 (defmethod update ((camera orth)))
 (defmethod update ((camera pers))
-  (setf (pos camera) (v! 0 10 40))
+  (setf (pos camera) (v! 0 3 10))
   ;;(setf (rot camera) (q:identity))
   )

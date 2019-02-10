@@ -135,21 +135,21 @@
                           (prefilter-map :sampler-cube)
                           (irradiance-map :sampler-cube))
   (let* (;; First change UV, then parallax!
-         (uv (+ (* uv uv-repeat)
-                (v! 0 (* uv-speed time))))
-         (uv (parallax-mapping-offset-flipped
-              uv
-              (normalize (- tan-cam-pos tan-frag-pos))
-              height-map
-              .03))
+         ;; (uv (+ (* uv uv-repeat)
+         ;;        (v! 0 (* uv-speed time))))
+         ;; (uv (parallax-mapping-offset-flipped
+         ;;      uv
+         ;;      (normalize (- tan-cam-pos tan-frag-pos))
+         ;;      height-map
+         ;;      .03))
          (roughness (x (texture rough-map uv)))
          (ao        (x (texture ao-map uv)))
          (color (* color (expt (s~ (texture albedo uv) :xyz)
                                (vec3 2.2))))
          ;; Normal Mapping
-         ;;(normal (normalize frag-norm))
-         (normal (norm-from-map normal-map uv))
-         (normal (normalize (* tbn normal)))
+         (normal (normalize frag-norm))
+         ;; (normal (norm-from-map normal-map uv))
+         ;; (normal (normalize (* tbn normal)))
          ;;----------------------------------------
          ;; PBR
          ;; metallic
