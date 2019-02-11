@@ -101,13 +101,14 @@
     obj))
 
 (defclass piso (pbr) ())
-(defun make-piso (&optional (pos (v! 0 0 0)) (rot (q:identity))
+(defun make-piso (&optional (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0)
                     (uv-speed 0f0))
   (let ((obj
          (make-instance
           'piso
           :buf (lattice 100 100 2 2 t)
           :pos pos
+          :scale scale
           :uv-speed uv-speed
           :uv-repeat 10f0
           :rot rot)))
@@ -167,9 +168,12 @@
 
 (defmethod update ((actor assimp-thing-with-bones))
   (with-slots (scale rot pos) actor
-    (setf pos (v! 0 0 0))
+    (setf pos (v! 130 0 0))
     (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
-                                      (radians (mod (* 30 (mynow)) 360)))
+                                      (radians (mod (* .1 (get-internal-real-time)) 360)))
                    (q:from-axis-angle (v! 1 0 0)
                                       (radians -90))))
-    (setf scale .1f0)))
+    ;; (setf rot (q:from-axis-angle (v! 1 0 0)
+    ;;                              (radians -90)))
+    ;;(setf rot (q:identity))
+    (setf scale 1f0)))

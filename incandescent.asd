@@ -9,6 +9,7 @@
   :depends-on (#:cepl
                #:alexandria
                #:serapeum
+               #:temporal-functions
                #:with-setf
                #:rtg-math.vari
                #:cepl.sdl2

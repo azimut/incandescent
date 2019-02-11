@@ -2,6 +2,8 @@
 
 (defvar *bs* nil)
 (defvar *cloud-tex* nil)
+(defvar *stepper*
+  (make-stepper (seconds 1) (seconds 1)))
 ;;(defparameter *dimensions* '(400 300))
 ;;(defparameter *dimensions* '(800 600))
 (defparameter *dimensions* '(532 400))
@@ -16,6 +18,10 @@
 (defvar *huesos* NIL)
 (defvar *chuesos* NIL)
 (defvar *mann* NIL)
+
+(defvar *fbo-ssbo* NIL)
+(defvar *sam-ssbo* NIL)
+
 (defun init ()
   ;; (unless *cloud-tex*
   ;;   (setf *cloud-tex*
@@ -53,9 +59,15 @@
   (setf *fbo*
         (make-fbo
          (list 0 :element-type :rgb16f :dimensions *dimensions*)
+         (list 1 :element-type :rgb16f :dimensions *dimensions*)
          (list :d :dimensions *dimensions*)))
+  (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
+  ;;--------------------------------------------------
+  (when *fbo-ssbo* (free *fbo-ssbo*))
+  (setf *fbo-ssbo* (make-fbo (list 0 :dimensions *dimensions*)))
+  (setf *sam-ssbo* (sample (attachment-tex *fbo-ssbo* 0) :wrap :clamp-to-edge))
   ;;--------------------------------------------------
   (setf (clear-color) (v! 1 1 1 1))
   ;;--------------------------------------------------
@@ -63,6 +75,15 @@
   ;;(make-box (v! 0 2 -6))
   (make-piso (v! 0 -3 0))
   NIL)
+
+(defun release ()
+  (setf *actors* NIL)
+  (free *chuesos*)
+  (push-g (coerce (get-bones-tranforms *mann*) 'list) *huesos*)
+  (setf *chuesos* (pull1-g *huesos*))
+  (push (nth 5 *assimp-meshes*) *actors*)
+  (push (nth 4 *assimp-meshes*) *actors*)
+  (push (nth 3 *assimp-meshes*) *actors*))
 
 (defun draw! ()
   (let* ((res (surface-resolution (current-surface)))
@@ -75,27 +96,49 @@
     (update-all-the-things *actors*)
 
     ;; Shadow map
-    (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
-      (clear *shadow-fbo*)
-      (loop :for actor :in *actors*
-         :do (with-slots (buf scale) actor
-               (map-g #'simplest-3d-pipe buf
-                      :scale scale
-                      :model-world (model->world actor)
-                      :world-view  (world->view *shadow-camera*)
-                      :view-clip   (projection  *shadow-camera*)))))
+    ;; (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
+    ;;   (clear *shadow-fbo*)
+    ;;   (loop :for actor :in *actors*
+    ;;      :do (with-slots (buf scale) actor
+    ;;            (case (class-name-of actor)
+    ;;              (assimp-thing-with-bones
+    ;;               (map-g #'simplest-3d-pipe-bones buf
+    ;;                      :scale 1f0
+    ;;                      :offsets *chuesos*
+    ;;                      :model-world (model->world actor)
+    ;;                      :world-view  (world->view *shadow-camera*)
+    ;;                      :view-clip   (projection  *shadow-camera*)))
+    ;;              (piso
+    ;;               (map-g #'simplest-3d-pipe buf
+    ;;                      :scale 1f0
+    ;;                      :model-world (model->world actor)
+    ;;                      :world-view  (world->view *shadow-camera*)
+    ;;                      :view-clip   (projection  *shadow-camera*)))))))
 
+    ;; (when (funcall *stepper*)
+    ;;   (loop
+    ;;      :for m4-transform :across (get-bones-tranforms *mann*)
+    ;;      :for i :from 0 :do
+    ;;        (setf (aref-c *chuesos* i)
+    ;;              m4-transform)))
+
+    
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
          :do (draw actor *currentcamera* time)))
-
+    (with-fbo-bound (*fbo-ssbo*)
+      (clear *fbo-ssbo*)
+      (draw-ssao :radius 40f0
+                 :kernel-effect 1f0
+                 :n-kernels 20))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face) nil
-                   (clear-color) (v! 1 1 1 1))
+                   (clear-color) (v! 1 0 1 1))
         (map-g #'generic-2d-pipe *bs*
-               :sam *sam*)))))
+               :sam *sam*
+               :sam2 *sam-ssbo*)))))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))

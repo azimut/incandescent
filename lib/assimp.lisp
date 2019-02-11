@@ -48,9 +48,9 @@
   (bones-ids     :vec4 :accessor ids)
   (bones-weights :vec4 :accessor weights))
 
-;; (defstruct-g assimp-bones
-;;   (bones-ids :vec4)
-;;   (bones-weights :vec4))
+(defstruct-g assimp-bones
+  (ids :vec4)
+  (weights :vec4))
 
 ;;--------------------------------------------------
 ;; Pretty printers
@@ -124,7 +124,7 @@
                               *max-bones-per-vertex*))
                   (push (cons bone-id w)
                         (aref v-to-bones v))
-                  ;; Sort weights
+                  ;; Sort descending by weights
                   (setf (aref v-to-bones v)
                         (sort (aref v-to-bones v) #'>
                               :key #'cdr))))))
@@ -132,9 +132,11 @@
 
 (defgeneric get-nodes-transforms (scene node-type)
   (:documentation "returns a hash of mat4's with each node transform")
-  (:method (scene (node-type (eql :static)))
+  (:method ((scene ai:scene) (node-type (eql :static)))
     (let* ((nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
+                 (declare (type ai:node node)
+                          (type vector parent-transform))
                  (with-slots ((name      ai:name)
                               (transform ai:transform)
                               (children  ai:children))
@@ -148,29 +150,34 @@
         (walk-node (ai:root-node scene)
                    (m4:identity)))
       nodes-transforms))
-  (:method (scene (node-type (eql :animated)))
-    (let* ((nodes-transforms (make-hash-table :test #'equal))
-           (animation (aref (ai:animations scene) 0))
-           (animation-index (ai:index animation)))
+  (:method ((scene ai:scene) (node-type (eql :animated)))
+    (let* ((animation        (aref (ai:animations scene) 0))
+           (animation-index  (ai:index animation))
+           (nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
+                 (declare (type ai:node node)
+                          (type vector parent-transform))
                  (with-slots ((name      ai:name)
                               (transform ai:transform)
                               (children  ai:children))
                      node
                    (let* ((anim (gethash name animation-index))
                           (arot (when anim
-                                  (m4:*
+                                  (m4-n:*
                                    (m4:translation
                                     (ai:value
-                                     (aref (ai:position-keys anim) 0)))
+                                     (aref (ai:position-keys anim) 50)))
                                    (q:to-mat4
                                     (ai:value
-                                     (aref (ai:rotation-keys anim) 0)))
-                                   (m4:scale
-                                    (ai:value
-                                     (aref (ai:scaling-keys anim) 0))))))
-                          (transform (if arot arot transform))
-                          (global (m4:* parent-transform transform)))
+                                     (aref (ai:rotation-keys anim) 50)))
+                                   ;;(m4:scale (v3! 1.6))
+                                   (m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
+                                   )))
+                          (transform (if arot
+                                         arot
+                                         (m4:transpose transform)))
+                          (global (m4:* parent-transform
+                                        transform)))
                      (setf (gethash name nodes-transforms) global)
                      (map 'vector
                           (lambda (c) (walk-node c global))
@@ -184,11 +191,11 @@
    returns an array with the m4 matrices of each bone offset"
   (declare (ai:scene scene))
   (let* ((root-offset      (ai:transform (ai:root-node scene)))
-         (root-offset      (m4:inverse (m4:transpose root-offset)))
+         (root-offset      (m4:transpose (m4:inverse root-offset)))
          (unique-bones     (list-bones-unique scene))
          (node-type        (if (emptyp (ai:animations scene))
-                               :animated
-                               :static))
+                               :static
+                               :animated))
          (nodes-transforms (get-nodes-transforms scene node-type))
          (bones-transforms (make-array (length unique-bones))))
     (loop
@@ -425,12 +432,15 @@
 ;;--------------------------------------------------
 
 ;; 3D - g-pnt with tangent info in tb-data AND textures
-(defun-g vert-with-tbdata ((vert g-pnt) (tb tb-data)
+(defun-g vert-with-tbdata ((vert g-pnt)
+                           (tb tb-data)
+                           (bones assimp-bones)
                            &uniform
                            (model-world :mat4)
                            (world-view :mat4)
                            (view-clip :mat4)
                            (scale :float)
+                           (offsets (:mat4 36))
                            ;; Parallax vars
                            (light-pos :vec3)
                            (cam-pos :vec3))
@@ -438,7 +448,17 @@
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* model-world (v! pos 1)))
+         (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 0))))
+                          (* (aref (assimp-bones-weights bones) 1)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 1))))
+                          (* (aref (assimp-bones-weights bones) 2)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+                          (* (aref (assimp-bones-weights bones) 3)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
+                       (v! pos 1)))
+         (world-pos (* model-world world-pos))
+         ;;(world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
          (t0 (normalize
@@ -460,7 +480,9 @@
             (* tbn (s~ world-pos :xyz)))))
 
 ;; https://github.com/cbaggers/cepl/issues/288
-(defun-g vert-with-tbdata-bones ((vert assimp-with-bones)
+(defun-g vert-with-tbdata-bones ((vert g-pnt)
+                                 (tb tb-data)
+                                 (bones assimp-bones)
                                  ;;(vert g-pnt) (tb tb-data) (bones assimp-bones)
                                  &uniform
                                  (model-world :mat4)
@@ -476,22 +498,21 @@
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* (+ (* (aref (weights vert) 0)
-                             (aref offsets (int (aref (ids vert) 0))))
-                          (* (aref (weights vert) 1)
-                             (aref offsets (int (aref (ids vert) 1))))
-                          ;; (* (aref (weights vert) 2) 0
-                          ;;    (aref offsets (int (aref (ids vert) 2))))
-                          ;; (* (aref (weights vert) 3) 0
-                          ;;    (aref offsets (int (aref (ids vert) 3))))
-                          )
+         (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 0))))
+                          (* (aref (assimp-bones-weights bones) 1)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 1))))
+                          (* (aref (assimp-bones-weights bones) 2)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+                          (* (aref (assimp-bones-weights bones) 3)
+                             (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
                        (v! pos 1)))
          (world-pos (* model-world world-pos))
          ;;(world-pos (* model-world (v! pos 1)))
-         (view-pos  (* world-view  world-pos))
-         (clip-pos  (* view-clip   view-pos))
+         (view-pos  (* world-view world-pos))
+         (clip-pos  (* view-clip  view-pos))
          (t0 (normalize
-              (s~ (* model-world (v! (tangent vert) 0))
+              (s~ (* model-world (v! (tb-data-tangent tb) 0))
                   :xyz)))
          (n0 (normalize
               (s~ (* model-world (v! norm 0))
@@ -523,13 +544,16 @@
                        (normals :sampler-2d))
   (let* ((color (expt (s~ (texture albedo uv) :xyz)
                       (vec3 2.2)))
-         (normal (norm-from-map normals uv)))
+         ;;(normal (norm-from-map normals uv))
+         (color (dir-light-apply color (v! 1 #.(/ 147 255f0) #.(/ 41 255f0))
+                                 (v! 0 1101 1000)
+                                 frag-pos
+                                 frag-norm)))
     (values
      (v! color 1)
      ;;(v! 1 .2 1 0)
      ;;frag-pos
-     ;;(normalize frag-norm)
-     )))
+     (normalize frag-norm))))
 
 ;; parallax
 ;; (defun-g frag-tex-tbn ((uv :vec2)
@@ -567,23 +591,21 @@
 ;;      )))
 
 (defpipeline-g generic-tex-pipe ()
-  :vertex (vert-with-tbdata g-pnt tb-data)
+  :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
 
 
 (defpipeline-g generic-tex-pipe-simple ()
-  :vertex (vert-with-tbdata g-pnt tb-data)
+  :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
 
 (defpipeline-g generic-tex-pipe-bones ()
-  :vertex (vert-with-tbdata-bones
-           assimp-with-bones
-           ;;g-pnt tb-data assimp-bones
-           )
+  :vertex (vert-with-tbdata-bones g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
+

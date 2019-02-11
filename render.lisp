@@ -204,6 +204,41 @@
     ;;(v! color 1)
     ))
 
+(defun-g vert-with-tbdata ((vert g-pnt)
+                           (tb tb-data)
+                           &uniform
+                           (model-world :mat4)
+                           (world-view :mat4)
+                           (view-clip :mat4)
+                           (scale :float)
+                           ;; Parallax vars
+                           (light-pos :vec3)
+                           (cam-pos :vec3))
+  (let* ((pos       (* scale (pos vert)))
+         (norm      (norm vert))
+         (uv        (treat-uvs (tex vert)))
+         (norm      (* (m4:to-mat3 model-world) norm))
+         (world-pos (* model-world (v! pos 1)))
+         (view-pos  (* world-view  world-pos))
+         (clip-pos  (* view-clip   view-pos))
+         (t0 (normalize
+              (s~ (* model-world (v! (tb-data-tangent tb) 0))
+                  :xyz)))
+         (n0 (normalize
+              (s~ (* model-world (v! norm 0))
+                  :xyz)))
+         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
+         (b0 (cross n0 t0))
+         (tbn (mat3 t0 b0 n0)))
+    (values clip-pos
+            (treat-uvs uv)
+            norm
+            (s~ world-pos :xyz)
+            tbn
+            (* tbn light-pos)
+            (* tbn cam-pos)
+            (* tbn (s~ world-pos :xyz)))))
+
 (defpipeline-g pbr-pipe ()
   :vertex (vert-with-tbdata g-pnt tb-data)
   :fragment (pbr-frag :vec2 :vec3 :vec3
