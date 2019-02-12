@@ -118,12 +118,8 @@
     ;;                      :world-view  (world->view *shadow-camera*)
     ;;                      :view-clip   (projection  *shadow-camera*)))))))
 
-    ;; (when (funcall *stepper*)
-    ;;   (loop
-    ;;      :for m4-transform :across (get-bones-tranforms *mann*)
-    ;;      :for i :from 0 :do
-    ;;        (setf (aref-c *chuesos* i)
-    ;;              m4-transform)))
+    (when (funcall *stepper*)
+      (push-g (get-bones-tranforms *mann* :frame (get-universal-time)) *chuesos*))
 
     (with-fbo-bound (*fbo*)
       (clear *fbo*)

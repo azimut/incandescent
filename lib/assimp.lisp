@@ -127,10 +127,11 @@
                               :key #'cdr))))))
     v-to-bones))
 
-(defgeneric get-nodes-transforms (scene node-type)
-  (:documentation "returns a hash of mat4's with each node transform")
-  (:method ((scene ai:scene) (node-type (eql :static)))
-    (let* ((nodes-transforms (make-hash-table :test #'equal)))
+(defgeneric get-nodes-transforms (scene node-type &key frame)
+  (:documentation "returns a hash of mat4's with each node transform
+for value and node name for the key")
+  (:method ((scene ai:scene) (node-type (eql :static)) &key frame)
+    (let ((nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
                  (declare (type ai:node node)
                           (type vector parent-transform))
@@ -147,44 +148,46 @@
         (walk-node (ai:root-node scene)
                    (m4:identity)))
       nodes-transforms))
-  (:method ((scene ai:scene) (node-type (eql :animated)))
+  (:method ((scene ai:scene) (node-type (eql :animated)) &key (frame 0))
     (let* ((animation        (aref (ai:animations scene) 0))
            (animation-index  (ai:index animation))
            (nodes-transforms (make-hash-table :test #'equal)))
       (declare (type hash-table animation-index))
-      (labels ((walk-node (node parent-transform)
-                 (declare (type ai:node node)
-                          (type vector parent-transform))
-                 (with-slots ((name      ai:name)
-                              (transform ai:transform)
-                              (children  ai:children))
-                     node
-                   (let* ((anim (gethash name animation-index))
-                          (arot (when anim
-                                  (m4-n:*
-                                   (m4:translation
-                                    (ai:value
-                                     (aref (ai:position-keys anim) 50)))
-                                   (q:to-mat4
-                                    (ai:value
-                                     (aref (ai:rotation-keys anim) 50)))
-                                   (m4:scale (v3! 1.6))
-                                   ;;(m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
-                                   )))
-                          (transform (if arot
-                                         arot
-                                         (m4:transpose transform)))
-                          (global (m4:* parent-transform
-                                        transform)))
-                     (setf (gethash name nodes-transforms) global)
-                     (map 'vector
-                          (lambda (c) (walk-node c global))
-                          children)))))
+      (labels
+          ((walk-node (node parent-transform)
+             (declare (type ai:node node)
+                      (type vector  parent-transform))
+             (with-slots ((name      ai:name)
+                          (transform ai:transform)
+                          (children  ai:children))
+                 node
+               (let* ((anim (gethash name animation-index))
+                      (arot (when anim
+                              (setf frame (mod frame (length (ai:position-keys anim))))
+                              (m4-n:*
+                               (m4:translation
+                                (ai:value
+                                 (aref (ai:position-keys anim) frame)))
+                               (q:to-mat4
+                                (ai:value
+                                 (aref (ai:rotation-keys anim) frame)))
+                               (m4:scale (v3! 1.6))
+                               ;;(m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
+                               )))
+                      (transform (if arot
+                                     arot
+                                     (m4:transpose transform)))
+                      (global (m4:* parent-transform
+                                    transform)))
+                 (setf (gethash name nodes-transforms) global)
+                 (map 'vector
+                      (lambda (c) (walk-node c global))
+                      children)))))
         (walk-node (ai:root-node scene)
                    (m4:identity)))
       nodes-transforms)))
 
-(defun get-bones-tranforms (scene)
+(defun get-bones-tranforms (scene &key (frame 0))
   "ANIMATIONLESS
    returns an array with the m4 matrices of each bone offset"
   (declare (ai:scene scene))
@@ -194,7 +197,7 @@
          (node-type        (if (emptyp (ai:animations scene))
                                :static
                                :animated))
-         (nodes-transforms (get-nodes-transforms scene node-type))
+         (nodes-transforms (get-nodes-transforms scene node-type :frame frame))
          (bones-transforms (make-array (length unique-bones))))
     (loop
        :for bone :in unique-bones
