@@ -141,11 +141,8 @@
   ((albedo  :initarg :albedo)
    (normals :initarg :normals)))
 (defclass assimp-thing-with-bones (actor)
-  ((albedo            :initarg :albedo)
-   (normals           :initarg :normals)
-   (n-bones           :initarg :n-bones)
-   (bones-transforms  :initarg :bones-transforms)
-   (global-itransform :initarg :global-itransform)))
+  ((albedo  :initarg :albedo)
+   (normals :initarg :normals)))
 
 ;;--------------------------------------------------
 ;; UPDATE
@@ -170,7 +167,7 @@
   (with-slots (scale rot pos) actor
     (setf pos (v! 130 0 0))
     (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
-                                      (radians (mod (* .1 (get-internal-real-time)) 360)))
+                                      (radians -30))
                    (q:from-axis-angle (v! 1 0 0)
                                       (radians -90))))
     ;; (setf rot (q:from-axis-angle (v! 1 0 0)

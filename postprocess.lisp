@@ -19,9 +19,9 @@
          ;;            uv
          ;;          sam
          ;;          samd))
-         (final-color (+ (s~ (texture sam uv) :xyz)
-                         (s~ (texture sam2 uv) :xyz)
-                         ))
+         (final-color (-  (s~ (texture sam2 uv) :xyz)
+                          (s~ (texture sam uv) :xyz)
+                          ))
          ;;         (color2 (s~ (texture sam2 uv) :xyz))
          ;; (color
          ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv sam (v2! (/ 1 320f0))) :xyz))

@@ -17,10 +17,6 @@
 (defvar *noise-sam*  NIL)
 (defvar *ubo-kernel* NIL)
 
-(defparameter *kernel* 10)
-(defparameter *radius* .1)
-(defparameter *kernel-effect* 1f0)
-
 ;; UBO
 (defstruct-g (random-kernel :layout :std-140)
   (random-v3 (:vec3 64)))
@@ -66,7 +62,8 @@
 
 ;;--------------------------------------------------
 
-(defun-g get-view-pos ((uv :vec2) (g-depth :sampler-2d)
+(defun-g get-view-pos ((uv :vec2)
+                       (g-depth :sampler-2d)
                        (world-view :mat4))
   (let* ((x (1- (* 2f0 (x uv))))
          (y (1- (* 2f0 (y uv))))
@@ -127,7 +124,7 @@
 
 (defun draw-ssao (&key (n-kernels 10) (radius .1) (kernel-effect 1f0))
   (declare (type single-float radius kernel-effect)
-           (type fixnum n-kernels))
+           (type positive-fixnum n-kernels))
   (with-setf* ((depth-mask) nil
                (cull-face) nil
                (clear-color) (v! 0 0 0 1)

@@ -1,5 +1,7 @@
 (in-package #:incandescent)
 
+(defvar *last-time* (get-internal-real-time))
+
 (defvar *bs* nil)
 (defvar *cloud-tex* nil)
 (defvar *stepper*
@@ -15,7 +17,6 @@
 (defvar *bones* NIL)
 (defvar *ubo* NIL)
 
-(defvar *huesos* NIL)
 (defvar *chuesos* NIL)
 (defvar *mann* NIL)
 
@@ -29,9 +30,8 @@
   (unless *huesos*
     (assimp-load-meshes "/home/sendai/quicklisp/local-projects/incandescent/static/guard/boblampclean.md5mesh")
     (setf *mann* (ai:import-into-lisp "/home/sendai/quicklisp/local-projects/incandescent/static/guard/boblampclean.md5mesh"))
-    (setf *huesos*  (make-gpu-array NIL :element-type :mat4 :dimensions 32))
-    (push-g (coerce (get-bones-tranforms *mann*) 'list) *huesos*)
-    (setf *chuesos* (pull1-g *huesos*)))
+    (setf *chuesos* (make-c-array NIL :element-type :mat4 :dimensions 32))
+    (push-g (get-bones-tranforms *mann*) *chuesos*))
   ;; (unless *bones*
   ;;   (setf *bones* (make-gpu-array NIL :dimensions 1 :element-type 'bone-transforms))
   ;;   (setf *ubo*   (make-ubo *bones*))
@@ -86,9 +86,12 @@
   (push (nth 3 *assimp-meshes*) *actors*))
 
 (defun draw! ()
-  (let* ((res (surface-resolution (current-surface)))
-         (time (mynow)))
-
+  (let* ((res   (surface-resolution (current-surface)))
+         (now   (get-internal-real-time))
+         (time  (* .1 now))
+         (delta (* (- now *last-time*) .001))
+         (delta (if (> delta .16) .00001 delta)))
+    (setf *last-time* now)
     (setf (resolution (current-viewport)) res)
     ;;(setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
@@ -122,16 +125,15 @@
     ;;        (setf (aref-c *chuesos* i)
     ;;              m4-transform)))
 
-    
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
          :do (draw actor *currentcamera* time)))
-    (with-fbo-bound (*fbo-ssbo*)
-      (clear *fbo-ssbo*)
-      (draw-ssao :radius 40f0
-                 :kernel-effect 1f0
-                 :n-kernels 20))
+    ;; (with-fbo-bound (*fbo-ssbo*)
+    ;;   (clear *fbo-ssbo*)
+    ;;   (draw-ssao :radius 1000f0
+    ;;              :kernel-effect 2f0
+    ;;              :n-kernels 20))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face) nil

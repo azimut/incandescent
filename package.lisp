@@ -12,6 +12,7 @@
                 #:make-stepper
                 #:seconds)
   (:import-from #:alexandria
+                #:positive-fixnum
                 #:emptyp
                 #:when-let
                 #:first-elt

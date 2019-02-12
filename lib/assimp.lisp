@@ -4,8 +4,10 @@
 
 ;; Might be a I can just drop the bones with low weight
 ;; instead of max limit
-(defparameter *max-bones-per-vertex* 4)
+(defvar *max-bones-per-vertex* 4)
 (defvar *number-of-bones* 0)
+(defvar *assimp-meshes* NIL
+  "Set of actor type objects")
 
 ;; flip-u-vs:          needed to unwrap texture correctly
 ;; gen-smooth-normals: needed for meshes without normals
@@ -14,12 +16,6 @@
 (defvar *processing-flags* '(:ai-process-triangulate
                              :ai-process-flip-u-vs
                              :ai-process-calc-tangent-space))
-
-(defun m4-init-rotate (v)
-  (declare (vec3 v))
-  (m4:* (m4:rotation-x (radians (x v)))
-        (m4:rotation-y (radians (y v)))
-        (m4:rotation-z (radians (z v)))))
 
 ;; UBO
 ;;--------------------------------------------------
@@ -68,12 +64,13 @@
   (print-unreadable-object (obj out :type t)
     (format out "~a" (ai:name obj))))
 
+(defmethod print-object ((obj ai::vector-key) out)
+  (print-unreadable-object (obj out :type t)
+    (format out "~a" (slot-value obj 'ai::time))))
+
 ;;--------------------------------------------------
 ;; Loaders
 ;;--------------------------------------------------
-
-(defvar *assimp-meshes* NIL
-  "Set of actor type objects")
 
 (defmethod free ((actor assimp-thing))
   (free (slot-value actor 'buf)))
@@ -100,18 +97,18 @@
          (bones (remove-duplicates bones :key #'ai:name :test #'string=)))
     bones))
 
-(defun get-bones-per-vertex (all-unique-scene-bones mesh-bones n-vertices)
+(defun get-bones-per-vertex (scene mesh-bones n-vertices)
   "Returns an array of lists of tuples/cons pairs.
    Run once at mesh LOAD time.
    ex: #(((1 . .9) (2 .1)) ((10 .2) (20 .8)))"
-  (declare (type list   all-unique-scene-bones)
-           (type array  mesh-bones)
-           (type fixnum n-vertices))
-  (let ((v-to-bones (make-array n-vertices
-                                :initial-element NIL)))
+  (declare (type ai:scene scene)
+           (type vector mesh-bones)
+           (type positive-fixnum n-vertices))
+  (let ((unique-scene-bones (list-bones-unique scene))
+        (v-to-bones (make-array n-vertices :initial-element NIL)))
     (loop
        :for bone :across mesh-bones
-       :for bone-id := (position (ai:name bone) all-unique-scene-bones
+       :for bone-id := (position (ai:name bone) unique-scene-bones
                                  :test #'string=
                                  :key  #'ai:name)
        :do
@@ -154,6 +151,7 @@
     (let* ((animation        (aref (ai:animations scene) 0))
            (animation-index  (ai:index animation))
            (nodes-transforms (make-hash-table :test #'equal)))
+      (declare (type hash-table animation-index))
       (labels ((walk-node (node parent-transform)
                  (declare (type ai:node node)
                           (type vector parent-transform))
@@ -170,8 +168,8 @@
                                    (q:to-mat4
                                     (ai:value
                                      (aref (ai:rotation-keys anim) 50)))
-                                   ;;(m4:scale (v3! 1.6))
-                                   (m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
+                                   (m4:scale (v3! 1.6))
+                                   ;;(m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
                                    )))
                           (transform (if arot
                                          arot
@@ -236,9 +234,6 @@
     (let* ((lenv (length vertices))
            (lenf (* lenv 3))
            (texture-coords (elt texture-coords 0))
-           ;; (texture-coords (if (emptyp texture-coords) ;; zeroed meshes with empty uv
-           ;;                     (coerce (serapeum:repeat-sequence `(,(v! 0 0)) lenv) 'vector)
-           ;;                     (elt texture-coords 0)))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
            (textures   (gethash "$tex.file" material))
            (tex-file   (and textures
@@ -304,10 +299,6 @@
     (let* ((lenv (length vertices))
            (lenf (* lenv 3))
            (texture-coords (elt texture-coords 0))
-           ;; Add zero'ed uvs if missing, doesn't fix anything as bi/tan are not generated
-           ;; (texture-coords (if (emptyp texture-coords)
-           ;;                     (coerce (serapeum:repeat-sequence `(,(v! 0 0)) lenv) 'vector)
-           ;;                     (elt texture-coords 0)))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
            (textures   (gethash "$tex.file" material))
            (tex-file   (and textures
@@ -322,8 +313,7 @@
                            (get-tex "static/37.Paint01-1k/paint01_normal.jpg"
                                     nil t :r8)))
            ;; I need context for this...hackidy hack
-           (all-bones (list-bones-unique scene))
-           (bones-per-vertex (get-bones-per-vertex all-bones bones lenv)))
+           (bones-per-vertex (get-bones-per-vertex scene bones lenv)))
       (assert (length= bitangents
                        tangents
                        normals
@@ -355,9 +345,8 @@
                      (assimp-mesh-bitangent a) bt
                      (assimp-mesh-uv a) (v! (x tc) (y tc)))
                (setf (ids a)
-                     (print
-                      (v! (serapeum:pad-end
-                           (map 'vector #'car bv) *max-bones-per-vertex* 0))))
+                     (v! (serapeum:pad-end
+                          (map 'vector #'car bv) *max-bones-per-vertex* 0)))
                (setf (weights a)
                      (v! (serapeum:pad-end
                           (map 'vector #'cdr bv) *max-bones-per-vertex*  0)))))
