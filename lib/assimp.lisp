@@ -127,10 +127,84 @@
                               :key #'cdr))))))
     v-to-bones))
 
-(defgeneric get-nodes-transforms (scene node-type &key frame)
+;;--------------------------------------------------
+
+(defun find-index (etime positions)
+  "returns the index position matching the current ETIME"
+  (declare (type vector positions)
+           (type number etime))
+  (let ((pos (position-if (lambda (p) (< etime (slot-value p 'time))) positions)))
+    (if pos
+        pos
+        0)))
+
+(defun calc-interpolated-position (etime positions)
+  "returns a vec3"
+  (declare (type vector positions))
+  (let* ((index       (find-index etime positions))
+         (next-index  (1+ index))
+         (current-pos (aref positions index))
+         (next-pos    (aref positions next-index)))
+    (with-slots ((ctime time) (start ai:value)) current-pos
+      (with-slots ((ntime time) (end ai:value)) next-pos
+        (let* ((dt     (- ntime ctime))
+               (factor (/ (- etime ctime) dt))
+               (delta  (v3:- end start)))
+          (v3:+ start
+                (v3:*s delta (coerce factor 'single-float))))))))
+
+(defun calc-interpolated-rotation (etime rotations)
+  "returns a quaternion"
+  (declare (type vector rotations))
+  (let* ((index (find-index etime rotations))
+         (next-index (1+ index))
+         (current-rot (aref rotations index))
+         (next-rot (aref rotations next-index)))
+    (with-slots ((ctime time) (start ai:value)) current-rot
+      (with-slots ((ntime time) (end ai:value)) next-rot
+        (let* ((dt      (- ntime ctime))
+               (factor  (/ (- etime ctime) dt))
+               (qinterp (q:lerp start end (coerce factor 'single-float))))
+          (q:normalize qinterp))))))
+
+(defun get-frame-transform (animation frame)
+  "returns a matrix"
+  (declare (type ai::node-animation animation))
+  (with-slots ((pos-keys ai::position-keys)
+               (rot-keys ai::rotation-keys)
+               (sca-keys ai::scaling-keys))
+      animation
+    ;; reset frame position
+    (setf frame (mod frame (length rot-keys)))
+    ;; Calculate tranform matrix based on time
+    (m4-n:*
+     (m4:translation (ai:value (aref pos-keys frame)))
+     (q:to-mat4      (ai:value (aref rot-keys frame)))
+     (m4:scale (v3! 1.6))
+     ;;(m4:scale (ai:value (aref sca-keys 0)))
+     )))
+
+(defun get-time-transform (animation time)
+  "calculate the tansform matrix based on time
+returns a matrix"
+  (declare (type ai::node-animation animation))
+  (with-slots ((pos-keys ai::position-keys)
+               (rot-keys ai::rotation-keys)
+               (sca-keys ai::scaling-keys))
+      animation
+    (let* ((irot (calc-interpolated-rotation time rot-keys))
+           (ipos (calc-interpolated-position time pos-keys)))
+      (m4-n:*
+       (m4:translation ipos)
+       (q:to-mat4 irot)
+       (m4:scale (v3! 1.6))
+       ;;(m4:scale (ai:value (aref sca-keys 0)))
+       ))))
+
+(defgeneric get-nodes-transforms (scene node-type &key frame time)
   (:documentation "returns a hash of mat4's with each node transform
 for value and node name for the key")
-  (:method ((scene ai:scene) (node-type (eql :static)) &key frame)
+  (:method ((scene ai:scene) (node-type (eql :static)) &key frame time)
     (let ((nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
                  (declare (type ai:node node)
@@ -148,7 +222,7 @@ for value and node name for the key")
         (walk-node (ai:root-node scene)
                    (m4:identity)))
       nodes-transforms))
-  (:method ((scene ai:scene) (node-type (eql :animated)) &key (frame 0))
+  (:method ((scene ai:scene) (node-type (eql :animated)) &key frame time)
     (let* ((animation        (aref (ai:animations scene) 0))
            (animation-index  (ai:index animation))
            (nodes-transforms (make-hash-table :test #'equal)))
@@ -163,17 +237,9 @@ for value and node name for the key")
                  node
                (let* ((anim (gethash name animation-index))
                       (arot (when anim
-                              (setf frame (mod frame (length (ai:position-keys anim))))
-                              (m4-n:*
-                               (m4:translation
-                                (ai:value
-                                 (aref (ai:position-keys anim) frame)))
-                               (q:to-mat4
-                                (ai:value
-                                 (aref (ai:rotation-keys anim) frame)))
-                               (m4:scale (v3! 1.6))
-                               ;;(m4:scale (ai:value (aref (ai:scaling-keys anim) 0)))
-                               )))
+                              (if frame
+                                  (get-frame-transform anim frame)
+                                  (get-time-transform  anim time))))
                       (transform (if arot
                                      arot
                                      (m4:transpose transform)))
@@ -187,17 +253,20 @@ for value and node name for the key")
                    (m4:identity)))
       nodes-transforms)))
 
-(defun get-bones-tranforms (scene &key (frame 0))
+(defun get-bones-tranforms (scene &key (frame 0 frame-p) (time 0 time-p))
   "ANIMATIONLESS
    returns an array with the m4 matrices of each bone offset"
   (declare (ai:scene scene))
+  (assert (or frame-p time-p))
   (let* ((root-offset      (ai:transform (ai:root-node scene)))
          (root-offset      (m4:transpose (m4:inverse root-offset)))
          (unique-bones     (list-bones-unique scene))
          (node-type        (if (emptyp (ai:animations scene))
                                :static
                                :animated))
-         (nodes-transforms (get-nodes-transforms scene node-type :frame frame))
+         (nodes-transforms (if frame-p
+                               (get-nodes-transforms scene node-type :frame frame)
+                               (get-nodes-transforms scene node-type :time  time)))
          (bones-transforms (make-array (length unique-bones))))
     (loop
        :for bone :in unique-bones

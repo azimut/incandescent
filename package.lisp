@@ -19,6 +19,7 @@
                 #:mappend
                 #:length=)
   (:import-from #:serapeum
+                #:do-each
                 #:class-name-of)
   (:import-from #:with-setf
                 #:with-setf

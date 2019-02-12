@@ -68,6 +68,6 @@
 ;;--------------------------------------------------
 (defmethod update ((camera orth)))
 (defmethod update ((camera pers))
-  (setf (pos camera) (v! 0 30 455))
+  (setf (pos camera) (v! 0 90 485))
   ;;(setf (pos camera) (v! 120 30 50))
   (setf (rot camera) (q:identity)))

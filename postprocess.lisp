@@ -4,7 +4,7 @@
 (defvar *sam*  nil)
 (defvar *sam1* NIL)
 (defvar *samd* nil)
-(defparameter *exposure* 1f0)
+(defparameter *exposure* 2f0)
 ;;--------------------------------------------------
 ;; 2D - Post Processing
 
@@ -19,9 +19,9 @@
          ;;            uv
          ;;          sam
          ;;          samd))
-         (final-color (-  (s~ (texture sam2 uv) :xyz)
-                          (s~ (texture sam uv) :xyz)
-                          ))
+         (final-color (+   (s~ (texture sam uv) :xyz)
+                           ;;(s~ (texture sam2 uv) :xyz)
+                           ))
          ;;         (color2 (s~ (texture sam2 uv) :xyz))
          ;; (color
          ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv sam (v2! (/ 1 320f0))) :xyz))
@@ -31,6 +31,7 @@
          )
     ;;(v! (pow ldr (vec3 2.2)) 1)
     (v! ldr luma)
+    ;;(v! final-color 1)
     ;;(v! (- 1 (x color)) 0 0 1)
     ;;(v! color 1)
     ;;(v! ldr 1)

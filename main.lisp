@@ -4,8 +4,8 @@
 
 (defvar *bs* nil)
 (defvar *cloud-tex* nil)
-(defvar *stepper*
-  (make-stepper (seconds 1) (seconds 1)))
+(defparameter *stepper*
+  (make-stepper (seconds .1) (seconds .1)))
 ;;(defparameter *dimensions* '(400 300))
 ;;(defparameter *dimensions* '(800 600))
 (defparameter *dimensions* '(532 400))
@@ -84,7 +84,7 @@
   (push (nth 5 *assimp-meshes*) *actors*)
   (push (nth 4 *assimp-meshes*) *actors*)
   (push (nth 3 *assimp-meshes*) *actors*))
-
+(defvar *add* 0f0)
 (defun draw! ()
   (let* ((res   (surface-resolution (current-surface)))
          (now   (get-internal-real-time))
@@ -119,7 +119,9 @@
     ;;                      :view-clip   (projection  *shadow-camera*)))))))
 
     (when (funcall *stepper*)
-      (push-g (get-bones-tranforms *mann* :frame (get-universal-time)) *chuesos*))
+      (push-g (get-bones-tranforms *mann*
+                                   :time (mod (incf *add* .1) 5f0))
+              *chuesos*))
 
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
@@ -128,8 +130,8 @@
     ;; (with-fbo-bound (*fbo-ssbo*)
     ;;   (clear *fbo-ssbo*)
     ;;   (draw-ssao :radius 1000f0
-    ;;              :kernel-effect 2f0
-    ;;              :n-kernels 20))
+    ;;              :kernel-effect 3f0
+    ;;              :n-kernels 10))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face) nil
