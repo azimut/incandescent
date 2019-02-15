@@ -13,6 +13,9 @@
 ;; - http://ogldev.atspace.co.uk/www/tutorial46/tutorial46.html
 ;; - https://learnopengl.com/Advanced-Lighting/SSAO
 
+(defvar *fbo-ssbo* NIL)
+(defvar *sam-ssbo* NIL)
+
 (defvar *noise-tex*  NIL)
 (defvar *noise-sam*  NIL)
 (defvar *ubo-kernel* NIL)
@@ -58,6 +61,11 @@
     (setf *ubo-kernel*
           (make-ubo (list (generate-sample-kernel))
                     'random-kernel)))
+  ;; OUTPUTS
+  (when *fbo-ssbo* (free *fbo-ssbo*))
+  (setf *fbo-ssbo* (make-fbo (list 0 :dimensions *dimensions*))
+        *sam-ssbo* (sample (attachment-tex *fbo-ssbo* 0)
+                           :wrap :clamp-to-edge))
   NIL)
 
 ;;--------------------------------------------------
