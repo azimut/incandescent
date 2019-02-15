@@ -177,7 +177,10 @@
 ;; Dirt - image loader into CEPL sampler
 
 (defvar *samplers* (make-hash-table :test #'equal))
-(defun free-all-tex ())
+(defun free-all-tex ()
+  (maphash-values (lambda (s) (free (sampler-texture s)))
+                  *samplers*)
+  (clrhash *samplers*))
 (defun get-tex (path &optional (force nil) (mipmap t) (image-format :rgba8))
   (when force
     (let ((s (gethash path *samplers*)))
