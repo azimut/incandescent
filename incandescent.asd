@@ -31,4 +31,5 @@
                (:file "draw")
                (:file "render")
                (:file "shadowmap")
+               (:file "ssao")
                (:file "main")))
