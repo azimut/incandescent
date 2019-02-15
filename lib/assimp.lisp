@@ -4,6 +4,12 @@
 
 ;; Might be a I can just drop the bones with low weight
 ;; instead of max limit
+(defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
+  "override this locally to change the albedo")
+(defvar *default-normal* "static/37.Paint01-1k/paint01_normal.jpg"
+  "override this locally to change the normal map")
+(defvar *default-specular* "static/37.Paint01-1k/paint01_height.jpg"
+  "override this locally to change the normal map")
 (defvar *max-bones-per-vertex* 4)
 (defvar *number-of-bones* 0)
 (defvar *assimp-meshes* NIL
@@ -100,7 +106,7 @@
 (defun get-bones-per-vertex (scene mesh-bones n-vertices)
   "Returns an array of lists of tuples/cons pairs.
    Run once at mesh LOAD time.
-   ex: #(((1 . .9) (2 .1)) ((10 .2) (20 .8)))"
+   ex: #(((1 . .9) (2 . .1)) ((10 . .2) (20 . .8)))"
   (declare (type ai:scene scene)
            (type vector mesh-bones)
            (type positive-fixnum n-vertices))
@@ -213,14 +219,13 @@ for value and node name for the key")
                               (transform ai:transform)
                               (children  ai:children))
                      node
-                   (let ((global (m4:* parent-transform
-                                       (m4:transpose transform))))
+                   (let ((global
+                          (m4:* parent-transform (m4:transpose transform))))
                      (setf (gethash name nodes-transforms) global)
                      (map 'vector
                           (lambda (c) (walk-node c global))
                           children)))))
-        (walk-node (ai:root-node scene)
-                   (m4:identity)))
+        (walk-node (ai:root-node scene) (m4:identity)))
       nodes-transforms))
   (:method ((scene ai:scene) (node-type (eql :animated)) &key frame time)
     (let* ((animation        (aref (ai:animations scene) 0))
@@ -257,16 +262,21 @@ for value and node name for the key")
   "ANIMATIONLESS
    returns an array with the m4 matrices of each bone offset"
   (declare (ai:scene scene))
-  (assert (or frame-p time-p))
-  (let* ((root-offset      (ai:transform (ai:root-node scene)))
-         (root-offset      (m4:transpose (m4:inverse root-offset)))
+  (let* ((root-offset      (m4:transpose (ai:transform (ai:root-node scene))))
+         (root-offset      (m4:inverse root-offset))
          (unique-bones     (list-bones-unique scene))
-         (node-type        (if (emptyp (ai:animations scene))
-                               :static
-                               :animated))
-         (nodes-transforms (if frame-p
-                               (get-nodes-transforms scene node-type :frame frame)
-                               (get-nodes-transforms scene node-type :time  time)))
+         (node-type        (print (if (emptyp (ai:animations scene))
+                                      :static
+                                      :animated)))
+         ;; (valid            (assert (or (eq :static node-type)
+         ;;                               (or frame-p time-p))))
+         ;; (nodes-transforms
+         ;;  (if (print frame-p)
+         ;;      (get-nodes-transforms scene node-type
+         ;;                            :frame frame)
+         ;;      (get-nodes-transforms scene node-type
+         ;;                            :time time)))
+         (nodes-transforms (get-nodes-transforms scene :static))
          (bones-transforms (make-array (length unique-bones))))
     (loop
        :for bone :in unique-bones
@@ -279,17 +289,20 @@ for value and node name for the key")
                    ;; I got a mesh that has 0 on the bones offsets...
                    ;; The mesh also didn't have animations so might be
                    ;; that was the reason...
-                   (if (m4:0p offset)
-                       (m4:* root-offset
-                             node-transform)
-                       (m4:* root-offset
-                             node-transform
-                             (m4:transpose offset)))))))
+                   node-transform
+                   ;; (if (m4:0p offset)
+                   ;;     (m4:* root-offset
+                   ;;           node-transform)
+                   ;;     (m4:* root-offset
+                   ;;           node-transform
+                   ;;           (m4:transpose offset)))
+                   ))))
     bones-transforms))
 
 ;;--------------------------------------------------
 
-(defmethod assimp-mesh-to-stream (mesh scene file-path scale (type (eql :textured)))
+(defmethod assimp-mesh-to-stream (mesh scene file-path scale
+                                  (type (eql :textured)))
   "only textured assimp thing"
   (declare (ai:mesh mesh)
            (ai:scene scene)
@@ -312,13 +325,17 @@ for value and node name for the key")
                             (third (assoc :ai-texture-type-diffuse textures))))
            (norm-file  (when (assoc :ai-texture-type-height textures)
                          (third (assoc :ai-texture-type-height textures))))
+           (spec-file  (when (assoc :ai-texture-type-specular textures)
+                         (third (assoc :ai-texture-type-specular textures))))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
-                           (get-tex "static/37.Paint01-1k/paint01_albedo.jpg")))
+                           (get-tex *default-albedo*)))
            (normal-sam (if norm-file
                            (get-tex (merge-pathnames norm-file file-path))
-                           (get-tex "static/37.Paint01-1k/paint01_normal.jpg"
-                                    nil t :r8))))
+                           (get-tex *default-normal* nil t)))
+           (specular   (if spec-file
+                           (get-tex (merge-pathnames spec-file file-path))
+                           (get-tex *default-specular* nil t :r8))))
       (assert (length= bitangents
                        tangents
                        normals
@@ -350,6 +367,7 @@ for value and node name for the key")
         (make-instance 'assimp-thing
                        :buf (make-buffer-stream v-arr :index-array i-arr)
                        :scale scale
+                       :specular specular
                        :normals normal-sam
                        :albedo albedo)))))
 
@@ -377,13 +395,17 @@ for value and node name for the key")
                             (third (assoc :ai-texture-type-diffuse textures))))
            (norm-file  (when (assoc :ai-texture-type-height textures)
                          (third (assoc :ai-texture-type-height textures))))
+           (spec-file  (when (assoc :ai-texture-type-specular textures)
+                         (third (assoc :ai-texture-type-specular textures))))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
-                           (get-tex "static/37.Paint01-1k/paint01_albedo.jpg")))
+                           (get-tex *default-albedo*)))
            (normal-sam (if norm-file
                            (get-tex (merge-pathnames norm-file file-path))
-                           (get-tex "static/37.Paint01-1k/paint01_normal.jpg"
-                                    nil t :r8)))
+                           (get-tex *default-normal* nil t)))
+           (specular   (if spec-file
+                           (get-tex (merge-pathnames spec-file file-path))
+                           (get-tex *default-specular* nil t :r8)))
            ;; I need context for this...hackidy hack
            (bones-per-vertex (get-bones-per-vertex scene bones lenv)))
       (assert (length= bitangents
@@ -425,6 +447,7 @@ for value and node name for the key")
         (make-instance 'assimp-thing-with-bones
                        :buf (make-buffer-stream v-arr :index-array i-arr)
                        :scale scale
+                       :specular specular
                        :normals normal-sam
                        :albedo albedo)))))
 
@@ -435,6 +458,7 @@ for value and node name for the key")
   (assert (probe-file file))
   (free-meshes) ;; !!!
   (let* ((scene (ai:import-into-lisp file))
+         (_     (assert scene))
          ;; add normals if missing
          (processing-flags
           (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
@@ -445,6 +469,7 @@ for value and node name for the key")
          (bones  (list-bones scene))
          (type   (if (emptyp bones) :textured :bones))
          (file-path (uiop:pathname-directory-pathname file)))
+    (declare (ignore _))
     ;; add things upto we find an error, if any
     (mapcar (lambda (mesh)
               (push (assimp-mesh-to-stream mesh
@@ -462,7 +487,7 @@ for value and node name for the key")
 (defmethod draw ((actor assimp-thing)
                  camera
                  (time single-float))
-  (with-slots (buf albedo normals scale) actor
+  (with-slots (buf albedo normals scale specular) actor
     (map-g #'generic-tex-pipe-simple buf
            :scale scale
            ;; Lighting
@@ -470,7 +495,10 @@ for value and node name for the key")
            :world-view (world->view camera)
            :view-clip  (projection camera)
            ;; PBR
+           :cam-pos (pos camera)
            :albedo albedo
+           :time time
+           :specular specular
            :normals normals)))
 
 (defmethod draw ((actor assimp-thing-with-bones)
@@ -509,17 +537,17 @@ for value and node name for the key")
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 0))))
-                          (* (aref (assimp-bones-weights bones) 1)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 1))))
-                          (* (aref (assimp-bones-weights bones) 2)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 2))))
-                          (* (aref (assimp-bones-weights bones) 3)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
-                       (v! pos 1)))
-         (world-pos (* model-world world-pos))
-         ;;(world-pos (* model-world (v! pos 1)))
+         ;; (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
+         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 0))))
+         ;;                  (* (aref (assimp-bones-weights bones) 1)
+         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 1))))
+         ;;                  (* (aref (assimp-bones-weights bones) 2)
+         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+         ;;                  (* (aref (assimp-bones-weights bones) 3)
+         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
+         ;;               (v! pos 1)))
+         ;;(world-pos (* model-world world-pos))
+         (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
          (t0 (normalize
@@ -551,7 +579,7 @@ for value and node name for the key")
                                  (view-clip :mat4)
                                  (scale :float)
                                  ;;
-                                 (offsets (:mat4 32))
+                                 (offsets (:mat4 26))
                                  ;; Parallax vars
                                  (light-pos :vec3)
                                  (cam-pos :vec3))
@@ -559,15 +587,15 @@ for value and node name for the key")
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 0))))
-                          (* (aref (assimp-bones-weights bones) 1)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 1))))
-                          (* (aref (assimp-bones-weights bones) 2)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 2))))
-                          (* (aref (assimp-bones-weights bones) 3)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
+         (world-pos (* (* (aref (assimp-bones-weights bones) 0)
+                          (aref offsets (int (aref (assimp-bones-ids bones) 0))))
                        (v! pos 1)))
+         ;; (* (aref (assimp-bones-weights bones) 1)
+         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 1))))
+         ;; (* (aref (assimp-bones-weights bones) 2)
+         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+         ;; (* (aref (assimp-bones-weights bones) 3)
+         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 3))))
          (world-pos (* model-world world-pos))
          ;;(world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view world-pos))
@@ -601,15 +629,19 @@ for value and node name for the key")
                        (tan-frag-pos :vec3)
                        &uniform
                        (cam-pos :vec3)
+                       (time :float)
                        (albedo :sampler-2d)
-                       (normals :sampler-2d))
+                       (normals :sampler-2d)
+                       (specular :sampler-2d))
   (let* ((color (expt (s~ (texture albedo uv) :xyz)
                       (vec3 2.2)))
-         ;;(normal (norm-from-map normals uv))
-         (color (dir-light-apply color (v! 1 #.(/ 147 255f0) #.(/ 41 255f0))
-                                 (v! 0 1101 1000)
+         (normal (norm-from-map normals uv))
+         (normal (normalize (* tbn normal)))
+         (color (dir-light-apply color
+                                 (v! 1 1 1)
+                                 (v! 100 1000 100)
                                  frag-pos
-                                 frag-norm)))
+                                 normal)))
     (values
      (v! color 1)
      ;;(v! 1 .2 1 0)
