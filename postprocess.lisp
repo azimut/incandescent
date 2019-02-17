@@ -4,7 +4,7 @@
 (defvar *sam*  nil)
 (defvar *sam1* NIL)
 (defvar *samd* nil)
-(defparameter *exposure* 2f0)
+(defparameter *exposure* 1f0)
 ;;--------------------------------------------------
 ;; 2D - Post Processing
 
@@ -19,7 +19,7 @@
          ;;            uv
          ;;          sam
          ;;          samd))
-         (final-color (+   (s~ (texture sam uv) :xyz)
+         (final-color (*   (s~ (texture sam uv) :xyz)
                            ;;(s~ (texture sam2 uv) :xyz)
                            ))
          ;;         (color2 (s~ (texture sam2 uv) :xyz))

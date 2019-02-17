@@ -44,7 +44,7 @@
 ;;--------------------------------------------------
 
 (defclass actor ()
-  ((name  :initarg :name)
+  ((name  :initarg :name :reader actor-name)
    (pos   :initarg :pos :accessor pos)
    (rot   :initarg :rot :accessor rot)
    (buf   :initarg :buf)
@@ -100,17 +100,16 @@
     (push obj *actors*)
     obj))
 
-(defclass piso (pbr) ())
-(defun make-piso (&optional (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0)
-                    (uv-speed 0f0))
+(defclass piso (pbr-simple) ())
+(defun make-piso (&optional (pos (v! 0 0 0))
+                    (rot (q:identity))
+                    (scale 1f0))
   (let ((obj
          (make-instance
           'piso
           :buf (lattice 100 100 2 2 t)
           :pos pos
           :scale scale
-          :uv-speed uv-speed
-          :uv-repeat 10f0
           :rot rot)))
     (push obj *actors*)
     obj))
@@ -130,19 +129,20 @@
 (defun make-box (&optional (pos (v! 0 0 0)) (scale 1f0))
   (let ((obj (make-instance 'box
                             :pos pos
-                            :scale scale
-                            :buf (sphere))))
+                            :scale scale)))
     (push obj *actors*)
     obj))
 
 (defclass assimp-flat (actor)
   ())
 (defclass assimp-thing (actor)
-  ((albedo  :initarg :albedo)
-   (normals :initarg :normals)))
+  ((albedo   :initarg :albedo)
+   (normals  :initarg :normals)
+   (specular :initarg :specular)))
 (defclass assimp-thing-with-bones (actor)
-  ((albedo  :initarg :albedo)
-   (normals :initarg :normals)))
+  ((albedo   :initarg :albedo)
+   (normals  :initarg :normals)
+   (specular :initarg :specular)))
 
 ;;--------------------------------------------------
 ;; UPDATE
@@ -152,25 +152,43 @@
 (defmethod update ((actor pbr)))
 (defmethod update ((actor pbr-simple))  )
 (defmethod update ((actor box))
-  (setf (pos actor) (v! 0.0 -1 (+ (sin (mynow)) -6.0))))
+  (with-slots (pos rot) actor
+    (setf pos (v! 0 0 -3))
+    (setf rot (q:from-axis-angle (v! 0 .4 1) (radians 40)))))
 (defmethod update ((actor assimp-flat))
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )
 (defmethod update ((actor assimp-thing))
-  ;; (with-slots (scale rot pos) actor
-  ;;   (setf pos (v! 0 -3 -9))
-  ;;   (setf rot (q:from-axis-angle (v! 0 1 0) (radians (mod (* 20 (mynow)) 360))))
-  ;;   (setf scale .2f0))
+  (with-slots (scale rot pos) actor
+    ;; (setf pos (v! (+ 40 (- (mod (* 10 (mynow)) 120)))
+    ;;               -10
+    ;;               (- (* (sin (mynow)) 40))))
+    (setf pos (v! 0 -13 -10))
+    (setf rot (q:*
+               (q:from-axis-angle
+                (v! 0 0 1)
+                (radians (* .1 (sin (* 10 (mynow))))))
+               (q:from-axis-angle
+                (v! 0 1 0)
+                (radians 180))))
+    ;; (setf rot (q:from-axis-angle
+    ;;            (v! .9 .8 1)
+    ;;            (radians (* 30 (sin (* .5 (mynow)))))))
+    (setf scale 1f0))
   )
 
 (defmethod update ((actor assimp-thing-with-bones))
   (with-slots (scale rot pos) actor
-    (setf pos (v! 130 0 0))
-    (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
-                                      (radians -30))
-                   (q:from-axis-angle (v! 1 0 0)
-                                      (radians -90))))
+    (setf pos (v! 0 0 0))
+    ;; (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
+    ;;                                   (radians -30))
+    ;;                (q:from-axis-angle (v! 1 0 0)
+    ;;                                   (radians -90))))
     ;; (setf rot (q:from-axis-angle (v! 1 0 0)
     ;;                              (radians -90)))
-    ;;(setf rot (q:identity))
+    ;; (setf rot (q:* (q:from-axis-angle (v! 1 0 0) (radians 270))
+    ;;                (q:from-axis-angle (v! 0 1 0)
+    ;;                                   (radians (mod (* .1 (get-internal-real-time))
+    ;;                                                 360)))))
+    (setf rot (q:identity))
     (setf scale 1f0)))

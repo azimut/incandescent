@@ -34,6 +34,36 @@
          (diffuse (* diff color)))
     (+ ambient diffuse)))
 
+
+(defun-g point-light-apply ((color :vec3)
+                            (light-color :vec3)
+                            (light-pos :vec3)
+                            (frag-pos :vec3)
+                            (normal :vec3)
+                            (constant :float)
+                            (linear :float)
+                            (quadratic :float)
+                            (cam-pos :vec3)
+                            (spec-strength :float))
+  (let* ((light-dir (normalize (- light-pos frag-pos)))
+         (diff (saturate (dot normal light-dir)))
+         ;; spec
+         (view-dir    (normalize (- cam-pos frag-pos)))
+         (reflect-dir (reflect (- light-dir) normal))
+         (spec        (pow (max (dot view-dir reflect-dir) 0)
+                           128))
+         ;;
+         (distance (length (- light-pos frag-pos)))
+         (attenuation (/ 1 (+ constant
+                              (* linear distance)
+                              (* quadratic distance distance))))
+         (ambient (* light-color .1))
+         (diffuse (* light-color diff))
+         (specular (* light-color spec spec-strength)))
+    (* color (+ ambient
+                diffuse
+                specular))))
+
 (defun-g dir-light-apply ((color :vec3)
                           (light-color :vec3)
                           (light-pos :vec3)
@@ -46,6 +76,26 @@
          (ambient (* light-color .1 color))
          (diffuse (* light-color diff color)))
     (+ ambient diffuse)))
+
+(defun-g dir-light-apply ((color :vec3)
+                          (light-color :vec3)
+                          (light-pos :vec3)
+                          (frag-pos :vec3)
+                          (normal :vec3)
+                          (cam-pos :vec3)
+                          (spec-strength :float))
+  (let* ((light-dir (normalize (- light-pos frag-pos)))
+         ;; Diffuse shading
+         (diff (saturate (dot normal light-dir)))
+         ;; specular
+         (view-dir    (normalize (- cam-pos frag-pos)))
+         (reflect-dir (reflect (- light-dir) normal))
+         (spec (pow (max (dot view-dir reflect-dir) 0) 128))
+         ;; combine
+         (ambient  (* light-color .1))
+         (diffuse  (* light-color diff))
+         (specular (* light-color spec-strength spec)))
+    (* color (+ ambient diffuse specular))))
 
 ;;--------------------------------------------------
 ;; https://learnopengl.com/Advanced-Lighting/Normal-Mapping
@@ -266,120 +316,6 @@
     (v! (* fog-color (- 1 fog-factor)) fog-factor)))
 
 ;;--------------------------------------------------
-;; PBR - BRDF
-;; https://learnopengl.com/PBR/Lighting
-
-(defun-g fresnel-schlick ((cos-theta :float)
-                          (f0 :vec3))
-  (+ f0
-     (* (- 1 f0)
-        (pow (- 1 cos-theta) 5))))
-
-(defun-g distribution-ggx ((n :vec3)
-                           (h :vec3)
-                           (roughness :float))
-  (let* ((a  (* roughness roughness))
-         (a2 (* a a))
-         (n-dot-h  (max (dot n h) 0))
-         (n-dot-h2 (* n-dot-h n-dot-h))
-         (num a2)
-         (denom (1+ (* n-dot-h2 (1- a2))))
-         (denom (* +PI+ denom denom)))
-    (/ num denom)))
-
-(defun-g geometry-schlick-ggx ((n-dot-v :float)
-                               (roughness :float))
-  (let* ((r (1+ roughness))
-         (k (/ (* r r) 8))
-         (num n-dot-v)
-         (denom (+ (* n-dot-v (- 1 k))
-                   k)))
-    (/ num denom)))
-
-(defun-g geometry-smith ((n :vec3)
-                         (v :vec3)
-                         (l :vec3)
-                         (roughness :float))
-  (let* ((n-dot-v (max (dot n v) 0))
-         (n-dot-l (max (dot n l) 0))
-         (ggx2 (geometry-schlick-ggx n-dot-v roughness))
-         (ggx1 (geometry-schlick-ggx n-dot-l roughness)))
-    (* ggx1 ggx2)))
-
-(defun-g pbr-direct-lum ((light-pos :vec3)
-                         (frag-pos :vec3)
-                         (v :vec3)
-                         (n :vec3)
-                         (roughness :float)
-                         (f0 :vec3)
-                         (metallic :float)
-                         (color :vec3))
-  (let* ((l (normalize (- light-pos frag-pos)))
-         (h (normalize (+ v l)))
-         (distance (length (- light-pos frag-pos)))
-         (radiance (v! 5 5 5))
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g (geometry-smith n v l roughness))
-         (f (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks f)
-         (kd (- 1 ks))
-         (kd (* kd (- 1 metallic)))
-         ;;
-         (numerator (* ndf g f))
-         (denominator (+ .001
-                         (* (max (dot n v) 0)
-                            (max (dot n l) 0)
-                            4)))
-         (specular (/ numerator denominator))
-         ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0))
-         (lo (* (+ specular (/ (* kd color) +PI+))
-                radiance
-                n-dot-l)))
-    lo))
-
-(defun-g pbr-point-lum ((light-pos :vec3)
-                         (frag-pos :vec3)
-                         (v :vec3)
-                         (n :vec3)
-                         (roughness :float)
-                         (f0 :vec3)
-                         (metallic :float)
-                         (color :vec3))
-  (let* ((l (normalize (- light-pos frag-pos)))
-         (h (normalize (+ v l)))
-         (distance (length (- light-pos frag-pos)))
-         (constant 1f0)
-         (linear .7)
-         (quadratic 1.8)
-         (attenuation (/ 1f0 (+ constant
-                              (* linear distance)
-                              (* quadratic distance distance))))
-         (light-color (v! .9 .9 .9))
-         (radiance light-color attenuation)
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g (geometry-smith n v l roughness))
-         (f (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks f)
-         (kd (* (- (vec3 1) ks)
-                (- 1 metallic)))
-         ;;
-         (numerator (* ndf g f))
-         (denominator (* (max (dot n v) 0)
-                         (max (dot n l) 0)
-                         4))
-         (specular (/ numerator (max denominator .001)))
-         ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0)))
-    (* (+ specular (/ (* kd color) +PI+))
-       radiance
-       n-dot-l)))
-
-;;--------------------------------------------------
 ;; Billboarding
 (defun-g billboard-vert ((pos :vec3)
                          &uniform
@@ -564,7 +500,7 @@
 ;; http://www.voidcn.com/article/p-nvhpdsyj-yy.html
 (defun-g linear-eye-depth ((d :float))
   (let* ((n .1)
-         (f 400f0)
+         (f 1000f0)
          (zz (/ (/ (- 1 (/ f n)) 2) f))
          (zw (/ (/ (+ 1 (/ f n)) 2) f)))
     (/ 1 (+ (* zz d) zw))))
@@ -585,7 +521,7 @@
 ;; better suited for demonstration purposes.
 (defun-g linearize-depth ((depth :float))
   (let* ((near 0.1)
-         (far 400f0)
+         (far 1000f0)
          (z (- (* depth 2.0) 1.0)))
     (/ (* 2.0 (* near far))
        (- (+ far near) (* z (- far near))))))
@@ -789,7 +725,7 @@
 ;; https://github.com/Unity-Technologies/PostProcessing/
 ;; Hardcoded to work ONLY with perspective projection
 (defun-g linear-01-depth ((z :float))
-  (let* ((far 400f0)
+  (let* ((far 1000f0)
          (near .1)
          (z (* z (- 1 (/ far near)))))
     (/ (+ z (/ far near)))))

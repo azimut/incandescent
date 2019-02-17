@@ -1,5 +1,108 @@
 (in-package #:incandescent)
 
+(defvar *shadow-fbo* NIL)
+(defvar *shadow-sam* NIL)
+(defparameter *shadow-camera*
+  (make-instance 'orth
+                 :frame-size (v2! 40) ;; zoom
+                 :rot (q:from-axis-angle (v! 1 0 0) (radians -75))
+                 :pos (v! 0 5 20)))   ;; give it some height
+
+(defun init-shadowmap ()
+  (unless *shadow-fbo*
+    (alexandria:appendf *cameras* (list *shadow-camera*))
+    (setf *shadow-fbo* (make-fbo (list :d :dimensions '(1024 1024))))
+    (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
+                               :minify-filter :nearest
+                               :magnify-filter :nearest))))
+
+(defun free-shadowmap ()
+  (free *shadow-fbo*))
+
+(defun draw-shadowmap ()
+  (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
+    (clear *shadow-fbo*)
+    (loop :for actor :in *actors*
+       :do (with-slots (buf scale) actor
+             (case (class-name-of actor)
+               (assimp-thing-with-bones
+                (map-g #'simplest-3d-pipe-bones buf
+                       :scale 1f0
+                       :offsets *chuesos*
+                       :model-world (model->world actor)
+                       :world-view  (world->view *shadow-camera*)
+                       :view-clip   (projection  *shadow-camera*)))
+               (piso
+                (map-g #'simplest-3d-pipe buf
+                       :scale 1f0
+                       :model-world (model->world actor)
+                       :world-view  (world->view *shadow-camera*)
+                       :view-clip   (projection  *shadow-camera*))))))))
+
+(defmethod draw ((actor piso) camera (time single-float))
+  (with-slots (buf
+               color
+               albedo normal height roughness
+               uv-speed
+               scale ao uv-repeat metallic)
+      actor
+    (map-g #'shadow-pbr-pipe buf
+           :uv-repeat uv-repeat
+           :uv-speed uv-speed
+           :scale scale
+           :time time
+           :color color
+           :samd *samd*
+           ;; Lighting
+           :cam-pos (pos camera)
+           :light-pos *light-pos*
+           ;;
+           :model-world (model->world actor)
+           :world-view (world->view camera)
+           :view-clip  (projection camera)
+           ;; Shadowmap
+           :shadowmap *shadow-sam*
+           :light-world (world->view *shadow-camera*)
+           :light-clip (projection *shadow-camera*)
+           ;; PBR
+           :albedo albedo
+           :ao-map ao
+           :metallic metallic
+           :normal-map normal
+           :height-map height
+           :rough-map roughness
+           ;; IBL
+           :brdf-lut *s-brdf*
+           :prefilter-map *s-cubemap-prefilter*
+           :irradiance-map *s-cubemap-live*)))
+
+;;--------------------------------------------------
+;; THE helper
+
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
+  (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
+                         (w pos-in-light-space)))
+         (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
+         (our-depth (z proj-coords))
+         (shadow 0f0)
+         (bias 0.005)
+         (texel-size (/ (vec2 1f0)
+                        (texture-size light-sampler 0)))
+         (uv (s~ proj-coords :xy)))
+    ;;
+    (for (x -1) (<= x 1) (++ x)
+         (for (y -1) (<= y 1) (++ y)
+              (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
+                     (pcf-depth (x (texture light-sampler
+                                            uv+offset))))
+                (incf shadow
+                      (if (> (- our-depth bias) pcf-depth)
+                          0f0
+                          1f0)))))
+    ;;
+    (/ shadow 9f0)))
+
 ;;--------------------------------------------------
 ;; 3d - plain frag pipeline, used to render only depth
 (defun-g simplest-3d-frag ((uv :vec2)
@@ -44,33 +147,6 @@
 (defpipeline-g simplest-3d-pipe-bones ()
   :vertex (vert-bones g-pnt tb-data assimp-bones)
   :fragment (simplest-3d-frag :vec2 :vec3 :vec3))
-
-;;--------------------------------------------------
-;; THE helper
-
-(defun-g shadow-factor ((light-sampler :sampler-2d)
-                        (pos-in-light-space :vec4))
-  (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
-                         (w pos-in-light-space)))
-         (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
-         (our-depth (z proj-coords))
-         (shadow 0f0)
-         (bias 0.005)
-         (texel-size (/ (vec2 1f0)
-                        (texture-size light-sampler 0)))
-         (uv (s~ proj-coords :xy)))
-    ;;
-    (for (x -1) (<= x 1) (++ x)
-         (for (y -1) (<= y 1) (++ y)
-              (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
-                     (pcf-depth (x (texture light-sampler
-                                            uv+offset))))
-                (incf shadow
-                      (if (> (- our-depth bias) pcf-depth)
-                          0f0
-                          1f0)))))
-    ;;
-    (/ shadow 9f0)))
 
 ;;--------------------------------------------------
 ;; 3d - Replacements for basic vert and frags
@@ -312,39 +388,4 @@
                              :mat3 :vec3 :vec3 :vec3
                              :vec4))
 ;;--------------------------------------------------
-(defmethod draw ((actor piso) camera (time single-float))
-  (with-slots (buf
-               color
-               albedo normal height roughness
-               uv-speed
-               scale ao uv-repeat metallic)
-      actor
-    (map-g #'shadow-pbr-pipe buf
-           :uv-repeat uv-repeat
-           :uv-speed uv-speed
-           :scale scale
-           :time time
-           :color color
-           :samd *samd*
-           ;; Lighting
-           :cam-pos (pos camera)
-           :light-pos *light-pos*
-           ;;
-           :model-world (model->world actor)
-           :world-view (world->view camera)
-           :view-clip  (projection camera)
-           ;; Shadowmap
-           :shadowmap *shadow-sam*
-           :light-world (world->view *shadow-camera*)
-           :light-clip (projection *shadow-camera*)
-           ;; PBR
-           :albedo albedo
-           :ao-map ao
-           :metallic metallic
-           :normal-map normal
-           :height-map height
-           :rough-map roughness
-           ;; IBL
-           :brdf-lut *s-brdf*
-           :prefilter-map *s-cubemap-prefilter*
-           :irradiance-map *s-cubemap-live*)))
+

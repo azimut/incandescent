@@ -21,13 +21,9 @@
    :fov 60f0))
 
 (defparameter *camera* (make-instance 'pers :far 1000f0))
-(defparameter *shadow-camera*
-  (make-instance 'orth
-                 :frame-size (v2! 40) ;; zoom
-                 :rot (q:from-axis-angle (v! 1 0 0) (radians -75))
-                 :pos (v! 0 5 20)))   ;; give it some height
+
 (defparameter *camera1* (make-instance 'orth))
-(defparameter *cameras* (list *camera* *shadow-camera*))
+(defparameter *cameras* (list *camera*))
 (defparameter *camera-cubemap* (make-instance 'pers :fov 90f0))
 (defparameter *currentcamera* *camera*)
 
@@ -43,6 +39,7 @@
         (q:to-mat4      (q:inverse (rot camera)))))
 
 (defgeneric projection (camera)
+  (:documentation "view to clip")
   (:method ((camera pers))
     (let ((fs (or (frame-size camera)
                   (viewport-resolution (current-viewport)))))
@@ -63,11 +60,45 @@
 (defun world->clip (camera)
   (m4:* (projection camera)
         (world->view camera)))
+
+
+;; https://github.com/Flafla2/Generic-Raymarch-Unity/blob/master/Assets/RaymarchGeneric.cs
+(defmethod get-frustum-corners ((camera pers))
+  "Stores the normalized rays representing the camera frustum in a 4x4 matrix.
+  Each row is a vector.
+  The following rays are stored in each row (in eyespace, not worldspace):
+  Top Left corner:     row=0
+  Top Right corner:    row=1
+  Bottom Right corner: row=2
+  Bottom Left corner:  row=3"
+  (let* ((fov          (fov camera))
+         (aspect       (/ (first *dimensions*)
+                          (second *dimensions*)))
+         (fov-half     (* fov .5))
+         (tan-fov      (tan (radians fov-half)))
+         (to-right     (v3:*s (v! 1 0 0) (* tan-fov aspect)))
+         (to-top       (v3:*s (v! 0 1 0) tan-fov))
+         (top-left     (v3:+ (v3:- (v! 0 0 -1) to-right) to-top))
+         (top-right    (v3:+ (v3:+ (v! 0 0 -1) to-right) to-top))
+         (bottom-right (v3:- (v3:+ (v! 0 0 -1) to-right) to-top))
+         (bottom-left  (v3:- (v3:- (v! 0 0 -1) to-right) to-top)))
+    (make-array 4 :initial-contents
+                (list (v! top-left)
+                      (v! top-right)
+                      (v! bottom-right)
+                      (v! bottom-left)))))
+
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
 (defmethod update ((camera orth)))
 (defmethod update ((camera pers))
-  (setf (pos camera) (v! 0 90 485))
+  ;;(setf (pos camera) (v! -20 90 485))
   ;;(setf (pos camera) (v! 120 30 50))
-  (setf (rot camera) (q:identity)))
+  ;;(setf (pos camera) (v! (sin (mynow)) 13 (cos (mynow))))
+  ;;(setf (pos camera) (v! 2 23 0))
+  (setf (pos camera) (v! 0 0 0))
+  ;;(setf (rot camera) (q:identity))
+  (setf (rot camera) (q:from-axis-angle (v! 1 0 0)
+                                        (radians 30)))
+  )
