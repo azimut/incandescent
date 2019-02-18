@@ -27,6 +27,7 @@
                (:file "lib/assimp")
                (:file "camera")
                (:file "cubemap")
+               (:file "ibl")
                (:file "postprocess")
                (:file "draw")
                (:file "render")

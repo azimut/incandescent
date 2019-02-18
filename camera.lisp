@@ -24,7 +24,6 @@
 
 (defparameter *camera1* (make-instance 'orth))
 (defparameter *cameras* (list *camera*))
-(defparameter *camera-cubemap* (make-instance 'pers :fov 90f0))
 (defparameter *currentcamera* *camera*)
 
 (defun next-camera ()
@@ -91,7 +90,8 @@
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
-(defmethod update ((camera orth)))
+(defmethod update ((camera orth))
+  )
 (defmethod update ((camera pers))
   ;;(setf (pos camera) (v! -20 90 485))
   ;;(setf (pos camera) (v! 120 30 50))
@@ -100,5 +100,5 @@
   (setf (pos camera) (v! 0 0 0))
   ;;(setf (rot camera) (q:identity))
   (setf (rot camera) (q:from-axis-angle (v! 1 0 0)
-                                        (radians 30)))
+                                        (radians 0)))
   )

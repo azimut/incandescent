@@ -71,6 +71,7 @@
     ))
 
 (defvar *tmp2* (make-instance 'ray-plane))
+(defvar *tmp3* (make-instance 'actor))
 
 (defun draw-raymarching (time)
   (declare (type single-float time))
@@ -88,14 +89,22 @@
            :frustum-corners *frustum*
            :world-view (m4:*
                         ;;(projection *currentcamera*)
-                        (world->view *currentcamera*)
+                        ;;(world->view *currentcamera*)
+                        (let ((fs (or (frame-size *currentcamera*)
+                                      (viewport-resolution (current-viewport)))))
+                          (rtg-math.projection:orthographic-v2
+                           (v2! 1)
+                           .1
+                           1000f0))
+                        ;;(world->view *currentcamera*)
+                        ;;(m4:identity)
+                        ;;(model->world *tmp3*)
                         ;;(model->world *currentcamera*)
-                        (model->world *currentcamera*)
                         )
            :view-world (m4:inverse
                         (m4:*
-                         (world->view *currentcamera*)
                          ;;(projection *currentcamera*)
+                         (world->view *currentcamera*)
                          ;;(model->world *currentcamera*)
                          ;;(model->world *tmp2*)
                          )
@@ -174,28 +183,34 @@
   (- (length (- p c)) r))
 
 (defun-g distance-estimator ((p :vec3) (c :vec3) (r :float))
-  (let* ((dist 3f0)
+  (let* ((dist 4f0)
          ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
+         ;;(new-radius (+ 1 (* 2 (tan (/ (x p) dist)))))
+         ;;(new-radius (cos (/ (x p) dist)))
          (new-radius r)
-         (p (v! (x p)
+         (p (v! (- (mod (+ (* .5 dist) (x p)) dist)
+                   (* .5 dist))
                 (- (mod (+ (* .5 dist) (y p)) dist)
                    (* .5 dist))
-                (z p))))
+                ;; (- (mod (+ (* .5 dist) (z p)) dist)
+                ;;    (* .5 dist))
+                (z p)
+                )))
     (- (length (- c p)) new-radius)))
 
 (defun-g raymarch ((from :vec3) (direction :vec3))
   (let* ((p from)
          (distance 10f0)
-         (center (v! 0 0 -20))
-         (radius 2f0))
-    (for (i 0) (< i 20) (++ i)
+         (center (v! 2 0 -20))
+         (radius 1f0))
+    (for (i 0) (< i 10) (++ i)
          (let ((distance (distance-estimator p center radius)))
            (when (< distance .01f0)
              (return (+ (v! .01 .01 .01 0)
                         (render-surface p center radius))))
            (incf p (* distance direction))))
-    (v! (mod (sin (y p)) 1) 0  0 0)
-    ;;(v! 0 0 0 0)
+    ;;(v! (sin (y p)) 0 0 0)
+    (v! 0 0 0 0)
     ))
 
 ;;--------------------------------------------------
