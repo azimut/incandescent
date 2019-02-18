@@ -65,6 +65,9 @@
                   :magnify-filter :linear
                   :minify-filter  :linear))))
 
+;; Is kind of garbage that I need a source cubemap to begin with
+;; instead of use the scene. But, It makes it easier so i can just
+;; use a separate render pipeline just for the source cubemap.
 (defun update-cubemap-ibl ()
   ;; Diffuse
   (unless *prefilter*

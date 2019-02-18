@@ -4,13 +4,9 @@
 
 (defvar *bs* nil)
 (defvar *cloud-tex* nil)
-(defparameter *stepper*
-  (make-stepper (seconds 1) (seconds 1)))
-;;(defparameter *dimensions* '(400 300))
-;;(defparameter *dimensions* '(800 600))
-(defparameter *dimensions* '(532 400))
-;;(defparameter *dimensions* '(227 128))
+(defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
 
+(defparameter *dimensions* '(532 400))
 
 (defvar *bones* NIL)
 (defvar *ubo* NIL)
@@ -22,7 +18,6 @@
   ;; (unless *cloud-tex*
   ;;   (setf *cloud-tex*
   ;;         (get-tex "static/Cloud04_8x8.tga")))
-  ;;(init-ssao)
   (when *chuesos*
     (free *chuesos*)
     (setf *chuesos* NIL))
@@ -35,10 +30,7 @@
           (*default-specular*
            "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_S.png"))
       (assimp-load-meshes obj)
-      (setf *mann* (ai:import-into-lisp obj)))
-    ;; (setf *chuesos* (make-c-array NIL :element-type :mat4 :dimensions 26))
-    ;; (push-g (get-bones-tranforms *mann*) *chuesos*)
-    )
+      (setf *mann* (ai:import-into-lisp obj))))
 
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
@@ -63,8 +55,6 @@
   (make-box)
   NIL)
 
-(defvar *add* 0f0)
-
 (defun draw! ()
   (let* ((res   (surface-resolution (current-surface)))
          (now   (get-internal-real-time))
@@ -78,11 +68,6 @@
     (update *currentcamera*)
     ;;(setf (pos *camera1*) *light-pos*)
     (update-all-the-things *actors*)
-    ;; (when (funcall *stepper*)
-    ;;   (push-g (get-bones-tranforms *mann*
-    ;;                                :time (mod (incf *add* .1) 5f0))
-    ;;           *chuesos*))
-    ;;
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
@@ -90,11 +75,6 @@
            (draw actor *currentcamera* time)
            (update actor)))
     (draw-raymarching time)
-    ;; (with-fbo-bound (*fbo-ssbo*)
-    ;;   (clear *fbo-ssbo*)
-    ;;   (draw-ssao :radius 10f0
-    ;;              :kernel-effect 1f0
-    ;;              :n-kernels 20))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face) nil

@@ -22,6 +22,7 @@
   :components ((:file "package")
                (:file "incandescent")
                (:file "lib/assets")
+               (:file "pbr")
                (:file "lib/misc-gpu")
                (:file "actors")
                (:file "lib/assimp")
@@ -31,7 +32,23 @@
                (:file "postprocess")
                (:file "draw")
                (:file "render")
-               (:file "shadowmap")
-               (:file "ssao")
                (:file "raymarching")
                (:file "main")))
+
+(asdf:defsystem #:incandescent/ssao
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "ssao")))
+
+(asdf:defsystem #:incandescent/shadowmap
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "shadowmap")))

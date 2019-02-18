@@ -163,14 +163,26 @@
 ;;     ret))
 
 (defun-g simple-lambert ((n :vec3) (p :vec3))
-  (let* ((light-dir (normalize (- p (v! 0 0 -100))))
+  (let* ((light-dir (normalize (- p (v! 0 20 -100))))
          (light-col (v! 1 1 1))
-         (n-dot-l   (max (dot n light-dir) 0)))
-    (v! (*  light-col n-dot-l) 1)))
+         ;;(n-dot-l   (max (dot n light-dir) 0))
+         )
+    ;;(v! (*  light-col n-dot-l) 1)
+    (v! (pbr-direct-lum (v! 0 10 100)
+                        p
+                        (normalize (- p (v! 0 0 0)))
+                        n
+                        .1
+                        (v3! .3)
+                        .1
+                        (v! .1 .2 1))
+        0)
+    ))
 
 (defun-g render-surface ((p :vec3) (center :vec3) (radius :float))
   (let ((n (calc-normal p center radius)))
     (simple-lambert n p)))
+
 ;; #define dist 10
 ;; #define center vec3(0,0,0)
 ;; float SphereDistance( vec3 point ) {
@@ -183,11 +195,12 @@
   (- (length (- p c)) r))
 
 (defun-g distance-estimator ((p :vec3) (c :vec3) (r :float))
-  (let* ((dist 4f0)
+  (let* ((dist 2f0)
          ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
          ;;(new-radius (+ 1 (* 2 (tan (/ (x p) dist)))))
-         ;;(new-radius (cos (/ (x p) dist)))
-         (new-radius r)
+         (new-radius (+ 1 (*  2 (sin (/ (x p) dist))
+                              (cos (/ (y p) dist)))))
+         ;;(new-radius r)
          (p (v! (- (mod (+ (* .5 dist) (x p)) dist)
                    (* .5 dist))
                 (- (mod (+ (* .5 dist) (y p)) dist)
@@ -201,9 +214,9 @@
 (defun-g raymarch ((from :vec3) (direction :vec3))
   (let* ((p from)
          (distance 10f0)
-         (center (v! 2 0 -20))
+         (center (v! 0 0 -20))
          (radius 1f0))
-    (for (i 0) (< i 10) (++ i)
+    (for (i 0) (< i 20) (++ i)
          (let ((distance (distance-estimator p center radius)))
            (when (< distance .01f0)
              (return (+ (v! .01 .01 .01 0)

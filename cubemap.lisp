@@ -1,5 +1,18 @@
 (in-package #:incandescent)
 
+;;--------------------------------------------------
+;; Cubemap
+
+(defun make-cubemap-tex (&rest paths)
+  "Returns a gpu texture from the provided images"
+  (assert (= 6 (length paths)))
+  (with-c-arrays-freed
+      (ca (mapcar (lambda (p)
+                    (dirt:load-image-to-c-array
+                     (asdf:system-relative-pathname :incandescent p)))
+                  paths))
+    (make-texture ca :element-type :rgb8 :cubes t)))
+
 ;; Souce Cubemap with clouds
 (defvar *t-cubemap* nil)
 (defvar *s-cubemap* nil)

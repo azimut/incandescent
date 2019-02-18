@@ -100,5 +100,5 @@
   (setf (pos camera) (v! 0 0 0))
   ;;(setf (rot camera) (q:identity))
   (setf (rot camera) (q:from-axis-angle (v! 1 0 0)
-                                        (radians 0)))
+                                        (radians 70)))
   )
