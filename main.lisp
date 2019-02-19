@@ -14,13 +14,20 @@
 (defvar *chuesos* NIL)
 (defvar *mann* NIL)
 
+(defvar *cube-tex* NIL)
+(defvar *cube-sam* NIL)
 (defun init ()
   ;; (unless *cloud-tex*
   ;;   (setf *cloud-tex*
   ;;         (get-tex "static/Cloud04_8x8.tga")))
-  (when *chuesos*
-    (free *chuesos*)
-    (setf *chuesos* NIL))
+  ;; (when *chuesos*
+  ;;   (free *chuesos*)
+  ;;   (setf *chuesos* NIL)
+  (unless *cube-tex*
+    (setf *cube-tex* (make-render-cubemap *camera-cubemap*))
+    (setf *cube-sam* (sample *cube-tex*
+                             :wrap :clamp-to-edge
+                             :magnify-filter :linear)))
   (unless *chuesos*
     (setf *actors* NIL)
     (let ((obj
@@ -48,11 +55,13 @@
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
   ;;--------------------------------------------------
-  (setf (clear-color) (v! 1 1 1 1))
+  (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
   ;;(make-celestial-sphere)
-  (make-box)
+  ;;(make-env-map *cube-tex* *cube-sam*)
+  ;;(push (car *assimp-meshes*) *actors*)
+  ;;(make-box)
   NIL)
 
 (defun draw! ()
@@ -63,8 +72,8 @@
          ;; (delta (if (> delta .16) .00001 delta))
          )
     (setf *last-time* now)
-    (setf (resolution (current-viewport)) res)
-    ;;(setf (resolution (current-viewport)) (v! *dimensions*))
+    ;;(setf (resolution (current-viewport)) res)
+    (setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
     ;;(setf (pos *camera1*) *light-pos*)
     (update-all-the-things *actors*)

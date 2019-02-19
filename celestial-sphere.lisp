@@ -3,6 +3,21 @@
 (defclass celestial-sphere (actor)
   ((buf :initform (sphere))))
 
+(defun-g cubemap-vert ((g-pnt g-pnt)
+                       &uniform
+                       (mod-clip :mat4)
+                       (model :mat4)
+                       (view :mat4)
+                       (projection :mat4))
+  (let* ((pos3  (pos g-pnt))
+         (pos4  (v! pos3 1))
+         (pos   (s~ (* model pos4) :xyz))
+         (cpos4 (* projection view model pos4)))
+    (values cpos4
+            pos3
+            ;;(s~ (* model pos4) :xyz)
+            )))
+
 (defun make-celestial-sphere ()
   (let ((obj (make-instance 'celestial-sphere
                             :name :celestial-sphere)))
@@ -10,22 +25,19 @@
     obj))
 
 (defmethod draw ((actor celestial-sphere) camera time)
-  (with-slots (buf color scale) actor
+  (with-slots (buf) actor
     (with-setf* ((cull-face) :front
                  (depth-test-function) #'<=
                  (depth-mask) nil)
       (map-g #'celestial-pipe buf
-             :color color
-             :cam-pos (pos camera)
-             :mod-clip
-             (m4:* (projection  camera)
-                   (world->view camera)
-                   (model->world actor))))))
+             :model (model->world actor)
+             :view (world->view camera)
+             :projection (projection  camera)
+             :mod-clip (m4:* (projection  camera)
+                             (world->view camera)
+                             (model->world actor))))))
 
 (defmethod update ((actor celestial-sphere))
-  (setf (pos actor) (pos *currentcamera*))
-  ;;(setf (rot actor) (q:from-axis-angle (v! 0 0 1) (radians 0)))
-  ;;(setf (rot actor) (q:identity))
   )
 
 ;;--------------------------------------------------
@@ -157,9 +169,7 @@
 
 (defun-g celestial-frag ((frag-pos :vec3)
                          &uniform
-                         (cam-pos :vec3)
-                         (light-pos :vec2)
-                         (color :vec3))
+                         (light-pos :vec2))
   (* (atmosphere (normalize frag-pos)
                  (v! 0 372000 0)
                  (v! 0 39 -100)

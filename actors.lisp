@@ -160,14 +160,14 @@
   )
 (defmethod update ((actor assimp-thing))
   (with-slots (scale rot pos) actor
-    ;; (setf pos (v! (+ 40 (- (mod (* 10 (mynow)) 120)))
-    ;;               -10
-    ;;               (- (* (sin (mynow)) 40))))
-    (setf pos (v! 0 -13 -10))
+    (setf pos (v! 2
+                  (+ 10 (- (mod (* 2 (mynow)) 20)))
+                  (- (mod (* 10 (mynow)) 100))))
+    ;;(setf pos (v! 0 -2 -20))
     (setf rot (q:*
                (q:from-axis-angle
                 (v! 0 0 1)
-                (radians (* .1 (sin (* 10 (mynow))))))
+                (radians (* 20 (sin (* 1 (mynow))))))
                (q:from-axis-angle
                 (v! 0 1 0)
                 (radians 180))))

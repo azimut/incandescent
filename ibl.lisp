@@ -57,7 +57,7 @@
                   :wrap :clamp-to-edge)))
   ;; 2) BRDF
   (unless *f-brdf*
-    (setf *f-brdf* (make-fbo `(0 :element-type :rg16f :dimensions '(512 512))))
+    (setf *f-brdf* (make-fbo `(0 :element-type :rg16f :dimensions (512 512))))
     (setf *t-brdf* (attachment-tex *f-brdf* 0))
     (setf *s-brdf*
           (sample *t-brdf*
@@ -68,12 +68,15 @@
 ;; Is kind of garbage that I need a source cubemap to begin with
 ;; instead of use the scene. But, It makes it easier so i can just
 ;; use a separate render pipeline just for the source cubemap.
-(defun update-cubemap-ibl ()
+(defun update-cubemap-ibl (&optional (src-tex *t-cubemap*) (src-sam *s-cubemap*))
+  (declare (type cepl:texture src-tex)
+           (type cepl:sampler src-sam))
+  (assert (texture-cubes-p src-tex))
   ;; Diffuse
   (unless *prefilter*
     (cubemap-render-to-prefilter-cubemap *camera-cubemap*
-                                         *t-cubemap*
-                                         *s-cubemap*
+                                         src-tex
+                                         src-sam
                                          *t-cubemap-prefilter*)
     (setf *prefilter* T))
   ;; IBL - Specular
@@ -83,8 +86,8 @@
     (setf *brdf* T))
   (unless *saved*
     (cubemap-render-to-irradiance-cubemap *camera-cubemap*
-                                          *t-cubemap*
-                                          *s-cubemap*
+                                          src-tex
+                                          src-sam
                                           *t-cubemap-live*)
     (setf *saved* T)))
 

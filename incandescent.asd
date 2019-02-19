@@ -16,6 +16,7 @@
                #:swank
                #:nineveh
                #:classimp
+               #:png
                #:livesupport
                #:cepl.skitter.sdl2
                #:dirt)
