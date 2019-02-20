@@ -33,6 +33,7 @@
                (:file "postprocess")
                (:file "draw")
                (:file "render")
+               (:file "3d-sdf")
                (:file "raymarching")
                (:file "main")))
 

@@ -59,7 +59,7 @@
   ;;--------------------------------------------------
   (setf *actors* nil)
   ;;(make-celestial-sphere)
-  ;;(make-env-map *cube-tex* *cube-sam*)
+  ;;(make-env-map *cube-tex* *s-cubemap-live*)
   ;;(push (car *assimp-meshes*) *actors*)
   ;;(make-box)
   NIL)
@@ -76,17 +76,17 @@
     (setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
     ;;(setf (pos *camera1*) *light-pos*)
-    (update-all-the-things *actors*)
-    (with-fbo-bound (*fbo*)
-      (clear *fbo*)
-      (loop :for actor :in *actors*
-         :do
-           (draw actor *currentcamera* time)
-           (update actor)))
+    ;;(update-all-the-things *actors*)
+    ;; (with-fbo-bound (*fbo*)
+    ;;   (clear *fbo*)
+    ;;   (loop :for actor :in *actors*
+    ;;      :do
+    ;;        (draw actor *currentcamera* time)
+    ;;        (update actor)))
     (draw-raymarching time)
     (as-frame
       (with-setf* ((depth-mask) nil
-                   (cull-face) nil
+                   (cull-face)  nil
                    (clear-color) (v! 1 0 1 1))
         (map-g #'generic-2d-pipe *bs*
                :sam *ray-sam*)))))
