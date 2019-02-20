@@ -5,15 +5,18 @@
 
 (defun-g cubemap-vert ((g-pnt g-pnt)
                        &uniform
+                       (scale :float)
                        (mod-clip :mat4)
                        (model :mat4)
                        (view :mat4)
                        (projection :mat4))
-  (let* ((pos3  (pos g-pnt))
+  (let* ((pos3  (* 1 (pos g-pnt)))
          (pos4  (v! pos3 1))
-         (pos   (s~ (* model pos4) :xyz))
-         (cpos4 (* projection view model pos4)))
-    (values cpos4
+         ;;(pos   (s~ (* model pos4) :xyz))
+         ;;(cpos4 (* projection view model pos4))
+         (cpos4 (* projection view pos4))
+         )
+    (values (s~ cpos4 :xyww)
             pos3
             ;;(s~ (* model pos4) :xyz)
             )))
@@ -31,13 +34,19 @@
                  (depth-mask) nil)
       (map-g #'celestial-pipe buf
              :model (model->world actor)
-             :view (world->view camera)
+             ;; Rotation without translation
+             :view (q:to-mat4
+                    (q:inverse (rot camera)))
              :projection (projection  camera)
              :mod-clip (m4:* (projection  camera)
                              (world->view camera)
                              (model->world actor))))))
 
 (defmethod update ((actor celestial-sphere))
+  (setf (pos actor) (pos *currentcamera*))
+  ;;(setf (rot actor) (q:identity))
+  ;;(setf (rot actor) (q:point-at (v! 0 1 0) (pos *currentcamera*) (v! 0 0 -20)))
+  ;;(setf (rot actor) (rot *currentcamera*))
   )
 
 ;;--------------------------------------------------
@@ -167,15 +176,16 @@
           (* i-sun (+ (* p-rlh k-rlh total-rlh)
                       (* p-mie k-mie total-mie)))))))
 
+(defvar *temp* 20f0)
 (defun-g celestial-frag ((frag-pos :vec3)
                          &uniform
                          (light-pos :vec2))
   (* (atmosphere (normalize frag-pos)
-                 (v! 0 372000 0)
-                 (v! 0 39 -100)
-                 20f0
-                 373000f0
-                 471000f0
+                 (v! 0 272000 0)
+                 *light-pos*
+                 *temp*
+                 273000f0
+                 272000f0
                  (v! .0000055 .000013 .0000224)
                  .000021
                  900f0 ;; rayleigh scale height

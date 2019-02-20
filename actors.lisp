@@ -160,10 +160,10 @@
   )
 (defmethod update ((actor assimp-thing))
   (with-slots (scale rot pos) actor
-    (setf pos (v! 2
-                  (+ 10 (- (mod (* 2 (mynow)) 20)))
-                  (- (mod (* 10 (mynow)) 100))))
-    ;;(setf pos (v! 0 -2 -20))
+    (setf pos (v! (mod (mynow) 20)
+                  10;;(- (mod (* 2 (mynow)) 20))
+                  (+ +100 (- (mod (* 10 (mynow)) 120)))))
+    ;;(setf pos (v! 0 0 100))
     (setf rot (q:*
                (q:from-axis-angle
                 (v! 0 0 1)

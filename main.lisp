@@ -6,8 +6,11 @@
 (defvar *cloud-tex* nil)
 (defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
 
-(defparameter *dimensions* '(532 400))
+;;(defparameter *dimensions* '(532 400))
+(defparameter *dimensions* '(683 384))
+;;(defparameter *dimensions* '(1366 768))
 
+(defparameter *dimensions* '(533 400))
 (defvar *bones* NIL)
 (defvar *ubo* NIL)
 
@@ -54,13 +57,14 @@
   (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
+  (init-raymarching)
   ;;--------------------------------------------------
   (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  ;;(make-celestial-sphere)
+  (push (car *assimp-meshes*) *actors*)
+  (make-celestial-sphere)
   ;;(make-env-map *cube-tex* *s-cubemap-live*)
-  ;;(push (car *assimp-meshes*) *actors*)
   ;;(make-box)
   NIL)
 
@@ -72,17 +76,17 @@
          ;; (delta (if (> delta .16) .00001 delta))
          )
     (setf *last-time* now)
-    ;;(setf (resolution (current-viewport)) res)
-    (setf (resolution (current-viewport)) (v! *dimensions*))
+    (setf (resolution (current-viewport)) res)
+    ;;(setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
     ;;(setf (pos *camera1*) *light-pos*)
     ;;(update-all-the-things *actors*)
-    ;; (with-fbo-bound (*fbo*)
-    ;;   (clear *fbo*)
-    ;;   (loop :for actor :in *actors*
-    ;;      :do
-    ;;        (draw actor *currentcamera* time)
-    ;;        (update actor)))
+    (with-fbo-bound (*fbo*)
+      (clear *fbo*)
+      (loop :for actor :in *actors*
+         :do
+           (draw actor *currentcamera* time)
+           (update actor)))
     (draw-raymarching time)
     (as-frame
       (with-setf* ((depth-mask) nil

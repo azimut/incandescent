@@ -26,13 +26,13 @@
                      (diffuse-map :sampler-cube))
   (let* ((n (normalize (calc-normal p center radius)))
          (v (normalize (- cam-pos p)))
-         ;;(ao (ambient-occlussion p n .1 2 center radius))
-         (ao 0)
+         (ao (ambient-occlussion p n .1 3 center radius))
+         ;;(ao 1)
          (a 0)
          (f0 (v3! .04))
          (roughness .9)
-         (metallic .01)
-         (color (v! .1 .2 1))
+         (metallic .1)
+         (color (v! .3 .2 .9))
          ;; (a (ambient-ibl v
          ;;                 n
          ;;                 f0
@@ -57,7 +57,7 @@
                             f0
                             metallic
                             color)))
-    (v! (+ l a) 0)))
+    (v! (* ao (+ l a)) 0)))
 
 (defun-g render-surface ((p :vec3)
                          (center :vec3)
@@ -65,7 +65,7 @@
                          (light-pos :vec3))
   (let* ((n (calc-normal p center radius))
          ;;(ao 1)
-         (ao (v! (v3! (clamp (ambient-occlussion p n .1 3 center radius) 0 1)) 0))
+         (ao (v! (v3! (ambient-occlussion p n .3 3 center radius)) 0))
          )
     (* (simple-lambert n p light-pos)
        ao)))
@@ -74,7 +74,7 @@
                          (p :vec3)
                          (light-pos :vec3))
   (let* ((light-dir (normalize (- p light-pos)))
-         (light-col (v! 1 1 1))
+         (light-col (v! .1 .1 .3))
          (n-dot-l   (max (dot n light-dir) 0)))
     (v! (* light-col n-dot-l) 1)))
 
@@ -227,9 +227,9 @@
          (* .5 (+ u a (abs (- (fmod (+ (- u a) s) (* 2 s)) s)))))))
 (defun-g f-op-intersection-stairs ((a :float) (b :float) (r :float) (n :float))
   "We can just call Union since stairs are symmetric."
-  (f-op-union-stairs (-a) (- b) r n))
+  (f-op-union-stairs (- a) (- b) r n))
 (defun-g f-op-difference-stairs ((a :float) (b :float) (r :float) (n :float))
-  (f-op-union-stairs (-a) b r n))
+  (f-op-union-stairs (- a) b r n))
 ;;--------------------------------------------------
 (defun-g f-op-union-soft ((a :float) (b :float) (r :float))
   "Similar to fOpUnionRound, but more lipschitz-y at acute angles
@@ -276,5 +276,7 @@
 ;;     (v! p c)))
 (defun-g p-mod2 ((p :vec2) (size :vec2))
   "Repeat in two dimensions"
-  (let ((c (floor (/ (+ p (* .5 size)) size))))
+  (let ((c (v! 1 1);; (floor (/ (+ p (* .5 size)) size))
+          )
+        (p (- (fmod (+ p (* .5 size)) size) (* size .5))))
     (v! p c)))

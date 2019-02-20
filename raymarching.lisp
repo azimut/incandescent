@@ -27,13 +27,17 @@
 (defvar *min-distance* .001)
 (defvar *max-distance* 1000f0)
 
-(defparameter *light-pos* (v! 10 10 100))
+(defparameter *light-pos* (v! 100 100 100))
+(defparameter *light-pos* (v! 100 1000 0))
+(defparameter *light-pos* (v! 0 .3 -1))
+
 
 (defclass ray-plane (actor) ())
 
 (defmethod update ((actor ray-plane))
-  ;; (setf (pos actor) (pos *currentcamera*))
-  (setf (rot actor) (rot *currentcamera*)))
+  ;;(setf (pos actor) (pos *currentcamera*))
+  (setf (rot actor) (rot *currentcamera*))
+  )
 
 (defun init-raymarching ()
   (when *ray-fbo* (free *ray-fbo*))
@@ -122,34 +126,48 @@
                              p
                              v
                              n
-                             .9
+                             .1
                              (v3! .4)
-                             .01
-                             (v! .1 .2 1))))
+                             .1
+                             (v! .1 .1 .1))))
     (v! (* l ao) 0)))
 
 ;;--------------------------------------------------
+(defun-g p-r ((p :vec2) (a :float))
+  ;;cos(a)*p + sin(a)*vec2(p.y, -p.x);
+  (+ (* p (cos a)) (* (sin a) (v! (y p) (- (x p))))))
 
 (defun-g distance-estimator ((p :vec3)
                              (c :vec3)
                              (r :float))
   (let* ((p (- p c))
-         (p (v! (+ 2 (x p)) (y p) (z p)))
-         (p (v! (- (mod (+ 2.5 (x p)) 5) 2.5)
-                (y p)
-                (- (mod (+ 2.5 (z p)) 5) 2.5)))
-         ;; (p (* p (m3:* (m3:rotation-y (radians 20))
-         ;;               (m3:rotation-x (radians -20)))))
-
+         (orig p)
+         ;;(p (v! (x p) (/ (y p) 2) (z p)))
+         (p (v! (+ 10 (x p)) (y p) (z p)))
+         ;;(p (* (m3:rotation-x (radians 30)) p))
+         ;;(p (v! (x p) (y p) (+ (mod (* .1 r) 10) (z p))))
+         (rp (p-mod2 (v! (x p) (z p)) (v! 4 4)))
+         (p (v! (x rp) (y p) (y rp)))
          )
-    ;;(f-op-union-chamfer)
-    ;;(f-capsule p (v! 1 5 1) (v! 1 -5 1) .3)
-    (f-op-tounge (f-box p (v! .9 3 .9))
-                 (f-box p (v!  2 2 2))
-                 .2 .3)))
+    (let* (
+           (d (f-op-engrave (f-box p (v! .4 3 .4))
+                            (f-box p (v! 1  1 1))
+                            .3))
 
+           (dd (min (f-box-2-cheap (v! (x p) (y p)) (v! .1 .1)) d))
+           (piso (f-plane p (v! 0 1 0) 2))
+           ;;(orig (v! (x orig) (y orig) (p-mod1 (z orig) 10)))
+
+           ;;(piso (f-sphere orig 2))
+           )
+      (min piso dd))))
+
+(defun-g p-mod1 ((p :float) (size :float))
+  (let ((half (* size .5)))
+    (- (fmod (+ p half) size) half)))
 (defun-g distance-estimator ((p :vec3) (c :vec3) (r :float))
   (let* ((dist 4f0)
+         (p (- p c))
          ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
          ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
          (new-radius (+ 1 (* r (sin (/ (x p) dist)))))
@@ -176,28 +194,27 @@
   (let* ((tt 0f0)
          (ret (v! 0 0 0 0))
          ;; Geometry
-         (center (v! 0 0 0))
+         (center (v! 0 0 -10))
          (radius (+ 1 (sin (* .01 time)))))
-    (dotimes (i 60)
+    (dotimes (i 100)
       (when (or (>= tt s)
-                (> tt 50f0))
+                (> tt 140f0))
         (setf ret (v! 0 0 0 0))
         (break))
       (let* ((p (+ ro (* rd tt)))
-             (d (distance-estimator p center radius)))
-        (when (< d .001)
+             (d (distance-estimator p center time)))
+        (when (< d .01)
           (setf ret
-                (v! (+ (v! .01 .01 .01)
-                       (s~ (render-surface p center radius (- light-pos))
-                           ;; (render-pbr p center radius cam-pos light-pos
-                           ;;             brdf-lut irradiance-map diffuse-map)
-                           :xyz)
-                       ;;(let* ((n (calc-normal p center radius))))
-                       )
+                (v! (+ ;;(v! .01 .003 .001)
+                     (s~ ;;(render-surface p center radius (- light-pos))
+                      (render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
+                      :xyz)
+                     ;;(let* ((n (calc-normal p center radius))))
+                     )
                     1))
           (break))
         (incf tt d)))
-    ;;(v! (sin (y p)) 0 0 0)
+    ;;(setf ret (v! (sin (y p)) 0 0 0))
     ret
     ))
 
@@ -244,12 +261,12 @@
   (let* ((rd    (normalize ray))
          (ro    cam-pos)
          (depth (linear-eye-depth (x (texture samd uv))))
-         (depth (* depth (length ray)))
+         (depth (* .06 depth (length ray)))
          (color (s~ (texture sam uv) :xyz))
          (add   (raymarch ro rd depth time cam-pos light-pos
                           brdf-lut irradiance-map diffuse-map)))
     ;; return fixed4(col*(1.0 - add.w) + add.xyz * add.w,1.0);
-    (v! (+ (* color (- 1 (w add)))
+    (v! (+ (* color         (- 1 (w add)))
            (* (s~ add :xyz) (w add)))
         1)
     ;;add
