@@ -10,15 +10,16 @@
 (defmethod draw (actor camera time))
 
 (defmethod draw ((actor box) camera (time single-float))
-  (with-instances *instances*
-    (with-slots (buf scale color) actor
-      (map-g #'generic-pipe buf
-             :scale scale
-             :color color
-             :time time
-             :model-world (model->world actor)
-             :world-view (world->view camera)
-             :view-clip  (projection camera)))))
+  (with-slots (buf scale color) actor
+    (map-g #'generic-pipe buf
+           :scale scale
+           :color color
+           :time  time
+           :light-pos *light-pos*
+           :cam-pos (pos camera)
+           :model-world (model->world actor)
+           :world-view  (world->view camera)
+           :view-clip   (projection camera))))
 
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf

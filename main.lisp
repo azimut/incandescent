@@ -6,9 +6,9 @@
 
 ;; (defparameter *dimensions* '(1366 768))
 ;; (defparameter *dimensions* '(683 384))
-;; (defparameter *dimensions* '(533 400))
+(defparameter *dimensions* '(533 400))
 ;; (defparameter *dimensions* '(455 256))
-(defparameter *dimensions* '(341 192))
+;;(defparameter *dimensions* '(341 192))
 
 (defun init ()
   ;;--------------------------------------------------
@@ -30,7 +30,7 @@
   (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  ;;(make-box)
+  (make-box)
   NIL)
 
 (defun draw! ()

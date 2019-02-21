@@ -18,7 +18,7 @@
          (clip-pos   (* view-clip   view-pos)))
     (values clip-pos
             tex
-            (+ gl-instance-id world-norm)
+            world-norm
             (s~ world-pos :xyz))))
 
 (defun-g frag ((uv :vec2)
@@ -27,22 +27,16 @@
                &uniform
                (time :float)
                (color :vec3)
-               (cam-pos :vec3))
+               (cam-pos :vec3)
+               (light-pos :vec3))
   (let* ((final-color color)
          (final-color
-          (dir-light-apply final-color
-                           (v! 20 20 20)
-                           (v! 0 1000 1000)
-                           frag-pos
-                           frag-norm))
-         (final-color
-          (point-light-apply final-color
-                             (v! 10 10 10)
-                             *light-pos*
+          (point-light-apply color
+                             (v! 1 1 1)
+                             (v! 0 (* 20 (sin (* .001 time))) 0)
                              frag-pos
                              frag-norm
-                             1f0
-                             0.014 0.07)))
+                             1 .9 .9)))
     (values (v! final-color 1)
             (v! 0 1 0 1))))
 

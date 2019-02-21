@@ -146,9 +146,11 @@
 (defmethod update ((actor pbr)))
 (defmethod update ((actor pbr-simple))  )
 (defmethod update ((actor box))
-  (with-slots (pos rot) actor
-    (setf pos (v! 0 0 -3))
-    (setf rot (q:from-axis-angle (v! 0 .4 1) (radians 40)))))
+  (with-slots (pos rot color) actor
+    (setf color (v! .1 .3 .9))
+    (setf pos (v! 0 0 0))
+    (setf rot (q:from-axis-angle (v! 0 (sin (mynow)) (cos (mynow)))
+                                 (radians (mod (* 20 (mynow)) 360))))))
 (defmethod update ((actor assimp-flat))
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )

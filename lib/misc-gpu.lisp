@@ -3,6 +3,26 @@
 (defvar *light-color* (v! 1 1 1))
 (defvar *exposure* 1f0)
 
+;; oren-nayar
+;; https://github.com/glslify/glsl-diffuse-oren-nayar
+;; - is roughness a value in radians?
+(defun-g oren-nayar-diffuse ((light-dir :vec3)
+                             (view-dir :vec3)
+                             (normal :vec3)
+                             (roughness :float)
+                             (intensity :float))
+  (let* ((l-dot-v (dot light-dir view-dir))
+         (n-dot-l (dot light-dir normal))
+         (n-dot-v (dot normal view-dir))
+         (s (- l-dot-v (* n-dot-l n-dot-v)))
+         (tt (mix 1 (max n-dot-l n-dot-v) (step 0 s)))
+         (sigma2 (* roughness roughness))
+         (a (1+ (* sigma2 (+ (/ intensity (+ sigma2 .13))
+                             (/ .5 (+ sigma2 .33))))))
+         (b (* .45 (/ sigma2 (+ sigma2 .09)))))
+    (* intensity (max 0 n-dot-l) (/ (+ a (/ (* b s) tt)) +pi+))))
+
+;;--------------------------------------------------
 ;; Range Constant Linear Quadratic
 ;; 3250, 1.0, 0.0014, 0.000007
 ;; 600, 1.0, 0.007, 0.0002
@@ -27,13 +47,13 @@
   (let* ((light-dir (normalize (- light-pos frag-pos)))
          (diff (saturate (dot normal light-dir)))
          (distance (length (- light-pos frag-pos)))
+         ;; HDR distance, not squared
          (attenuation (/ 1 (+ constant
                               (* linear distance)
-                              (* quadratic distance distance))))
+                              (* quadratic distance))))
          (ambient (* .1 color))
          (diffuse (* diff color)))
     (+ ambient diffuse)))
-
 
 (defun-g point-light-apply ((color :vec3)
                             (light-color :vec3)
@@ -54,9 +74,10 @@
                            128))
          ;;
          (distance (length (- light-pos frag-pos)))
+         ;; HDR distance, not squared
          (attenuation (/ 1 (+ constant
                               (* linear distance)
-                              (* quadratic distance distance))))
+                              (* quadratic distance))))
          (ambient (* light-color .1))
          (diffuse (* light-color diff))
          (specular (* light-color spec spec-strength)))
@@ -64,6 +85,9 @@
                 diffuse
                 specular))))
 
+;;--------------------------------------------------
+                                        ;
+;; Only lambert diffuse
 (defun-g dir-light-apply ((color :vec3)
                           (light-color :vec3)
                           (light-pos :vec3)
@@ -77,12 +101,36 @@
          (diffuse (* light-color diff color)))
     (+ ambient diffuse)))
 
+;; Only oren diffuse
 (defun-g dir-light-apply ((color :vec3)
                           (light-color :vec3)
                           (light-pos :vec3)
                           (frag-pos :vec3)
                           (normal :vec3)
                           (cam-pos :vec3)
+                          (roughness :float)
+                          (intensity :float))
+  (let* ((light-dir (normalize (- light-pos frag-pos)))
+         (view-dir  (normalize (- cam-pos frag-pos)))
+         ;; Diffuse shading
+         (diff (oren-nayar-diffuse light-dir
+                                   view-dir
+                                   normal
+                                   roughness
+                                   intensity))
+         ;; combine
+         (ambient (* light-color .1 color))
+         (diffuse (* light-color diff color)))
+    (+ ambient diffuse)))
+
+;; Lambert diffuse + specular
+(defun-g dir-light-apply ((color :vec3)
+                          (light-color :vec3)
+                          (light-pos :vec3)
+                          (frag-pos :vec3)
+                          (normal :vec3)
+                          (cam-pos :vec3)
+                          (shininess :int)
                           (spec-strength :float))
   (let* ((light-dir (normalize (- light-pos frag-pos)))
          ;; Diffuse shading
@@ -90,7 +138,7 @@
          ;; specular
          (view-dir    (normalize (- cam-pos frag-pos)))
          (reflect-dir (reflect (- light-dir) normal))
-         (spec (pow (max (dot view-dir reflect-dir) 0) 128))
+         (spec (pow (max (dot view-dir reflect-dir) 0) shininess))
          ;; combine
          (ambient  (* light-color .1))
          (diffuse  (* light-color diff))
@@ -157,14 +205,13 @@
     (+ uv (* (s~ view-dir :xy) p))))
 
 ;;--------------------------------------------------
+;; https://catlikecoding.com/unity/tutorials/advanced-rendering/flat-and-wireframe-shading/
 
 (defun-g flat-shading ((pos :vec3))
   (let* ((dpdx (d-fdx pos))
          (dpdy (d-fdy pos))
          (norm (normalize (cross dpdy dpdx))))
     norm))
-
-
 
 ;;--------------------------------------------------
 ;; WORKS???

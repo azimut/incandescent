@@ -60,7 +60,6 @@
   (m4:* (projection camera)
         (world->view camera)))
 
-
 ;; https://github.com/Flafla2/Generic-Raymarch-Unity/blob/master/Assets/RaymarchGeneric.cs
 (defmethod get-frustum-corners ((camera pers))
   "Stores the normalized rays representing the camera frustum in a 4x4 matrix.
@@ -91,23 +90,19 @@
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
-(defmethod update ((camera orth))
-  )
+(defmethod update ((camera orth)))
 (defmethod update ((camera pers))
   ;;(setf (pos camera) (v! -20 90 485))
   ;;(setf (pos camera) (v! 120 30 50))
   ;; (setf (pos camera) (v! (* 20 (sin (mynow)))
   ;;                        0
   ;;                        (* 20 (cos (mynow)))))
-  (setf (pos camera) *pos*)
+  (setf (pos camera) (v! 0 0 5))
   ;;(setf (pos camera) (v! 0 0 0))
   (setf (rot camera) (q:identity))
   (setf (rot camera)
-        (q:*
-         (q:point-at (v! 0 1 0) (pos camera) *lok*)
-         (q:from-axis-angle (v! 0 0 1)
-                            (radians (* 20 (sin (* .1 (mynow)))))))
+        ;;(q:*)
+        (q:point-at (v! 0 1 0) (pos camera) (v! 0 0 0))
+        ;;(q:from-axis-angle (v! 0 0 1) (radians (* 20 (sin (* .1 (mynow))))))
         )
   )
-(defparameter *lok* (v! 0 0 0))
-(defparameter *pos* (v! 0 0 100))
