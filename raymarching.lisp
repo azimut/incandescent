@@ -31,6 +31,7 @@
 (defparameter *light-pos* (v! 100 1000 0))
 (defparameter *light-pos* (v! 0 .3 -1))
 
+(defparameter *light-pos* (v! 0 20 100))
 
 (defclass ray-plane (actor) ())
 
@@ -50,17 +51,15 @@
           (make-c-array (get-frustum-corners *currentcamera*)
                         :element-type :vec3 :dimensions 4)))
   (unless *quad-3d*
-    ;; 1 0 0 // BL ;; 0 1 0 // TR ;; 0 0 1 // BR ;; 0 0 0 // TL
     (setf *quad-3d*
           (let* ((verts (make-gpu-array
-                         `((,(v! -1 -1 3) ,(v! 1 0 0) ,(v! 0 0))
-                           (,(v!  1  1 1) ,(v! 0 1 0) ,(v! 1 1))
-                           (,(v!  1 -1 2) ,(v! 0 0 1) ,(v! 1 0))
-                           (,(v! -1  1 0) ,(v! 0 0 0) ,(v! 0 1)))
-                         :dimensions 4 :element-type 'g-pnt))
+                         `((,(v! -1 -1 3) ,(v! 0 0))
+                           (,(v!  1  1 1) ,(v! 1 1))
+                           (,(v!  1 -1 2) ,(v! 1 0))
+                           (,(v! -1  1 0) ,(v! 0 1)))
+                         :dimensions 4 :element-type 'g-pt))
                  (indi  (make-gpu-array '(0 1 2 1 0 3)
                                         :dimensions 6
-
                                         :element-type :unsigned-short))
                  (buf   (make-buffer-stream verts
                                             :index-array indi
@@ -73,43 +72,44 @@
 (defun draw-raymarching (time)
   (declare (type single-float time))
   (update *tmp2*)
-  (with-fbo-bound (*ray-fbo*)
-    (clear *ray-fbo*)
-    (map-g #'raymarch-pipe *quad-3d*
-           :samd *samd*
-           :sam  *sam*
-           :time time
-           ;; :brdf-lut *s-brdf*
-           ;; :irradiance-map *s-cubemap-prefilter*
-           ;; :diffuse-map *s-cubemap-live*
-           :cam-pos (pos *currentcamera*)
-           :frustum-corners *frustum*
-           :light-pos *light-pos*
-           :world-view (m4:*
-                        ;;(projection *currentcamera*)
-                        (let ((fs (or (frame-size *currentcamera*)
-                                      (viewport-resolution (current-viewport)))))
+  (with-setf* ((depth-test-function) #'always
+               (cull-face) NIL
+               (depth-mask) NIL)
+    (with-fbo-bound (*ray-fbo*)
+      (clear *ray-fbo*)
+      (map-g #'raymarch-pipe *quad-3d*
+             :samd *samd*
+             :sam  *sam*
+             :time time
+             ;; :brdf-lut *s-brdf*
+             ;; :irradiance-map *s-cubemap-prefilter*
+             ;; :diffuse-map *s-cubemap-live*
+             :cam-pos (pos *currentcamera*)
+             :frustum-corners *frustum*
+             :light-pos *light-pos*
+             :world-view (m4:*
+                          ;;(projection *currentcamera*)
                           (rtg-math.projection:orthographic-v2
                            (v2! 1)
                            .1
-                           1000f0))
-                        (world->view *tmp2*
-                                     ;;*currentcamera*
-                                     )
-                        ;;(world->view *currentcamera*)
+                           100f0)
+                          (world->view *tmp2*
+                                       ;;*currentcamera*
+                                       )
+                          ;;(world->view *currentcamera*)
                                         ;,(m4:identity)
-                        (model->world *tmp2*)
-                        ;;(model->world *currentcamera*)
-                        )
-           :view-world (m4:inverse
-                        (m4:*
-                         ;;(projection *currentcamera*)
-                         (world->view *tmp2*;;*currentcamera*
-                                      )
-                         ;;(model->world *currentcamera*)
-                         ;;(model->world *tmp2*)
-                         )
-                        ))))
+                          (model->world *tmp2*)
+                          ;;(model->world *currentcamera*)
+                          )
+             :view-world (m4:inverse
+                          (m4:*
+                           ;;(projection *currentcamera*)
+                           (world->view *tmp2* ;;*currentcamera*
+                                        )
+                           ;;(model->world *currentcamera*)
+                           ;;(model->world *tmp2*)
+                           )
+                          )))))
 
 ;;--------------------------------------------------
 
@@ -194,21 +194,21 @@
   (let* ((tt 0f0)
          (ret (v! 0 0 0 0))
          ;; Geometry
-         (center (v! 0 0 -10))
+         (center (v! 0 0 0))
          (radius (+ 1 (sin (* .01 time)))))
-    (dotimes (i 100)
+    (dotimes (i 20)
       (when (or (>= tt s)
-                (> tt 140f0))
+                (> tt 20f0))
         (setf ret (v! 0 0 0 0))
         (break))
       (let* ((p (+ ro (* rd tt)))
              (d (distance-estimator p center time)))
-        (when (< d .01)
+        (when (< d .1)
           (setf ret
-                (v! (+ ;;(v! .01 .003 .001)
-                     (s~ ;;(render-surface p center radius (- light-pos))
-                      (render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
-                      :xyz)
+                (v! (+ ;;(v! .01 .01 .01)
+                     (s~ (render-surface p center radius (- light-pos))
+                         ;;(render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
+                         :xyz)
                      ;;(let* ((n (calc-normal p center radius))))
                      )
                     1))
@@ -223,7 +223,7 @@
 ;;
 
 ;; https://github.com/Flafla2/Generic-Raymarch-Unity/blob/master/Assets/RaymarchGeneric.shader
-(defun-g raymarch-vert ((vert g-pnt) ;;(pos :vec3)
+(defun-g raymarch-vert ((vert g-pt) ;;(pos :vec3)
                         &uniform
                         (world-view :mat4)
                         (view-world :mat4)
@@ -261,7 +261,7 @@
   (let* ((rd    (normalize ray))
          (ro    cam-pos)
          (depth (linear-eye-depth (x (texture samd uv))))
-         (depth (* .06 depth (length ray)))
+         (depth (*  depth (length ray)))
          (color (s~ (texture sam uv) :xyz))
          (add   (raymarch ro rd depth time cam-pos light-pos
                           brdf-lut irradiance-map diffuse-map)))
@@ -269,13 +269,12 @@
     (v! (+ (* color         (- 1 (w add)))
            (* (s~ add :xyz) (w add)))
         1)
-    ;;add
+    add
     ;;ray
     ;;(v3! depth)
     ;;(v! 1 0 1 0)
     ))
 
 (defpipeline-g raymarch-pipe (:triangle-strip)
-  :vertex   (raymarch-vert g-pnt;;:vec3
-                           )
+  :vertex   (raymarch-vert g-pt)
   :fragment (raymarch-frag :vec2 :vec3))

@@ -33,8 +33,6 @@
                (:file "postprocess")
                (:file "draw")
                (:file "render")
-               (:file "3d-sdf")
-               (:file "raymarching")
                (:file "main")))
 
 (asdf:defsystem #:incandescent/ssao
@@ -45,6 +43,16 @@
   :serial t
   :depends-on (#:incandescent)
   :components ((:file "ssao")))
+
+(asdf:defsystem #:incandescent/raymarching
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "3d-sdf")
+               (:file "raymarching")))
 
 (asdf:defsystem #:incandescent/shadowmap
   :description "Describe incandescent here"

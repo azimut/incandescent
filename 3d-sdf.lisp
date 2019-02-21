@@ -83,7 +83,7 @@
     (- (length (- (s~ p :xz) (v! .3 .9))) .9)))
 
 (defun-g calc-normal ((pos :vec3) (center :vec3) (radius :float))
-  (let* ((eps .001)
+  (let* ((eps .1)
          (nor (v! (- (distance-estimator (+ pos (v! eps 0 0)) center radius)
                      (distance-estimator (- pos (v! eps 0 0)) center radius))
                   (- (distance-estimator (+ pos (v! 0 eps 0)) center radius)

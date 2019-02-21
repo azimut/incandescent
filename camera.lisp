@@ -110,4 +110,4 @@
         )
   )
 (defparameter *lok* (v! 0 0 0))
-(defparameter *pos* (v! 0 -1 0))
+(defparameter *pos* (v! 0 0 100))

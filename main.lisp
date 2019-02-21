@@ -9,8 +9,9 @@
 ;;(defparameter *dimensions* '(532 400))
 (defparameter *dimensions* '(683 384))
 ;;(defparameter *dimensions* '(1366 768))
-
 (defparameter *dimensions* '(533 400))
+(defparameter *dimensions* '(455 256))
+(defparameter *dimensions* '(341 192))
 (defvar *bones* NIL)
 (defvar *ubo* NIL)
 
@@ -57,13 +58,12 @@
   (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
-  (init-raymarching)
   ;;--------------------------------------------------
   (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  (push (car *assimp-meshes*) *actors*)
-  (make-celestial-sphere)
+  ;;(push (car *assimp-meshes*) *actors*)
+  ;;(make-celestial-sphere)
   ;;(make-env-map *cube-tex* *s-cubemap-live*)
   ;;(make-box)
   NIL)
@@ -75,7 +75,7 @@
          ;; (delta (* (- now *last-time*) .001))
          ;; (delta (if (> delta .16) .00001 delta))
          )
-    (setf *last-time* now)
+    ;;(setf *last-time* now)
     (setf (resolution (current-viewport)) res)
     ;;(setf (resolution (current-viewport)) (v! *dimensions*))
     (update *currentcamera*)
@@ -87,13 +87,14 @@
          :do
            (draw actor *currentcamera* time)
            (update actor)))
-    (draw-raymarching time)
     (as-frame
-      (with-setf* ((depth-mask) nil
-                   (cull-face)  nil
-                   (clear-color) (v! 1 0 1 1))
-        (map-g #'generic-2d-pipe *bs*
-               :sam *ray-sam*)))))
+     (with-setf* ((depth-mask) nil
+                  (cull-face)  nil
+                  (depth-test-function) #'always
+                  ;;(clear-color) (v! 1 0 1 1)
+                  )
+       (map-g #'generic-2d-pipe *bs*
+              :sam *sam*)))))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
