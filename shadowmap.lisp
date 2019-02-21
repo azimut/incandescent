@@ -2,18 +2,23 @@
 
 (defvar *shadow-fbo* NIL)
 (defvar *shadow-sam* NIL)
+(defvar *shadow-dimensions* '(1024 1024))
+
 (defparameter *shadow-camera*
   (make-instance 'orth
-                 :frame-size (v2! 40) ;; zoom
-                 :rot (q:from-axis-angle (v! 1 0 0) (radians -75))
-                 :pos (v! 0 5 20)))   ;; give it some height
+                 :name :shadow-camera
+                 :frame-size (v2! 10) ;; zoom
+                 :rot (q:from-axis-angle (v! 1 0 0) (radians 75))
+                 :pos *light-pos*))
 
 (defun init-shadowmap ()
+  (setf *cameras*
+        (remove :shadow-camera *cameras* :key #'camera-name))
+  (push *shadow-camera* *cameras*)
   (unless *shadow-fbo*
-    (alexandria:appendf *cameras* (list *shadow-camera*))
-    (setf *shadow-fbo* (make-fbo (list :d :dimensions '(1024 1024))))
+    (setf *shadow-fbo* (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
     (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
-                               :minify-filter :nearest
+                               :minify-filter  :nearest
                                :magnify-filter :nearest))))
 
 (defun free-shadowmap ()

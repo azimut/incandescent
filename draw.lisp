@@ -15,11 +15,13 @@
            :scale scale
            :color color
            :time  time
-           :light-pos *light-pos*
            :cam-pos (pos camera)
            :model-world (model->world actor)
            :world-view  (world->view camera)
-           :view-clip   (projection camera))))
+           :view-clip   (projection  camera)
+           ;; Directional light (for the most part)
+           :light-color *light-color*
+           :light-pos   *light-pos*)))
 
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf

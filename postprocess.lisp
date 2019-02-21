@@ -22,9 +22,12 @@
          (final-color (*   (s~ (texture sam uv) :xyz)
                            ;;(s~ (texture sam2 uv) :xyz)
                            ))
-         ;;         (color2 (s~ (texture sam2 uv) :xyz))
-         ;; (color
-         ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv sam (v2! (/ 1 320f0))) :xyz))
+         ;;(color2 (s~ (texture sam2 uv) :xyz))
+         ;; (final-color
+         ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv
+         ;;                                   sam
+         ;;                                   (v2! (/ 1 768f0)))
+         ;;      :xyz))
          ;;         (final-color (+ color color2))
          (ldr (tone-map-reinhard final-color *exposure*))
          (luma (rgb->luma-bt601 ldr))

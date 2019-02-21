@@ -18,7 +18,7 @@
     (push obj *actors*)
     obj))
 
-(defmethod update ((actor env-map))
+(defmethod update ((actor env-map) dt)
   (setf (pos actor) (pos *currentcamera*))
   ;;(setf (rot actor) (rot *currentcamera*))
   )

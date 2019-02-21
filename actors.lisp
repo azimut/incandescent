@@ -12,10 +12,10 @@
 (defparameter *exposure* 2f0)
 (defparameter *parallax-scale* .01f0)
 
-(defun update-all-the-things (l)
+(defun update-all-the-things (l dt)
   (declare (list l))
   (loop :for actor :in l :do
-     (update actor)))
+       (update actor dt)))
 
 (defun model->world (actor)
   (with-slots (pos rot) actor
@@ -120,12 +120,29 @@
 
 (defclass box (actor)
   ((buf :initform (box 2 2 2))))
-(defun make-box (&optional (pos (v! 0 0 0)) (scale 1f0))
+(defun make-box
+    (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0) (buf (box)))
   (let ((obj (make-instance 'box
+                            :buf buf
                             :pos pos
+                            :rot rot
                             :scale scale)))
     (push obj *actors*)
     obj))
+(defun init-box (&optional (buf (box)))
+  "helper to create a bunch of boxes at random pos/rot/scale"
+  (declare (type cepl:buffer-stream buf))
+  (dotimes (i 20)
+    (make-box :pos (v! (+ -4 (random 8f0))
+                       (+ -4 (random 8f0))
+                       (+ -4 (random 8f0)))
+              :buf buf
+              :scale (random 1f0)
+              :rot (q:from-axis-angle
+                    (v! (random 1f0)
+                        (random 1f0)
+                        (random 1f0))
+                    (radians (random 360))))))
 
 (defclass assimp-flat (actor)
   ())
@@ -141,20 +158,24 @@
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
-(defgeneric update (actor))
-(defmethod update (actor))
-(defmethod update ((actor pbr)))
-(defmethod update ((actor pbr-simple))  )
-(defmethod update ((actor box))
+(defgeneric update (actor dt))
+(defmethod update (actor dt))
+(defmethod update ((actor pbr) dt))
+(defmethod update ((actor pbr-simple) dt))
+(defmethod update ((actor box) dt)
   (with-slots (pos rot color) actor
-    (setf color (v! .1 .3 .9))
-    (setf pos (v! 0 0 0))
-    (setf rot (q:from-axis-angle (v! 0 (sin (mynow)) (cos (mynow)))
-                                 (radians (mod (* 20 (mynow)) 360))))))
-(defmethod update ((actor assimp-flat))
+    ;;(setf color (v! .1 .3 .9))
+    ;;(setf pos (v! 0 0 0))
+    (setf rot (q:* rot
+                   (q:from-axis-angle
+                    (v! 0 1 1)
+                    (radians (mod (* 20 dt) 360)))
+                   ))
+    ))
+(defmethod update ((actor assimp-flat) dt)
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )
-(defmethod update ((actor assimp-thing))
+(defmethod update ((actor assimp-thing) dt)
   (with-slots (scale rot pos) actor
     (setf pos (v! (mod (mynow) 20)
                   10;;(- (mod (* 2 (mynow)) 20))
@@ -173,7 +194,7 @@
     (setf scale 1f0))
   )
 
-(defmethod update ((actor assimp-thing-with-bones))
+(defmethod update ((actor assimp-thing-with-bones) dt)
   (with-slots (scale rot pos) actor
     (setf pos (v! 0 0 0))
     ;; (setf rot (q:* (q:from-axis-angle (v! 0 1 0)

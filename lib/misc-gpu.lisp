@@ -22,8 +22,8 @@
 ;; Metal Halide              242 252 255 (v! 0.9490197 0.98823535 1.0)
 ;; High Pressure Sodium      255 183 76  (v! 1.0 0.7176471 0.29803923)
 
-(defparameter *light-color* (v! 1.0 0.7176471 0.29803923))
-(defvar *exposure* 1f0)
+(defparameter *light-color* (v! 0.9568628 1.0 0.9803922))
+(defparameter *exposure* 1f0)
 
 ;; oren-nayar
 ;; https://github.com/glslify/glsl-diffuse-oren-nayar
@@ -72,10 +72,10 @@
          ;; HDR distance, not squared
          (attenuation (/ 1 (+ constant
                               (* linear distance)
-                              (* quadratic distance))))
+                              (* quadratic distance distance))))
          (ambient (* light-color .1))
          (diffuse (* light-color diff)))
-    (* color (+ ambient diffuse))))
+    (* color attenuation (+ ambient diffuse))))
 
 (defun-g point-light-apply ((color :vec3)
                             (light-color :vec3)
@@ -100,13 +100,13 @@
          ;; HDR distance, not squared
          (attenuation (/ 1 (+ constant
                               (* linear distance)
-                              (* quadratic distance))))
+                              (* quadratic distance distance))))
          (ambient  (* light-color .1))
          (diffuse  (* light-color diff))
          (specular (* light-color spec spec-strength)))
-    (* color (+ ambient
-                diffuse
-                specular))))
+    (* color attenuation  (+ ambient
+                             diffuse
+                             specular))))
 
 ;;--------------------------------------------------
                                         ;
@@ -120,9 +120,9 @@
          ;; Diffuse shading
          (diff (saturate (dot normal light-dir)))
          ;; combine
-         (ambient (* light-color .1 color))
-         (diffuse (* light-color diff color)))
-    (+ ambient diffuse)))
+         (ambient (* light-color .1))
+         (diffuse (* light-color diff)))
+    (* color (+ ambient diffuse))))
 
 ;; Only oren diffuse
 (defun-g dir-light-apply ((color :vec3)
