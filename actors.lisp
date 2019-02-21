@@ -94,12 +94,6 @@
 
 (defclass pbr-shadow (pbr) ())
 
-(defclass cubemap (actor) ())
-(defun make-cubemap ()
-  (let ((obj (make-instance 'cubemap)))
-    (push obj *actors*)
-    obj))
-
 (defclass piso (pbr-simple) ())
 (defun make-piso (&optional (pos (v! 0 0 0))
                     (rot (q:identity))

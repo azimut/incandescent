@@ -74,21 +74,6 @@
            :prefilter-map *s-cubemap-prefilter*
            :irradiance-map *s-cubemap-live*)))
 
-(defmethod draw ((actor cubemap) camera (time single-float))
-  (with-slots (buf) actor
-    (with-setf* ((cull-face) :front
-                 (depth-test-function) #'<=)
-      (map-g #'cubemap-pipe buf
-             :tex *s-cubemap*
-             :mod-clip
-             (m4:* (projection camera)
-                   (world->view camera))))))
-
-
-
-
-
-
 ;;--------------------------------------------------
 
 (defmethod draw ((actor piso) camera (time single-float))

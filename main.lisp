@@ -10,19 +10,7 @@
 ;; (defparameter *dimensions* '(455 256))
 (defparameter *dimensions* '(341 192))
 
-(defvar *cube-tex* NIL)
-(defvar *cube-sam* NIL)
-(defvar *cloud-tex* nil)
-
 (defun init ()
-  ;; (unless *cloud-tex*
-  ;;   (setf *cloud-tex*
-  ;;         (get-tex "static/Cloud04_8x8.tga")))
-  (unless *cube-tex*
-    (setf *cube-tex* (make-render-cubemap *camera-cubemap*))
-    (setf *cube-sam* (sample *cube-tex*
-                             :wrap :clamp-to-edge
-                             :magnify-filter :linear)))
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
   (unless *bs*
@@ -33,17 +21,15 @@
   (setf *fbo*
         (make-fbo
          (list 0 :element-type :rgb16f :dimensions *dimensions*)
-         (list 1 :element-type :rgb16f :dimensions *dimensions*)
+         ;;(list 1 :element-type :rgb16f :dimensions *dimensions*)
          (list :d :dimensions *dimensions*)))
-  (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
+  ;;(setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
   ;;--------------------------------------------------
   (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  ;;(make-celestial-sphere)
-  ;;(make-env-map *cube-tex* *s-cubemap-live*)
   ;;(make-box)
   NIL)
 

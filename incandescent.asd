@@ -28,11 +28,11 @@
                (:file "actors")
                (:file "lib/assimp")
                (:file "camera")
-               (:file "cubemap")
-               (:file "ibl")
                (:file "postprocess")
                (:file "draw")
                (:file "render")
+               (:file "cubemap")
+               (:file "ibl")
                (:file "main")))
 
 (asdf:defsystem #:incandescent/ssao

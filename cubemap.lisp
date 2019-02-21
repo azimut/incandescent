@@ -109,6 +109,9 @@
   :fragment (cubemap-frag :vec3))
 
 ;;--------------------------------------------------
+(defvar *cube-tex* NIL)
+(defvar *cube-sam* NIL)
+
 (defun make-render-cubemap (camera &optional (pos (v! 0 0 0)))
   (let ((dst-cubemap (make-texture
                       nil
@@ -117,6 +120,12 @@
                       :element-type :rgb16f)))
     (cubemap-render-to-cubemap camera dst-cubemap pos)
     dst-cubemap))
+(defun init-render-cubemap ()
+  (unless *cube-tex*
+    (setf *cube-tex* (make-render-cubemap *camera-cubemap*))
+    (setf *cube-sam* (sample *cube-tex*
+                             :wrap :clamp-to-edge
+                             :magnify-filter :linear))))
 (defun cubemap-render-to-cubemap (camera dst-cubemap &optional (pos (v! 0 0 0)))
   "Fills the provided DST-CUBEMAP texture with render of
    current scene. Dimensions of the DST-CUBEMAP adviced as 2048x2048"
