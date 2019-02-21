@@ -23,6 +23,7 @@
                            ;;(s~ (texture sam2 uv) :xyz)
                            ))
          ;;(color2 (s~ (texture sam2 uv) :xyz))
+         ;;(color1 (v! (x (texture sam uv)) 0 0))
          ;; (final-color
          ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv
          ;;                                   sam
@@ -33,10 +34,10 @@
          (luma (rgb->luma-bt601 ldr))
          )
     ;;(v! (pow ldr (vec3 2.2)) 1)
-    (v! ldr luma)
-    ;;(v! final-color 1)
+    ;;(v! ldr luma)
+    (v! final-color 1)
     ;;(v! (- 1 (x color)) 0 0 1)
-    ;;(v! color 1)
+    ;;(v! color1 1)
     ;;(v! ldr 1)
     ))
 

@@ -28,7 +28,7 @@
 (defparameter *cameras* (list *camera* *camera1*))
 (defparameter *currentcamera* *camera*)
 
-(defun reset-camera (&optional (camera *currentcamera*))
+(defun reset-camera (&optional (camera *camera*))
   (setf (pos camera) (v! 0 0 10))
   (setf (rot camera) (q:identity)))
 
@@ -98,13 +98,9 @@
 ;; UPDATE
 ;;--------------------------------------------------
 (defgeneric update (camera dt))
-(defmethod update ((camera orth) dt)
-  (setf (rot camera) (q:look-at (v! 0 0 1) (v! 0 0 0) (v! 0 1 0))
-        )
-  (setf (frame-size camera) (v2! 10))
-  (setf (pos camera) (v! 0 0 10)))
+(defmethod update ((camera orth) dt))
 
-(defmethod update ((camera pers) dt)
+(defun control (camera dt)
   (let ((factor 20))
     ;; running
     (when (keyboard-button (keyboard) key.lshift)
@@ -131,6 +127,16 @@
     (when (keyboard-button (keyboard) key.s)
       (v3:decf (pos camera)
                (v3:*s (q:to-direction (rot camera))
+                      (* factor dt))))
+    ;; up
+    (when (keyboard-button (keyboard) key.space)
+      (v3:decf (pos camera)
+               (v3:*s (q:rotate (v! 0 -1 0) (rot camera))
+                      (* factor dt))))
+    ;; down
+    (when (keyboard-button (keyboard) key.c)
+      (v3:decf (pos camera)
+               (v3:*s (q:rotate (v! 0 1 0) (rot camera))
                       (* factor dt)))))
 
   (when (mouse-button (mouse) mouse.left)
