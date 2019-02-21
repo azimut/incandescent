@@ -1,48 +1,28 @@
 (in-package #:incandescent)
 
 (defvar *last-time* (get-internal-real-time))
-
 (defvar *bs* nil)
-(defvar *cloud-tex* nil)
 (defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
 
-;;(defparameter *dimensions* '(532 400))
-(defparameter *dimensions* '(683 384))
-;;(defparameter *dimensions* '(1366 768))
-(defparameter *dimensions* '(533 400))
-(defparameter *dimensions* '(455 256))
+;; (defparameter *dimensions* '(1366 768))
+;; (defparameter *dimensions* '(683 384))
+;; (defparameter *dimensions* '(533 400))
+;; (defparameter *dimensions* '(455 256))
 (defparameter *dimensions* '(341 192))
-(defvar *bones* NIL)
-(defvar *ubo* NIL)
-
-(defvar *chuesos* NIL)
-(defvar *mann* NIL)
 
 (defvar *cube-tex* NIL)
 (defvar *cube-sam* NIL)
+(defvar *cloud-tex* nil)
+
 (defun init ()
   ;; (unless *cloud-tex*
   ;;   (setf *cloud-tex*
   ;;         (get-tex "static/Cloud04_8x8.tga")))
-  ;; (when *chuesos*
-  ;;   (free *chuesos*)
-  ;;   (setf *chuesos* NIL)
   (unless *cube-tex*
     (setf *cube-tex* (make-render-cubemap *camera-cubemap*))
     (setf *cube-sam* (sample *cube-tex*
                              :wrap :clamp-to-edge
                              :magnify-filter :linear)))
-  (unless *chuesos*
-    (setf *actors* NIL)
-    (let ((obj
-           "/home/sendai/quicklisp/local-projects/incandescent/static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35.obj")
-          (*default-normal*
-           "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_N.png")
-          (*default-specular*
-           "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_S.png"))
-      (assimp-load-meshes obj)
-      (setf *mann* (ai:import-into-lisp obj))))
-
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
   (unless *bs*
@@ -62,7 +42,6 @@
   (setf (clear-color) (v! .2 .2 .2 1))
   ;;--------------------------------------------------
   (setf *actors* nil)
-  ;;(push (car *assimp-meshes*) *actors*)
   ;;(make-celestial-sphere)
   ;;(make-env-map *cube-tex* *s-cubemap-live*)
   ;;(make-box)

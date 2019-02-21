@@ -3,24 +3,6 @@
 (defclass celestial-sphere (actor)
   ((buf :initform (sphere))))
 
-(defun-g cubemap-vert ((g-pnt g-pnt)
-                       &uniform
-                       (scale :float)
-                       (mod-clip :mat4)
-                       (model :mat4)
-                       (view :mat4)
-                       (projection :mat4))
-  (let* ((pos3  (* 1 (pos g-pnt)))
-         (pos4  (v! pos3 1))
-         ;;(pos   (s~ (* model pos4) :xyz))
-         ;;(cpos4 (* projection view model pos4))
-         (cpos4 (* projection view pos4))
-         )
-    (values (s~ cpos4 :xyww)
-            pos3
-            ;;(s~ (* model pos4) :xyz)
-            )))
-
 (defun make-celestial-sphere ()
   (let ((obj (make-instance 'celestial-sphere
                             :name :celestial-sphere)))
@@ -33,14 +15,10 @@
                  (depth-test-function) #'<=
                  (depth-mask) nil)
       (map-g #'celestial-pipe buf
-             :model (model->world actor)
              ;; Rotation without translation
              :view (q:to-mat4
                     (q:inverse (rot camera)))
-             :projection (projection  camera)
-             :mod-clip (m4:* (projection  camera)
-                             (world->view camera)
-                             (model->world actor))))))
+             :projection (projection  camera)))))
 
 (defmethod update ((actor celestial-sphere))
   (setf (pos actor) (pos *currentcamera*))

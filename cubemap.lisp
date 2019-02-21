@@ -30,12 +30,10 @@
                  (depth-mask) nil)
       (map-g #'cubemap-pipe buf
              :tex cubesam
-             :model (model->world actor)
-             :view (world->view camera)
-             :projection (projection camera)
-             :mod-clip (m4:* (projection  camera)
-                             (world->view camera)
-                             (model->world actor))))))
+             ;; Rotation without translation
+             :view (q:to-mat4
+                    (q:inverse (rot camera)))
+             :projection (projection camera)))))
 
 (defun make-cubemap-tex (&rest paths)
   "Returns a gpu texture from the provided images"
@@ -92,13 +90,11 @@
 ;; depth-test-function #'<=
 (defun-g cubemap-vert ((g-pnt g-pnt)
                        &uniform
-                       (mod-clip :mat4)
-                       (model :mat4)
                        (view :mat4)
                        (projection :mat4))
   (let* ((pos3  (pos g-pnt))
          (pos4  (v! pos3 1))
-         (cpos4 (* mod-clip pos4)))
+         (cpos4 (* projection view pos4)))
     (values (s~ cpos4 :xyww)
             pos3)))
 

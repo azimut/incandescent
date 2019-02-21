@@ -32,9 +32,24 @@
 ;; (defstruct-g bone-transforms
 ;;   (transform (:mat4 35)))
 
+(defvar *chuesos* NIL)
+(defvar *mann* NIL)
+
+(defun init-assimp ()
+  (when *chuesos* (free *chuesos*))
+  ;; avoid loading something we are currently rendering
+  (setf *actors* NIL)
+  (let ((obj (asdf:system-relative-pathname
+              :incandescent
+              "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35.obj"))
+        (*default-normal* "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_N.png")
+        (*default-specular* "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_S.png"))
+    (assimp-load-meshes obj)
+    (setf *mann* (ai:import-into-lisp obj))))
+
 ;; NOTE: see how assimp-mesh structure is similar to a "g-pnt + tb-data" one
 (defstruct-g assimp-mesh
-  (pos       :vec3)
+    (pos       :vec3)
   (normal    :vec3)
   (uv        :vec2)
   (tangent   :vec3)
@@ -42,7 +57,7 @@
 
 ;; Might be I could have used the 1 without filling the other bone slots?
 (defstruct-g assimp-with-bones
-  (pos           :vec3 :accessor pos)
+    (pos           :vec3 :accessor pos)
   (normal        :vec3 :accessor norm)
   (uv            :vec2 :accessor tex)
   (tangent       :vec3 :accessor tangent)
