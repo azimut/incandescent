@@ -30,13 +30,17 @@
                (cam-pos :vec3)
                (light-pos :vec3))
   (let* ((final-color color)
+         (light-pos (v! 0 (* 20 (sin (* .001 time))) 0))
          (final-color
           (point-light-apply color
                              (v! 1 1 1)
-                             (v! 0 (* 20 (sin (* .001 time))) 0)
+                             light-pos
                              frag-pos
                              frag-norm
-                             1 .9 .9)))
+                             1 .9 .9
+                             cam-pos
+                             .3
+                             32)))
     (values (v! final-color 1)
             (v! 0 1 0 1))))
 
