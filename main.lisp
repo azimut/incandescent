@@ -21,10 +21,10 @@
   (setf *fbo*
         (make-fbo
          (list 0 :element-type :rgb16f :dimensions *dimensions*)
-         ;;(list 1 :element-type :rgb16f :dimensions *dimensions*)
+         (list 1 :element-type :rgb16f :dimensions *dimensions*)
          (list :d :dimensions *dimensions*)))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
-  ;;(setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
+  (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
   ;;--------------------------------------------------
   (setf (clear-color) (v! 0 0 0 1))
@@ -41,8 +41,8 @@
          (delta (* (- now *last-time*) .001))
          (delta (if (> delta .16) .00001 delta)))
     (setf *last-time* now)
-    (setf (resolution (current-viewport)) res)
-    ;;(setf (resolution (current-viewport)) (v! *dimensions*))
+    ;;(setf (resolution (current-viewport)) res)
+    (setf (resolution (current-viewport)) (v! *dimensions*))
     ;;(update *shadow-camera* delta)
     ;;(update *shadow-camera* delta)
     (control *camera* delta)
@@ -54,6 +54,7 @@
          :do
            (draw actor *currentcamera* time)
            (update actor delta)))
+    (draw-bloom *sam1*)
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -61,7 +62,9 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam *sam*)))
+               :samd *samd*
+               :sam *sam*
+               :sam2 (aref (bloom-fbo-samplers *bloom-fbo*) 0))))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)

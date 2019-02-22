@@ -4,8 +4,8 @@
 ;; - *dimensions*
 ;; - sampler of only the scene brigther stuff
 (defvar *bloom-fbo* NIL)
-(defvar *bloom-blend* (make-blending-params :source-rgb :one
-                                            :destination-rgb :one))
+(defvar *bloom-blend*
+  (make-blending-params :source-rgb :one :destination-rgb :one))
 
 (defstruct (bloom-fbo (:constructor %make-bloom-fbo))
   (fbos     (make-array 5))
@@ -13,8 +13,9 @@
   (widths   (make-array 5))
   (heights  (make-array 5)))
 
-(defmethod free ((obj bloom-fbo))
-  (map NIL #'free (bloom-fbo-fbos obj)))
+(defmethod free-bloom ()
+  (map NIL #'free (bloom-fbo-fbos *bloom-fbo*))
+  (setf *bloom-fbo* NIL))
 
 (defun make-bloom-fbo ()
   (flet ((f (d) (mapcar (lambda (x) (floor (/ x d))) *dimensions*)))
@@ -28,8 +29,8 @@
                                      :element-type :rgba16f)))
                   (sam (sample (attachment-tex fbo 0)
                                :wrap :clamp-to-edge)))
-             (setf (aref (bloom-fbo-widths obj) i)   width)
-             (setf (aref (bloom-fbo-heights obj) i)  height)
+             (setf (aref (bloom-fbo-widths obj) i)   (coerce width 'single-float))
+             (setf (aref (bloom-fbo-heights obj) i)  (coerce height 'single-float))
              (setf (aref (bloom-fbo-fbos obj) i)     fbo)
              (setf (aref (bloom-fbo-samplers obj) i) sam)))
       obj)))
@@ -46,30 +47,35 @@
         (samplers (bloom-fbo-samplers *bloom-fbo*))
         (widths   (bloom-fbo-widths   *bloom-fbo*))
         (heights  (bloom-fbo-heights  *bloom-fbo*)))
-    (with-fbo-bound ((aref fbos 1))
-      (clear-fbo (aref fbos 1))
-      (map-g #'blur-pipe *bs*
-             :sam sam
-             :x (aref widths 0)
-             :y (aref heights 0)
-             :delta 1f0))
-    (dolist (i '(1 2 3))
-      (with-fbo-bound ((aref fbos (1+ i)))
-        (clear-fbo (aref fbos (1+ i)))
+    (with-setf* ((depth-mask) NIL
+                 (cull-face)  NIL
+                 (clear-color) (v! 0 0 0 1)
+                 (depth-test-function) #'always)
+      (with-fbo-bound ((aref fbos 1))
+        (clear (aref fbos 1))
         (map-g #'blur-pipe *bs*
-               :sam (aref samplers i)
-               :x   (aref widths i)
-               :y   (aref heights i)
-               :delta 1f0)))
-    (dolist (i '(3 2 1 0))
-      (with-blending *bloom-blend*
-        (with-fbo-bound ((aref fbos i))
-          (clear-fbo (aref fbos i))
+               :sam sam
+               :x (aref widths 0)
+               :y (aref heights 0)
+               :delta 1f0))
+      (dolist (i '(1 2 3))
+        (with-fbo-bound ((aref fbos (1+ i)))
+          (clear (aref fbos (1+ i)))
           (map-g #'blur-pipe *bs*
-                 :sam (aref samplers (1+ i))
+                 :sam (aref samplers i)
                  :x   (aref widths i)
                  :y   (aref heights i)
-                 :delta .5))))))
+                 :delta 1f0)))
+      (dolist (i '(3 2 1 0))
+        (with-blending *bloom-blend*
+          (with-fbo-bound ((aref fbos i))
+            (clear-fbo (aref fbos i))
+            (map-g #'blur-pipe *bs*
+                   :sam (aref samplers (1+ i))
+                   :x   (aref widths i)
+                   :y   (aref heights i)
+                   :delta .5))))
+      )))
 
 ;;--------------------------------------------------
 ;; 2D - Blur
@@ -79,6 +85,16 @@
                      (sam :sampler-2d)
                      (x :float)
                      (y :float))
+  (let* ((o (* (v! x y x y)
+               (v! (- delta) (- delta) delta delta)))
+         (s (+ (texture sam (+ uv (s~ o :xy)))
+               (texture sam (+ uv (s~ o :zy)))
+               (texture sam (+ uv (s~ o :xw)))
+               (texture sam (+ uv (s~ o :zw))))))
+    (* s .125)))
+
+(defun-g sample-box
+    ((uv :vec2) (delta :float) (sam :sampler-2d) (x :float) (y :float))
   (let* ((o (* (v! x y x y) (v! (- delta) (- delta) delta delta)))
          (s (+ (texture sam (+ uv (s~ o :xy)))
                (texture sam (+ uv (s~ o :zy)))
@@ -86,13 +102,16 @@
                (texture sam (+ uv (s~ o :zw))))))
     (* s .125)))
 
+;; FIXME: sample-box is returing BLACK WTF!
 (defun-g blur-frag ((uv :vec2)
                     &uniform
                     (delta :float)
                     (sam :sampler-2d)
                     (x :float)
                     (y :float))
-  (let ((color (sample-box uv delta sam x y)))
+  (let ((color (texture sam uv)
+          ;;(sample-box uv delta sam x y)
+          ))
     color))
 
 (defpipeline-g blur-pipe (:points)
@@ -104,8 +123,8 @@
 (defun-g bloom-frag ((uv :vec2)
                      &uniform
                      (light-sam :sampler-2d)
-                     (delta :float)
                      (sam :sampler-2d)
+                     (delta :float)
                      (x :float)
                      (y :float))
   (let* ((c (texture light-sam uv))
