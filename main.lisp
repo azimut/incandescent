@@ -46,7 +46,6 @@
     ;;(update *shadow-camera* delta)
     ;;(update *shadow-camera* delta)
     (control *camera* delta)
-    (draw-shadowmap)
     ;;(setf (pos *camera1*) *light-pos*)
     ;;(update-all-the-things *actors*)
     (with-fbo-bound (*fbo*)

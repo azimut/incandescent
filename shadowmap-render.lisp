@@ -18,7 +18,7 @@
            :light-world (world->view *shadow-camera*)
            :light-clip (projection *shadow-camera*)
            ;; Directional light (for the most part)
-           :light-color *light-color*
+           :light-color *light-color*c
            :light-pos   *light-pos*)))
 
 ;;--------------------------------------------------
@@ -61,24 +61,24 @@
                       (light-color :vec3)
                       (light-pos   :vec3))
   (let* ((final-color color)
-         ;; (final-color (dir-light-apply final-color
-         ;;                               light-color
-         ;;                               light-pos
-         ;;                               frag-pos
-         ;;                               frag-norm
-         ;;                               cam-pos .9 1f0
-         ;;                               ))
-         (final-color (+ (v3! .03)
-                         (* light-color
-                            (pbr-direct-lum light-pos
-                                            frag-pos
-                                            (normalize (- cam-pos frag-pos))
-                                            frag-norm
-                                            .1
-                                            (v3! .04)
-                                            .2
-                                            final-color
-                                            ))))
+         (final-color (dir-light-apply final-color
+                                       light-color
+                                       light-pos
+                                       frag-pos
+                                       frag-norm
+                                       cam-pos .9 1f0
+                                       ))
+         ;; (final-color (+ (v3! .03)
+         ;;                 (* light-color
+         ;;                    (pbr-direct-lum light-pos
+         ;;                                    frag-pos
+         ;;                                    (normalize (- cam-pos frag-pos))
+         ;;                                    frag-norm
+         ;;                                    .1
+         ;;                                    (v3! .04)
+         ;;                                    .2
+         ;;                                    final-color
+         ;;                                    ))))
          ;; (final-color (point-light-apply final-color
          ;;                                 light-color
          ;;                                 light-pos

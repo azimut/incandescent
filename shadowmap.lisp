@@ -27,6 +27,7 @@
   (unless *shadow-fbo*
     (setf *shadow-fbo* (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
     (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
+                               :wrap :clamp-to-edge
                                :minify-filter  :nearest
                                :magnify-filter :nearest))))
 
@@ -66,7 +67,7 @@
                                             uv+offset))))
                 (incf shadow
                       (if (> (- our-depth bias) pcf-depth)
-                          0f0
+                          .25f0
                           1f0)))))
     ;;
     (/ shadow 9f0)))

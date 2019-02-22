@@ -7,7 +7,7 @@
 (defvar *rough* 1f0)
 (defvar *pointlight-pos* (v! 0 0 0))
 
-(defparameter *light-pos* (v! 0 1000 300))
+(defparameter *light-pos* (v! 0 10 30))
 (defparameter *light-color* (v! .9 .9 .9))
 (defparameter *exposure* 2f0)
 (defparameter *parallax-scale* .01f0)
@@ -120,10 +120,11 @@
 
 (defclass box (actor)
   ((buf :initform (box 2 2 2))))
-(defun make-box
-    (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0) (buf (box)))
+(defun make-box (&key (pos (v! 0 0 0)) (rot (q:identity))
+                   (scale 1f0) (name (gensym)) (buf (box)))
   (let ((obj (make-instance 'box
                             :buf buf
+                            :name name
                             :pos pos
                             :rot rot
                             :scale scale)))
@@ -163,14 +164,15 @@
 (defmethod update ((actor pbr) dt))
 (defmethod update ((actor pbr-simple) dt))
 (defmethod update ((actor box) dt)
-  (with-slots (pos rot color) actor
-    ;;(setf color (v! .1 .3 .9))
-    ;;(setf pos (v! 0 0 0))
-    (setf rot (q:* rot
-                   (q:from-axis-angle
-                    (v! 0 1 1)
-                    (radians (mod (* 20 dt) 360)))
-                   ))
+  (with-slots (pos rot color name) actor
+    (unless (eq :piso name)
+      ;;(setf color (v! .1 .3 .9))
+      ;;(setf pos (v! 0 0 0))
+      (setf rot (q:* rot
+                     (q:from-axis-angle
+                      (v! 0 1 1)
+                      (radians (mod (* 20 dt) 360)))
+                     )))
     ))
 (defmethod update ((actor assimp-flat) dt)
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))

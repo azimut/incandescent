@@ -32,32 +32,36 @@
                (light-color :vec3)
                (light-pos   :vec3))
   (let* ((final-color color)
-         ;; (final-color (dir-light-apply final-color
-         ;;                               light-color
-         ;;                               light-pos
-         ;;                               frag-pos
-         ;;                               frag-norm
-         ;;                               cam-pos .9 1f0
-         ;;                               ))
-         (final-color (+ (v3! .03)
-                         (* light-color
-                            (pbr-direct-lum light-pos
+         (final-color (dir-light-apply-spec final-color
+                                            light-color
+                                            light-pos
                                             frag-pos
-                                            (normalize (- cam-pos frag-pos))
                                             frag-norm
-                                            .3
-                                            (v3! .04)
-                                            .2
-                                            final-color
-                                            ))))
-         ;; (final-color (point-light-apply final-color
-         ;;                                 light-color
-         ;;                                 light-pos
-         ;;                                 frag-pos
-         ;;                                 frag-norm
-         ;;                                 1
-         ;;                                 .022
-         ;;                                 .0019))
+                                            cam-pos 32 1
+                                            ))
+         ;; (final-color (+ (v3! .03)
+         ;;                 (* light-color
+         ;;                    (pbr-direct-lum light-pos
+         ;;                                    frag-pos
+         ;;                                    (normalize (- cam-pos frag-pos))
+         ;;                                    frag-norm
+         ;;                                    .3
+         ;;                                    (v3! .04)
+         ;;                                    .2
+         ;;                                    final-color
+         ;;                                    ))))
+         (final-color (+ final-color
+                         (point-light-apply color
+                                            (v! .2 .9 .2)
+                                            (v! (* 2 (sin (* .01 time))) 0 0)
+                                            frag-pos
+                                            frag-norm
+                                            1
+                                            .022
+                                            .0019
+                                            cam-pos
+                                            2
+                                            .9)))
          )
     (values (v! final-color 1)
             (v! 0 1 0 1))))
