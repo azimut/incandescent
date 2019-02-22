@@ -47,7 +47,7 @@
                                             frag-norm
                                             .9
                                             (v3! .04)
-                                            .2
+                                            .1
                                             final-color
                                             ))))
          (final-color (+ final-color
@@ -58,7 +58,7 @@
                                            frag-norm
                                            .9
                                            (v3! .04)
-                                           .2
+                                           .01
                                            color
                                            ))))
          ;; (final-color (+ final-color

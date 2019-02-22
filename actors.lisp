@@ -7,7 +7,7 @@
 (defvar *rough* 1f0)
 (defvar *pointlight-pos* (v! 0 0 0))
 
-(defparameter *light-pos* (v! 0 10 30))
+(defparameter *light-pos* (v! -2000 1100 -1000))
 (defparameter *light-color* (v! .9 .9 .9))
 (defparameter *exposure* 2f0)
 (defparameter *parallax-scale* .01f0)
@@ -130,20 +130,22 @@
                             :scale scale)))
     (push obj *actors*)
     obj))
-(defun init-box (&optional (buf (box)))
+(defun init-box (&optional (buf (box)) (range 8f0))
   "helper to create a bunch of boxes at random pos/rot/scale"
-  (declare (type cepl:buffer-stream buf))
-  (dotimes (i 20)
-    (make-box :pos (v! (+ -4 (random 8f0))
-                       (+ -4 (random 8f0))
-                       (+ -4 (random 8f0)))
-              :buf buf
-              :scale (random 1f0)
-              :rot (q:from-axis-angle
-                    (v! (random 1f0)
-                        (random 1f0)
-                        (random 1f0))
-                    (radians (random 360))))))
+  (declare (type cepl:buffer-stream buf)
+           (type single-float range))
+  (let ((half (* .5 range)))
+    (dotimes (i 20)
+      (make-box :pos (v! (+ (random range) half)
+                         (+ (random range) half)
+                         (+ (random range) half))
+                :buf buf
+                :scale (random 1f0)
+                :rot (q:from-axis-angle
+                      (v! (random 1f0)
+                          (random 1f0)
+                          (random 1f0))
+                      (radians (random 360)))))))
 
 (defclass assimp-flat (actor)
   ())
@@ -164,16 +166,17 @@
 (defmethod update ((actor pbr) dt))
 (defmethod update ((actor pbr-simple) dt))
 (defmethod update ((actor box) dt)
-  (with-slots (pos rot color name) actor
-    (unless (eq :piso name)
-      ;;(setf color (v! .1 .3 .9))
-      ;;(setf pos (v! 0 0 0))
-      (setf rot (q:* rot
-                     (q:from-axis-angle
-                      (v! 0 1 1)
-                      (radians (mod (* 20 dt) 360)))
-                     )))
-    ))
+  ;; (with-slots (pos rot color name) actor
+  ;;   (unless (eq :piso name)
+  ;;     ;;(setf color (v! .1 .3 .9))
+  ;;     ;;(setf pos (v! 0 0 0))
+  ;;     (setf rot (q:* rot
+  ;;                    (q:from-axis-angle
+  ;;                     (v! 0 1 1)
+  ;;                     (radians (mod (* 20 dt) 360)))
+  ;;                    )))
+  ;;   )
+  )
 (defmethod update ((actor assimp-flat) dt)
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
   )

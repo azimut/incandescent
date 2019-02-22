@@ -19,19 +19,19 @@
          ;;            uv
          ;;          sam
          ;;          samd))
-         ;; (final-color (*   (s~ (texture sam uv) :xyz)
-         ;;                   ;;(s~ (texture sam2 uv) :xyz)
-         ;;                   ))
+         (final-color (*   (s~ (texture sam uv) :xyz)
+                           ;;(s~ (texture sam2 uv) :xyz)
+                           ))
          ;; bloom
-         (source (texture sam uv))
-         (source (v! (defered-fog (v! .02 .09 .12)
-                         uv sam samd .7)
-                     (w source)))
-         (bloom  (texture sam2 uv))
-         (final-color (v! (+ (s~ source :xyz)
-                             (s~ bloom  :xyz))
-                          ))
-         
+         ;; (source (texture sam uv))
+         ;; (source (v! (defered-fog (v! .02 .09 .12)
+         ;;                 uv sam samd .7)
+         ;;             (w source)))
+         ;; (bloom  (texture sam2 uv))
+         ;; (final-color (v! (+ (s~ source :xyz)
+         ;;                     (s~ bloom  :xyz))
+         ;;                  ))
+
          ;;(color1 (v! (x (texture sam uv)) 0 0))
          ;; (final-color
          ;;  (s~ (nineveh.anti-aliasing:fxaa3 uv
@@ -43,8 +43,9 @@
          (luma (rgb->luma-bt601 ldr))
          )
     ;;(v! (pow ldr (vec3 2.2)) 1)
-    ;;(v! ldr luma)
-    (v! final-color (w source))
+    (v! ldr luma)
+    ;;(v! final-color 1)
+    ;;(v! final-color (w source)) ;; bloom
     ;;(v! (- 1 (x color)) 0 0 1)
     ;;(v! color1 1)
     ;;(v! ldr 1)

@@ -29,8 +29,10 @@
 (defparameter *currentcamera* *camera*)
 
 (defun reset-camera (&optional (camera *camera*))
-  (setf (pos camera) (v! 0 0 10))
-  (setf (rot camera) (q:identity)))
+  (setf (pos camera) (v! 9.215411 5.8377786 12.7360325) ;;(v! 0 0 10)
+        )
+  (setf (rot camera) (v! 0.9597829 0.06962193 0.15449437 -0.22383285) ;;(q:identity)
+        ))
 
 (defun next-camera ()
   "rotates current value on *CURRRENTCAMERA*
@@ -107,7 +109,7 @@
       (setf factor 30))
     ;; crouching
     (when (keyboard-button (keyboard) key.lctrl)
-      (setf factor 10))
+      (setf factor 5))
     ;; forward
     (when (keyboard-button (keyboard) key.w)
       (v3:incf (pos camera)

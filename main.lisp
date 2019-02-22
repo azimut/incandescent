@@ -26,12 +26,12 @@
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
-  ;;--------------------------------------------------
+  ;;---------------------------------------------- ----
   (setf (clear-color) (v! 0 0 0 1))
   ;;--------------------------------------------------
-  (setf *actors* nil)
+  ;;(setf *actors* nil)
   ;;(init-box)
-  (make-box)
+  ;;(make-box)
   NIL)
 
 (defun draw! ()
@@ -54,7 +54,7 @@
          :do
            (draw actor *currentcamera* time)
            (update actor delta)))
-    (draw-bloom *sam1*)
+    (draw-dof *sam* *samd*)
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -62,9 +62,7 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :samd *samd*
-               :sam *sam*
-               :sam2 (aref (bloom-fbo-samplers *bloom-fbo*) 0))))
+               :sam *bokeh-sam*)))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)
