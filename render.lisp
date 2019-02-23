@@ -1,6 +1,14 @@
 (in-package :incandescent)
 
 ;;--------------------------------------------------
+;; 2D Passthrough Texture Pipe
+(defun-g pass-frag ((uv :vec2) &uniform (sam :sampler-2d))
+  (texture sam uv))
+
+(defpipeline-g pass-pipe (:points)
+  :fragment (pass-frag :vec2))
+
+;;--------------------------------------------------
 ;; 3D - g-pnt mesh without tangents
 (defun-g vert ((vert g-pnt)
                &uniform
