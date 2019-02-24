@@ -39,51 +39,51 @@
   (k (:vec2 16)))
 
 (defun init-dof ()
+  (free-dof)
   ;; https://forum.unity.com/threads/_maintex_texelsize-whats-the-meaning.110278/
   (setf *texel-size* (v! (/ (nth 0 *dimensions*))
                          (/ (nth 1 *dimensions*))))
   ;; Other kernels at:
   ;; https://github.com/Unity-Technologies/PostProcessing/blob/v2/PostProcessing/Shaders/Builtins/DiskKernels.hlsl
-  (unless *dof-kernel*
-    (setf *dof-kernel* (make-c-array (list (v! 0 0)
-                                           (v! 0.54545456 0)
-                                           (v! 0.16855472 0.5187581)
-                                           (v! -0.44128203 0.3206101)
-                                           (v! -0.44128197 -0.3206102)
-                                           (v! 0.1685548 -0.5187581)
-                                           (v! 1 0)
-                                           (v! 0.809017 0.58778524)
-                                           (v! 0.30901697 0.95105654)
-                                           (v! -0.30901703 0.9510565)
-                                           (v! -0.80901706 0.5877852)
-                                           (v! -1 0)
-                                           (v! -0.80901694 -0.58778536)
-                                           (v! -0.30901664 -0.9510566)
-                                           (v! 0.30901712 -0.9510565)
-                                           (v! 0.80901694 -0.5877853))
-                                     :dimensions 16 :element-type :vec2)))
-  (unless *coc-fbo*
-    (setf *coc-fbo* (make-fbo '(0 :element-type :r16f)))
-    (setf *coc-sam* (sample (attachment-tex *coc-fbo* 0)
-                            :wrap :clamp-to-edge)))
-  (unless *coc-h-fbo*
-    (setf *coc-h-fbo*
-          (make-fbo `(0 :element-type :r16f
-                        :dimensions ,(list (floor (/ (first  *dimensions*) 2f0))
-                                           (floor (/ (second *dimensions*) 2f0))))))
-    (setf *coc-h-sam*
-          (sample (attachment-tex *coc-fbo* 0)
-                  :wrap :clamp-to-edge)))
-  (unless *bokeh-fbo*
-    (setf *bokeh-fbo* (make-fbo '(0 :element-type :rgba16f)))
-    (setf *bokeh-sam* (sample (attachment-tex *bokeh-fbo* 0)
-                              :wrap :clamp-to-edge))
-    (setf *bokeh-h-fbo*
-          (make-fbo `(0 :element-type :rgba16f
-                        :dimensions ,(list (floor (/ (first  *dimensions*) 2f0))
-                                           (floor (/ (second *dimensions*) 2f0))))))
-    (setf *bokeh-h-sam*
-          (sample (attachment-tex *bokeh-h-fbo* 0) :wrap :clamp-to-edge))))
+  (setf *dof-kernel* (make-c-array (list (v! 0 0)
+                                         (v! 0.54545456 0)
+                                         (v! 0.16855472 0.5187581)
+                                         (v! -0.44128203 0.3206101)
+                                         (v! -0.44128197 -0.3206102)
+                                         (v! 0.1685548 -0.5187581)
+                                         (v! 1 0)
+                                         (v! 0.809017 0.58778524)
+                                         (v! 0.30901697 0.95105654)
+                                         (v! -0.30901703 0.9510565)
+                                         (v! -0.80901706 0.5877852)
+                                         (v! -1 0)
+                                         (v! -0.80901694 -0.58778536)
+                                         (v! -0.30901664 -0.9510566)
+                                         (v! 0.30901712 -0.9510565)
+                                         (v! 0.80901694 -0.5877853))
+                                   :dimensions 16 :element-type :vec2))
+  ;;
+  (setf *coc-fbo* (make-fbo '(0 :element-type :r16f)))
+  (setf *coc-sam* (sample (attachment-tex *coc-fbo* 0)
+                          :wrap :clamp-to-edge))
+  ;;
+  (setf *coc-h-fbo*
+        (make-fbo `(0 :element-type :rgba16f
+                      :dimensions ,(list (floor (/ (first  *dimensions*) 2f0))
+                                         (floor (/ (second *dimensions*) 2f0))))))
+  (setf *coc-h-sam*
+        (sample (attachment-tex *coc-h-fbo* 0)
+                :wrap :clamp-to-edge))
+  ;;
+  (setf *bokeh-fbo* (make-fbo '(0 :element-type :rgba16f)))
+  (setf *bokeh-sam* (sample (attachment-tex *bokeh-fbo* 0)
+                            :wrap :clamp-to-edge))
+  (setf *bokeh-h-fbo*
+        (make-fbo `(0 :element-type :rgba16f
+                      :dimensions ,(list (floor (/ (first  *dimensions*) 2f0))
+                                         (floor (/ (second *dimensions*) 2f0))))))
+  (setf *bokeh-h-sam*
+        (sample (attachment-tex *bokeh-h-fbo* 0) :wrap :clamp-to-edge)))
 
 ;;--------------------------------------------------
 (defun draw-dof (sam samd)
@@ -160,6 +160,7 @@
 
 ;;--------------------------------------------------
 ;; Bokeh - DOF
+;; TODO: precompute the radius per sample in the kernel
 (defun-g bokeh-frag ((uv :vec2)
                      &uniform
                      (dof-kernel (:vec2 16))
@@ -179,18 +180,8 @@
   :fragment (bokeh-frag :vec2))
 
 (defun free-dof ()
-  (when *bokeh-h-fbo*
-    (free *bokeh-h-fbo*)
-    (setf *bokeh-h-fbo* NIL))
-  (when *dof-kernel*
-    (free *dof-kernel*)
-    (setf *dof-kernel* NIL))
-  (when *bokeh-fbo*
-    (free *bokeh-fbo*)
-    (setf *bokeh-fbo* NIL))
-  (when *coc-fbo*
-    (free *coc-fbo*)
-    (setf *coc-fbo* NIL))
-  (when *coc-h-fbo*
-    (free *coc-h-fbo*)
-    (setf *coc-h-fbo* NIL)))
+  (when *bokeh-h-fbo* (free *bokeh-h-fbo*))
+  (when *dof-kernel*  (free *dof-kernel*))
+  (when *bokeh-fbo*   (free *bokeh-fbo*))
+  (when *coc-fbo*     (free *coc-fbo*))
+  (when *coc-h-fbo*   (free *coc-h-fbo*)))

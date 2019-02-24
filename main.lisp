@@ -29,6 +29,7 @@
   ;;---------------------------------------------- ----
   (setf (clear-color) (v! 0 0 0 1))
   ;;--------------------------------------------------
+  (init-dof)
   ;;(setf *actors* nil)
   ;;(init-box)
   ;;(make-box)
@@ -62,7 +63,7 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam *bokeh-sam*)))
+               :sam *bokeh-h-sam*)))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)
