@@ -4,9 +4,9 @@
 (defvar *bs* nil)
 (defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
 
-;;(defparameter *dimensions* '(1366 768))
+(defparameter *dimensions* '(1366 768))
 ;; (defparameter *dimensions* '(683 384))
-(defparameter *dimensions* '(533 400))
+;;(defparameter *dimensions* '(533 400))
 ;; (defparameter *dimensions* '(455 256))
 ;;(defparameter *dimensions* '(341 192))
 
@@ -63,7 +63,7 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam *bokeh-h-sam*)))
+               :sam *dof-combine-sam*)))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)

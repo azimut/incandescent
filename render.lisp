@@ -48,7 +48,7 @@
          ;;                               ;;cam-pos 32 1
          ;;                               ))
          (final-color (+ (v3! .03)
-                         (* light-color
+                         (* (* 2 light-color)
                             (pbr-direct-lum light-pos
                                             frag-pos
                                             (normalize (- cam-pos frag-pos))
@@ -59,7 +59,7 @@
                                             final-color
                                             ))))
          (final-color (+ final-color
-                         (* (v! .2 .9 .2)
+                         (* (* 2 (v! .2 .9 .2))
                             (pbr-point-lum (v! (* 2 (sin (* .01 time))) 0 0)
                                            frag-pos
                                            (normalize (- cam-pos frag-pos))
