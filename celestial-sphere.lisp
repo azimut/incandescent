@@ -20,7 +20,7 @@
                     (q:inverse (rot camera)))
              :projection (projection  camera)))))
 
-(defmethod update ((actor celestial-sphere))
+(defmethod update ((actor celestial-sphere) dt)
   (setf (pos actor) (pos *currentcamera*))
   ;;(setf (rot actor) (q:identity))
   ;;(setf (rot actor) (q:point-at (v! 0 1 0) (pos *currentcamera*) (v! 0 0 -20)))
@@ -154,7 +154,7 @@
           (* i-sun (+ (* p-rlh k-rlh total-rlh)
                       (* p-mie k-mie total-mie)))))))
 
-(defvar *temp* 20f0)
+(defparameter *temp* .1f0)
 (defun-g celestial-frag ((frag-pos :vec3)
                          &uniform
                          (light-pos :vec2))
@@ -171,7 +171,7 @@
                  .758
                  3 ;; 16 AND 8
                  2)
-     (v! .1 .1 .9)))
+     (v! .5 .1 .9)))
 
 (defpipeline-g celestial-pipe ()
   :vertex   (cubemap-vert g-pnt)
