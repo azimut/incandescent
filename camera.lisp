@@ -7,7 +7,7 @@
    (near   :initarg :near  :accessor near)
    (far    :initarg :far   :accessor far)
    (shots  :initarg :shots :accessor shots)
-   (n-shot :initarg n-shot)
+   (n-shot :initarg :n-shot)
    (frame-size :initarg :frame-size
                :accessor frame-size))
   (:default-initargs
