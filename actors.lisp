@@ -136,9 +136,9 @@
            (type single-float range))
   (let ((half (* .5 range)))
     (dotimes (i 20)
-      (make-box :pos (v! (+ (random range) half)
-                         (+ (random range) half)
-                         (+ (random range) half))
+      (make-box :pos (v! (- (random range) half)
+                         (- (random range) half)
+                         (- (random range) half))
                 :buf buf
                 :scale (random 1f0)
                 :rot (q:from-axis-angle
