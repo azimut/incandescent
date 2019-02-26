@@ -35,51 +35,55 @@
 
 (defclass ray-plane (actor) ())
 
-(defmethod update ((actor ray-plane))
+(defmethod update ((actor ray-plane) dt)
   ;;(setf (pos actor) (pos *currentcamera*))
   (setf (rot actor) (rot *currentcamera*))
   )
 
-(defun init-raymarching ()
+(defun free-raymarching ()
   (when *ray-fbo* (free *ray-fbo*))
+  (when *frustum* (free *frustum*))
+  (when *quad-3d* (free *quad-3d*)))
+
+(defun init-raymarching ()
+  (free-raymarching)
   (setf *ray-fbo* (make-fbo `(0 :dimensions ,*dimensions*
                                 :element-type :rgba16f))
         *ray-sam* (sample (attachment-tex *ray-fbo* 0)
                           :wrap :clamp-to-edge))
-  (unless *frustum*
-    (setf *frustum*
-          (make-c-array (get-frustum-corners *currentcamera*)
-                        :element-type :vec3 :dimensions 4)))
-  (unless *quad-3d*
-    (setf *quad-3d*
-          (let* ((verts (make-gpu-array
-                         `((,(v! -1 -1 3) ,(v! 0 0))
-                           (,(v!  1  1 1) ,(v! 1 1))
-                           (,(v!  1 -1 2) ,(v! 1 0))
-                           (,(v! -1  1 0) ,(v! 0 1)))
-                         :dimensions 4 :element-type 'g-pt))
-                 (indi  (make-gpu-array '(0 1 2 1 0 3)
-                                        :dimensions 6
-                                        :element-type :unsigned-short))
-                 (buf   (make-buffer-stream verts
-                                            :index-array indi
-                                            :primitive :triangle-strip)))
-            buf))))
+  (setf *frustum*
+        (make-c-array (get-frustum-corners *currentcamera*)
+                      :element-type :vec3 :dimensions 4))
+  (setf *quad-3d*
+        (let* ((verts (make-gpu-array
+                       `((,(v! -1 -1 3) ,(v! 0 0))
+                         (,(v!  1  1 1) ,(v! 1 1))
+                         (,(v!  1 -1 2) ,(v! 1 0))
+                         (,(v! -1  1 0) ,(v! 0 1)))
+                       :dimensions 4 :element-type 'g-pt))
+               (indi  (make-gpu-array '(0 1 2 1 0 3)
+                                      :dimensions 6
+                                      :element-type :unsigned-short))
+               (buf   (make-buffer-stream verts
+                                          :index-array indi
+                                          :primitive :triangle-strip)))
+          buf)))
 
 (defvar *tmp2* (make-instance 'ray-plane))
 (defvar *tmp3* (make-instance 'actor))
 
-(defun draw-raymarching (time)
-  (declare (type single-float time))
-  (update *tmp2*)
+(defun draw-raymarching (sam samd time)
+  (declare (type single-float time)
+           (type cepl:sampler sam samd))
+  (update *tmp2* time)
   (with-setf* ((depth-test-function) #'always
                (cull-face) NIL
                (depth-mask) NIL)
     (with-fbo-bound (*ray-fbo*)
       (clear *ray-fbo*)
       (map-g #'raymarch-pipe *quad-3d*
-             :samd *samd*
-             :sam  *sam*
+             :samd samd
+             :sam  sam
              :time time
              ;; :brdf-lut *s-brdf*
              ;; :irradiance-map *s-cubemap-prefilter*
@@ -162,26 +166,6 @@
            )
       (min piso dd))))
 
-(defun-g p-mod1 ((p :float) (size :float))
-  (let ((half (* size .5)))
-    (- (fmod (+ p half) size) half)))
-(defun-g distance-estimator ((p :vec3) (c :vec3) (r :float))
-  (let* ((dist 4f0)
-         (p (- p c))
-         ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
-         ;;(new-radius (+ 1 (* 2 (sin (/ (x p) dist)))))
-         (new-radius (+ 1 (* r (sin (/ (x p) dist)))))
-         ;;(new-radius r)
-         (p (v! (- (mod (+ (* .5 dist) (x p)) dist)
-                   (* .5 dist))
-                (- (mod (+ (* .5 dist) (y p)) dist)
-                   (* .5 dist))
-                ;; (- (mod (+ (* .5 dist) (z p)) dist)
-                ;;    (* .5 dist))
-                (z p)
-                )))
-    (- (length (- c p)) new-radius)))
-
 (defun-g raymarch ((ro :vec3)
                    (rd :vec3)
                    (s :float)
@@ -196,19 +180,19 @@
          ;; Geometry
          (center (v! 0 0 0))
          (radius (+ 1 (sin (* .01 time)))))
-    (dotimes (i 20)
+    (dotimes (i 100)
       (when (or (>= tt s)
-                (> tt 20f0))
+                (> tt 100f0))
         (setf ret (v! 0 0 0 0))
         (break))
       (let* ((p (+ ro (* rd tt)))
              (d (distance-estimator p center time)))
-        (when (< d .1)
+        (when (< d .001)
           (setf ret
                 (v! (+ ;;(v! .01 .01 .01)
-                     (s~ (render-surface p center radius (- light-pos))
-                         ;;(render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
-                         :xyz)
+                     (s~ ;;(render-surface p center radius (- light-pos))
+                      (render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
+                      :xyz)
                      ;;(let* ((n (calc-normal p center radius))))
                      )
                     1))
@@ -269,7 +253,7 @@
     (v! (+ (* color         (- 1 (w add)))
            (* (s~ add :xyz) (w add)))
         1)
-    add
+    ;;add
     ;;ray
     ;;(v3! depth)
     ;;(v! 1 0 1 0)

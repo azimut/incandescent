@@ -48,6 +48,7 @@
     (control *camera* delta)
     ;;(setf (pos *camera1*) *light-pos*)
     ;;(update-all-the-things *actors*)
+    
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
