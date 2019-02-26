@@ -33,10 +33,8 @@
 (defparameter *currentcamera* *camera*)
 
 (defun reset-camera (&optional (camera *camera*))
-  (setf (pos camera) (v! 9.215411 5.8377786 12.7360325) ;;(v! 0 0 10)
-        )
-  (setf (rot camera) (v! 0.9597829 0.06962193 0.15449437 -0.22383285) ;;(q:identity)
-        ))
+  (setf (pos camera) (v! 0 0 0))
+  (setf (rot camera) (q:identity)))
 
 (defun next-camera ()
   "rotates current value on *CURRRENTCAMERA*
@@ -106,14 +104,34 @@
 (defgeneric update (camera dt))
 (defmethod update ((camera orth) dt))
 
+
+
+(defun cam-turn (ang)
+  (with-slots (rot) *camera*
+    (setf rot (q:normalize
+               (q:* rot (q:from-axis-angle (v! 0 1 0) ang))))))
+
+(defun cam-tilt (ang)
+  (with-slots (rot) *camera*
+    (setf rot (q:normalize
+               (q:* rot (q:from-axis-angle (v! 1 0 0) ang))))))
+
 (defun control (camera dt)
   (let ((factor 20))
-    ;; running
+    ;; MODIFIERS
     (when (keyboard-button (keyboard) key.lshift)
       (setf factor 30))
-    ;; crouching
     (when (keyboard-button (keyboard) key.lctrl)
       (setf factor 5))
+    ;; PAN
+    (when (key-down-p key.left)
+      (cam-turn (radians 1.8f0)))
+    (when (key-down-p key.right)
+      (cam-turn (radians -1.8f0)))
+    (when (key-down-p key.up)
+      (cam-tilt (radians 1.8f0)))
+    (when (key-down-p key.down)
+      (cam-tilt (radians -1.8f0)))
     ;; forward
     (when (keyboard-button (keyboard) key.w)
       (v3:incf (pos camera)
@@ -137,7 +155,8 @@
     ;; up
     (when (keyboard-button (keyboard) key.space)
       (v3:decf (pos camera)
-               (v3:*s (q:rotate (v! 0 -1 0) (rot camera))
+               (v3:*s (q:rotate (v! 0 -1 0)
+                                (rot camera))
                       (* factor dt))))
     ;; down
     (when (keyboard-button (keyboard) key.c)
