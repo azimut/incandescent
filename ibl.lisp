@@ -1,8 +1,5 @@
 (in-package #:incandescent)
 
-;; THE CAMERA
-(defvar *camera-cubemap* (make-instance 'pers :fov 90f0))
-
 ;; IBL - Needed for specular
 (defvar *brdf* NIL)
 (defvar *f-brdf* NIL)

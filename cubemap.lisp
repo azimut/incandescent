@@ -1,5 +1,10 @@
 (in-package #:incandescent)
 
+;; THE CAMERA
+(defvar *camera-cubemap* (make-instance 'pers
+                                        :name :cubemap-cam
+                                        :fov 90f0))
+
 ;;--------------------------------------------------
 ;; Cubemap
 ;;
