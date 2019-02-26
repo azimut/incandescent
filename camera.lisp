@@ -116,13 +116,24 @@
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle (v! 1 0 0) ang))))))
 
+(defun cam-spin (ang)
+  (with-slots (rot) *camera*
+    (setf rot (q:normalize
+               (q:* rot (q:from-axis-angle (v! 0 0 1) ang))))))
+
 (defun control (camera dt)
+  "free camera controls"
   (let ((factor 20))
     ;; MODIFIERS
     (when (keyboard-button (keyboard) key.lshift)
       (setf factor 30))
     (when (keyboard-button (keyboard) key.lctrl)
       (setf factor 5))
+    ;; SPIN
+    (when (key-down-p key.q)
+      (cam-spin (radians 1.8f0)))
+    (when (key-down-p key.e)
+      (cam-spin (radians -1.8f0)))
     ;; PAN
     (when (key-down-p key.left)
       (cam-turn (radians 1.8f0)))
@@ -132,17 +143,18 @@
       (cam-tilt (radians 1.8f0)))
     (when (key-down-p key.down)
       (cam-tilt (radians -1.8f0)))
-    ;; forward
+    ;; MOVEMENT
+    ;; - forward
     (when (keyboard-button (keyboard) key.w)
       (v3:incf (pos camera)
                (v3:*s (q:to-direction (rot camera))
                       (* factor dt))))
-    ;; left
+    ;; - left
     (when (keyboard-button (keyboard) key.a)
       (v3:incf (pos camera)
                (v3:*s (q:rotate (v! -1 0 0) (rot camera))
                       (* factor dt))))
-    ;; right
+    ;; - right
     (when (keyboard-button (keyboard) key.d)
       (v3:incf (pos camera)
                (v3:*s (q:rotate (v! 1 0 0) (rot camera))
@@ -152,13 +164,13 @@
       (v3:decf (pos camera)
                (v3:*s (q:to-direction (rot camera))
                       (* factor dt))))
-    ;; up
+    ;; - up
     (when (keyboard-button (keyboard) key.space)
       (v3:decf (pos camera)
                (v3:*s (q:rotate (v! 0 -1 0)
                                 (rot camera))
                       (* factor dt))))
-    ;; down
+    ;; - down
     (when (keyboard-button (keyboard) key.c)
       (v3:decf (pos camera)
                (v3:*s (q:rotate (v! 0 1 0) (rot camera))
@@ -220,16 +232,18 @@
   ;;                        (* 10 (cos (mynow)))
   ;;                        (* 10 (sin (mynow)))))
   ;;--------------------------------------------------
-  (when-let* ((has-shot (slot-value camera 'n-shot))
+  (when-let* ((shots-p  (slot-value camera 'n-shot))
               (shot     (aref (shots camera) 0))
               (n-frames (fill-pointer shot))
-              (enough   (>= n-frames 2))
-              (m-time   (third (aref shot (1- n-frames))))
-              (now      (* .3 (mynow)))
-              (time     (mod now (coerce m-time 'single-float)))
-              (ipos     (position-if (lambda (x) (>= (third x)
-                                                (floor time)))
-                                     shot))
+              (enough-p (>= n-frames 2))
+              (max-time (- (third
+                            (aref shot (1- n-frames)))
+                           .1))
+              (now      (* (mynow)))
+              (time     (fmod now max-time))
+              (ipos     (1- (position-if
+                             (lambda (x) (< time (third x)))
+                             shot)))
               (index    (if ipos
                             ipos
                             0))
