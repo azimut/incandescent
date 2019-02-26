@@ -175,11 +175,11 @@
   (let* ((light-dir (normalize (- light-pos frag-pos)))
          (view-dir  (normalize (- cam-pos frag-pos)))
          ;; Diffuse shading
-         (diff (diffusse-oren-nayar light-dir
-                                    view-dir
-                                    normal
-                                    roughness
-                                    intensity))
+         (diff (diffuse-oren-nayar light-dir
+                                   view-dir
+                                   normal
+                                   roughness
+                                   intensity))
          ;; combine
          (ambient (* light-color .1))
          (diffuse (* light-color diff)))
