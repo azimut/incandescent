@@ -16,11 +16,13 @@
                 #:positive-fixnum
                 #:emptyp
                 #:when-let
+                #:when-let*
                 #:first-elt
                 #:mappend
                 #:length=)
   (:import-from #:serapeum
                 #:do-each
+                #:vect
                 #:class-name-of)
   (:import-from #:with-setf
                 #:with-setf

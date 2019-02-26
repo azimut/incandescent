@@ -4,9 +4,9 @@
 (defvar *bs* nil)
 (defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
 
-(defparameter *dimensions* '(1366 768))
+;;(defparameter *dimensions* '(1366 768))
 ;; (defparameter *dimensions* '(683 384))
-;;(defparameter *dimensions* '(533 400))
+(defparameter *dimensions* '(533 400))
 ;; (defparameter *dimensions* '(455 256))
 ;;(defparameter *dimensions* '(341 192))
 
@@ -29,7 +29,6 @@
   ;;---------------------------------------------- ----
   (setf (clear-color) (v! 0 0 0 1))
   ;;--------------------------------------------------
-  (init-dof)
   ;;(setf *actors* nil)
   ;;(init-box)
   ;;(make-box)
@@ -45,7 +44,7 @@
     ;;(setf (resolution (current-viewport)) res)
     (setf (resolution (current-viewport)) (v! *dimensions*))
     ;;(update *shadow-camera* delta)
-    ;;(update *shadow-camera* delta)
+    (update *currentcamera* delta)
     (control *camera* delta)
     ;;(setf (pos *camera1*) *light-pos*)
     ;;(update-all-the-things *actors*)
@@ -55,7 +54,6 @@
          :do
            (draw actor *currentcamera* time)
            (update actor delta)))
-    (draw-dof *sam* *samd*)
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -63,7 +61,7 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam *dof-combine-sam*)))
+               :sam *sam*)))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)

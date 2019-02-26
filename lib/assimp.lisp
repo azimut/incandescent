@@ -154,7 +154,8 @@
   "returns the index position matching the current ETIME"
   (declare (type vector positions)
            (type number etime))
-  (let ((pos (position-if (lambda (p) (< etime (slot-value p 'time))) positions)))
+  (let ((pos (position-if (lambda (p) (< etime (slot-value p 'time)))
+                          positions)))
     (if pos
         pos
         0)))
@@ -177,10 +178,10 @@
 (defun calc-interpolated-rotation (etime rotations)
   "returns a quaternion"
   (declare (type vector rotations))
-  (let* ((index (find-index etime rotations))
-         (next-index (1+ index))
+  (let* ((index       (find-index etime rotations))
+         (next-index  (1+ index))
          (current-rot (aref rotations index))
-         (next-rot (aref rotations next-index)))
+         (next-rot    (aref rotations next-index)))
     (with-slots ((ctime time) (start ai:value)) current-rot
       (with-slots ((ntime time) (end ai:value)) next-rot
         (let* ((dt      (- ntime ctime))

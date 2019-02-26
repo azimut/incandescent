@@ -28,14 +28,14 @@
 (defvar *texel-size*  NIL "stores the 1/width and 1/height vec2")
 (defvar *dof-kernel*  NIL)
 
-(defparameter *coc-distance* 10f0
+(defparameter *coc-distance* 2f0
   "distance between the camera and the focus plane
    where everything is perfectly sharp
    Default: 10f0
    Range: .1 - 100")
-(defparameter *coc-range* .4f0
+(defparameter *coc-range* 10f0
   "Default: 3f0
-   Range: .1 - 10f0")
+   Range: .1 - 10")
 
 ;; Holds the hardcoded values for the kernel on the frag shader
 (defstruct-g sample-kernel
@@ -131,8 +131,7 @@
       (map-g #'dof-combine-pipe *bs*
              :sam sam
              :coc-sam *coc-sam*
-             :coc-h-sam *coc-h-sam*))
-    ))
+             :coc-h-sam *coc-h-sam*))))
 ;;--------------------------------------------------
 ;; Circle of confusion - CoC
 ;; "determines the strength of the bokeh effect per point"
