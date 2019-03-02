@@ -20,13 +20,6 @@
                     (q:inverse (rot camera)))
              :projection (projection  camera)))))
 
-(defmethod update ((actor celestial-sphere) dt)
-  (setf (pos actor) (pos *currentcamera*))
-  ;;(setf (rot actor) (q:identity))
-  ;;(setf (rot actor) (q:point-at (v! 0 1 0) (pos *currentcamera*) (v! 0 0 -20)))
-  ;;(setf (rot actor) (rot *currentcamera*))
-  )
-
 ;;--------------------------------------------------
 ;; glsl-atmosphere
 ;; https://github.com/wwwtyro/glsl-atmosphere/
@@ -154,25 +147,26 @@
           (* i-sun (+ (* p-rlh k-rlh total-rlh)
                       (* p-mie k-mie total-mie)))))))
 
-(defparameter *temp* .1f0)
 (defun-g celestial-frag ((frag-pos :vec3)
                          &uniform
                          (light-pos :vec2))
-  (* (atmosphere (normalize frag-pos)
-                 (v! 0 272000 0)
-                 *light-pos*
-                 *temp*
-                 273000f0
-                 272000f0
-                 (v! .0000055 .000013 .0000224)
-                 .000021
-                 900f0 ;; rayleigh scale height
-                 1100    ;; mie scale height
-                 .758
-                 3 ;; 16 AND 8
-                 2)
-     (v! .5 .1 .9)))
+  (let* ((offset (v! 2000 1000 1000))
+         (color (* (atmosphere (normalize frag-pos)
+                               (v! 0 (- 6372000 (x offset)) 0)
+                               *light-pos*
+                               22      ;; intensity of the sun
+                               (- 6371000 (y offset)) ;; radius of the planet
+                               (- 6471000 (z offset)) ;; radius of the atmos
+                               (v! 5.5e-6 13.0e-6 22.4e-6) ;; rayleight coefficient
+                               21e-6   ;; mie coefficient
+                               8000    ;; rayleigh scale height
+                               1200    ;; mie scale height
+                               .758    ;; mie preferred scattering direction
+                               3 ;; 16 AND 8
+                               2))))
+    (values (v! (* *light-color* color) 1)
+            (v! (* 6 color) 1))))
 
 (defpipeline-g celestial-pipe ()
-  :vertex   (cubemap-vert g-pnt)
+  :vertex (cubemap-vert g-pnt)
   :fragment (celestial-frag :vec3))
