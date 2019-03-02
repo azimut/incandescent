@@ -176,7 +176,8 @@
 ;;----------------------------------------
 ;; Dirt - image loader into CEPL sampler
 
-(defvar *samplers* (make-hash-table :test #'equal))
+(defvar *samplers* (make-hash-table :test #'equal)
+  "GPU objects loaded")
 (defun free-all-tex ()
   (maphash-values (lambda (s) (free (sampler-texture s)))
                   *samplers*)
@@ -198,5 +199,24 @@
                 image-format
                 mipmap
                 t))))))
+;;--------------------------------------------------
 
-
+(defvar *c-samplers* (make-hash-table :test #'equal)
+  "C array objects loaded")
+(defun free-all-c-tex ()
+  (maphash-values #'free *c-samplers*)
+  (clrhash *c-samplers*))
+(defun get-c-tex (path &optional (force nil) (image-format :rgba8))
+  (when force
+    (let ((s (gethash path *c-samplers*)))
+      (when s
+        (free s))
+      (remhash path *c-samplers*)))
+  (let ((absolutep (uiop:absolute-pathname-p path)))
+    (or (gethash path *c-samplers*)
+        (setf (gethash path *c-samplers*)
+              (dirt:load-image-to-c-array
+               (if absolutep
+                   path
+                   (asdf:system-relative-pathname :incandescent path))
+               image-format)))))
