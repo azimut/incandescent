@@ -1,9 +1,8 @@
 (in-package #:incandescent)
 
-(defparameter *instances* 10)
 (defun render-all-the-things (actor camera time)
   (declare (single-float time))
-  (update actor)
+  (update actor time)
   (draw actor camera time))
 
 (defgeneric draw (actor camera time))
@@ -21,7 +20,11 @@
            :view-clip   (projection  camera)
            ;; Directional light (for the most part)
            :light-color *light-color*
-           :light-pos   *light-pos*)))
+           :light-pos   *light-pos*
+           :brdf-luf *s-brdf*
+           :irradiance-map *s-cubemap-live*
+           :prefilter-map *s-cubemap-prefilter*
+           )))
 
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf

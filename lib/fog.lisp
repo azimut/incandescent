@@ -142,7 +142,7 @@
               (* line-integral (/ (- 1 (exp2 (* (- (y fog-params)) (z cam-to-receiver))))
                                   (* (y fog-params) (z cam-to-receiver))))
               line-integral))
-	 ;; 1 in the direction of the light vector, -1 in the opposite direction         
+	 ;; 1 in the direction of the light vector, -1 in the opposite direction
          (cos-light-angle (dot (normalize (- light-pos frag-pos))
                                (normalize cam-to-receiver)))
          (fog-color

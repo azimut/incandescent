@@ -22,9 +22,6 @@
 ;; Metal Halide              242 252 255 (v! 0.9490197 0.98823535 1.0)
 ;; High Pressure Sodium      255 183 76  (v! 1.0 0.7176471 0.29803923)
 
-(defparameter *light-color* (v! 0.78823537 0.8862746 1.0))
-(defparameter *exposure* .8f0)
-
 (defun-g spec-phong ((light-dir :vec3) (view-dir :vec3) (normal :vec3) (shininess :float))
   (let* ((reflect-dir (reflect (- light-dir) normal))
          (spec-angle  (max (dot view-dir reflect-dir) 0))
@@ -148,7 +145,7 @@
                              specular))))
 
 ;;--------------------------------------------------
-                                        ;
+
 ;; Only lambert diffuse
 (defun-g dir-light-apply ((color :vec3)
                           (light-color :vec3)

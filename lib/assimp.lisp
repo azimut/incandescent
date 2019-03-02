@@ -33,7 +33,7 @@
 ;;   (transform (:mat4 35)))
 
 (defvar *chuesos* NIL)
-(defvar *mann* NIL)
+(defvar *mann*    NIL)
 
 (defun init-assimp ()
   (when *chuesos* (free *chuesos*))
@@ -102,6 +102,8 @@
 (defun free-meshes ()
   (mapcar #'free *assimp-meshes*)
   (setf *assimp-meshes* NIL))
+
+;;--------------------------------------------------
 
 (defun list-bones (scene)
   "returns a plain list with all the bones in SCENE, helper for the REPL"
@@ -504,7 +506,7 @@ for value and node name for the key")
                  camera
                  (time single-float))
   (with-slots (buf albedo normals scale specular) actor
-    (map-g #'generic-tex-pipe-simple buf
+    (map-g #'assimp-tex-pipe-simple buf
            :scale scale
            ;; Lighting
            :model-world (model->world actor)
@@ -521,7 +523,7 @@ for value and node name for the key")
                  camera
                  (time single-float))
   (with-slots (buf albedo normals scale) actor
-    (map-g #'generic-tex-pipe-bones buf
+    (map-g #'assimp-tex-pipe-bones buf
            :scale scale
            ;; Lighting
            :model-world (model->world actor)
@@ -699,20 +701,20 @@ for value and node name for the key")
 ;;      ;;(normalize frag-norm)
 ;;      )))
 
-(defpipeline-g generic-tex-pipe ()
+(defpipeline-g assimp-tex-pipe ()
   :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
 
 
-(defpipeline-g generic-tex-pipe-simple ()
+(defpipeline-g assimp-tex-pipe-simple ()
   :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
 
-(defpipeline-g generic-tex-pipe-bones ()
+(defpipeline-g assimp-tex-pipe-bones ()
   :vertex (vert-with-tbdata-bones g-pnt tb-data assimp-bones)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax

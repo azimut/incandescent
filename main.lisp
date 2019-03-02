@@ -3,6 +3,7 @@
 (defvar *last-time* (get-internal-real-time))
 (defvar *bs* nil)
 (defparameter *stepper* (make-stepper (seconds 1) (seconds 1)))
+(defvar *dimensions-v2* NIL)
 
 ;;(defparameter *dimensions* '(1366 768))
 ;; (defparameter *dimensions* '(683 384))
@@ -11,10 +12,11 @@
 ;;(defparameter *dimensions* '(341 192))
 
 (defun init ()
+  (setf *dimensions-v2* (v! *dimensions*))
+  ;;(init-god)
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
-  (unless *bs*
-    (setf *bs* (make-buffer-stream nil :primitive :points)))
+  (unless *bs* (setf *bs* (make-buffer-stream nil :primitive :points)))
   ;;--------------------------------------------------
   ;; HDR fbo(s)
   (when *fbo* (free *fbo*))
@@ -30,6 +32,9 @@
   (setf (clear-color) (v! 0 0 0 1))
   ;;--------------------------------------------------
   ;;(setf *actors* nil)
+  ;;(make-env-map *cube-tex* *cube-sam*)
+  ;;(make-env-map *cube-tex* *s-cubemap-prefilter*)
+  ;;(make-celestial-sphere)
   ;;(init-box)
   ;;(make-box)
   NIL)
@@ -41,20 +46,20 @@
          (delta (* (- now *last-time*) .001))
          (delta (if (> delta .16) .00001 delta)))
     (setf *last-time* now)
-    ;;(setf (resolution (current-viewport)) res)
-    (setf (resolution (current-viewport)) (v! *dimensions*))
+    (setf (resolution (current-viewport)) res)
+    ;;(setf (resolution (current-viewport)) (v! *dimensions*))
     ;;(update *shadow-camera* delta)
     (update *currentcamera* delta)
     (control *camera* delta)
     ;;(setf (pos *camera1*) *light-pos*)
     ;;(update-all-the-things *actors*)
-    
     (with-fbo-bound (*fbo*)
       (clear *fbo*)
       (loop :for actor :in *actors*
          :do
            (draw actor *currentcamera* time)
            (update actor delta)))
+    ;;(draw-god *sam1* time)
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -62,7 +67,9 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam *sam*)))
+               :sam  *sam*
+               ;;:sam2 *god-sam*
+               )))
     (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)

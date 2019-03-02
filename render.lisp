@@ -1,7 +1,8 @@
 (in-package :incandescent)
 
 ;;--------------------------------------------------
-;; 2D Passthrough Texture Pipe
+;; 2D - Passthrough Texture Pipe
+
 (defun-g pass-frag ((uv :vec2) &uniform (sam :sampler-2d))
   (texture sam uv))
 
@@ -10,6 +11,7 @@
 
 ;;--------------------------------------------------
 ;; 3D - g-pnt mesh without tangents
+
 (defun-g vert ((vert g-pnt)
                &uniform
                (model-world :mat4)
@@ -38,37 +40,56 @@
                (cam-pos :vec3)
                ;; Directional light (for the most part)
                (light-color :vec3)
-               (light-pos   :vec3))
-  (let* ((final-color color)
+               (light-pos   :vec3)
+               (brdf-luf :sampler-2d)
+               (irradiance-map :sampler-cube)
+               (prefilter-map :sampler-cube))
+  (let* ((roughness .7)
+         (metallic .01)
+         (ambient (v! .03 .03 .03))
+         (f0 (v3! .04))
+         (f0 (mix f0 color metallic))
+         (final-color color)
          ;; (final-color (dir-light-apply final-color
          ;;                               light-color
          ;;                               light-pos
          ;;                               frag-pos
          ;;                               frag-norm
-         ;;                               ;;cam-pos 32 1
+         ;;                               cam-pos 32 1
          ;;                               ))
-         (final-color (+ (v3! .03)
-                         (* (* 2 light-color)
-                            (pbr-direct-lum light-pos
-                                            frag-pos
-                                            (normalize (- cam-pos frag-pos))
-                                            frag-norm
-                                            .9
-                                            (v3! .04)
-                                            .1
-                                            final-color
-                                            ))))
-         (final-color (+ final-color
-                         (* (* 2 (v! .2 .9 .2))
-                            (pbr-point-lum (v! (* 2 (sin (* .01 time))) 0 0)
-                                           frag-pos
-                                           (normalize (- cam-pos frag-pos))
-                                           frag-norm
-                                           .9
-                                           (v3! .04)
-                                           .01
-                                           color
-                                           ))))
+         ;; (ambient (ambient-ibl (normalize (- cam-pos frag-pos))
+         ;;                       frag-norm
+         ;;                       f0
+         ;;                       brdf-luf
+         ;;                       prefilter-map
+         ;;                       irradiance-map
+         ;;                       roughness
+         ;;                       metallic
+         ;;                       color
+         ;;                       1f0))
+         (final-color (- 1f0 (nineveh.noise:cellular-noise-fast (* 20 uv))))
+         ;; (final-color (* light-color
+         ;;                 (pbr-direct-lum light-pos
+         ;;                                 frag-pos
+         ;;                                 (normalize (- cam-pos frag-pos))
+         ;;                                 frag-norm
+         ;;                                 roughness
+         ;;                                 f0
+         ;;                                 metallic
+         ;;                                 final-color
+         ;;                                 )))
+         ;; (final-color
+         ;;  (+ final-color
+         ;;     (* (v! .2 .2 .9)
+         ;;        (pbr-point-lum (v! (* 2 (sin (* .01 time))) 0 0)
+         ;;                       frag-pos
+         ;;                       (normalize (- cam-pos frag-pos))
+         ;;                       frag-norm
+         ;;                       roughness
+         ;;                       f0
+         ;;                       metallic
+         ;;                       color
+         ;;                       ))))
          ;; (final-color (+ final-color
          ;;                 (point-light-apply color
          ;;                                    (v! .2 .9 .2)
@@ -81,14 +102,11 @@
          ;;                                    ;;cam-pos 2 .9
          ;;                                    )))
          )
-    (values (v! final-color 1)
-            (if (> (dot final-color (v! .2126 .7152 .0722)) 1f0)
-                (v! final-color 1)
-                (v! 0 0 0 1))
+    (values (v! (+ ambient final-color) 1)
+            ;; (if (> (dot final-color (v! .2126 .7152 .0722)) 1f0)
+            ;;     (v! final-color 1)
+            ;;     (v! 0 0 0 1))
             )))
-
-;;--------------------------------------------------
-;; 3D - g-pnt mesh with light shading
 
 (defpipeline-g generic-pipe ()
   :vertex (vert g-pnt)
@@ -101,6 +119,7 @@
                    (frag-norm :vec3)
                    (frag-pos :vec3)
                    &uniform
+                   (light-pos :vec3)
                    (cam-pos :vec3)
                    (albedo :sampler-2d))
   (let* ((light-pos *pointlight-pos*)
@@ -197,7 +216,7 @@
               (normalize (- tan-cam-pos tan-frag-pos))
               height-map
               .03))
-         (roughness (x (texture rough-map uv)))
+         (roughness (+ .5 (x (texture rough-map uv))))
          (ao        (x (texture ao-map uv)))
          (color (* color (expt (s~ (texture albedo uv) :xyz)
                                (vec3 2.2))))
@@ -211,9 +230,10 @@
          (n normal)
          (v (normalize (- cam-pos frag-pos)))
          (metallic .1)
-         (f0 (vec3 .04))
-         ;;(f0 color)
+         ;;(f0 (vec3 .04))
+         (f0 color)
          (f0 (mix f0 color metallic))
+         (f0 (v3! 0))
          ;; pbr - reflectance equation
          (lo (vec3 0f0))
          ;; lights START
@@ -288,13 +308,14 @@
          (color color)
          ;;----------------------------------------
          ;; PBR
+         (ambient (v3! .03))
          ;; metallic
-         ;;(f0 (vec3 .04))
-         (f0 color)
+         (f0 (vec3 .04))
+         ;;(f0 color)
          (f0 (mix f0 color metallic))
          ;; pbr - reflectance equation
          (n normal)
-         (v (normalize (- cam-pos frag-pos)))
+         (v  (normalize (- cam-pos frag-pos)))
          (lo (vec3 0f0))
          ;; lights START
          (lo (+ lo (pbr-direct-lum light-pos
@@ -304,7 +325,8 @@
                                    roughness
                                    f0
                                    metallic
-                                   color)))
+                                   color
+                                   .01)))
          ;; ---------- END
          ;; (r (reflect (- v) n))
          ;; (f (fresnel-schlick-roughness (max (dot n v) 0)
@@ -321,11 +343,15 @@
          ;; (env-brdf (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
          ;; (specular (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
          ;; (ambient (* (+ specular (* kd diffuse)) ao))
-         ;; (ambient (pbr-ambient-map-r irradiance-map
-         ;;                             color
-         ;;                             ao n v f0
-         ;;                             roughness))
-         (ambient (* color ao (vec3 .3)))
+         ;; (ambient (ambient-ibl v n f0
+         ;;                       brdf-lut
+         ;;                       prefilter-map
+         ;;                       irradiance-map
+         ;;                       .9
+         ;;                       .01
+         ;;                       (v! .5 .5 .5)
+         ;;                       ao))
+         ;;(ambient (* color ao (vec3 .3)))
          (final-color (+ ambient lo))
          )
     (v! final-color 1)))

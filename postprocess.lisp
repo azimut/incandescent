@@ -5,6 +5,7 @@
 (defvar *sam1* NIL)
 (defvar *samd* nil)
 (defparameter *exposure* 1f0)
+
 ;;--------------------------------------------------
 ;; 2D - Post Processing
 
@@ -22,6 +23,11 @@
          (final-color (*   (s~ (texture sam uv) :xyz)
                            ;;(s~ (texture sam2 uv) :xyz)
                            ))
+         ;; godrays
+         ;; (final-color (+ (s~ (texture sam uv) :xyz)
+         ;;                 (* (v! .2 .2 .6)
+         ;;                    (s~ (texture sam2 uv) :xyz))
+         ;;                 ))
          ;; bloom
          ;; (source (texture sam uv))
          ;; (source (v! (defered-fog (v! .02 .09 .12)

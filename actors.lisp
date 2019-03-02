@@ -7,9 +7,8 @@
 (defvar *rough* 1f0)
 (defvar *pointlight-pos* (v! 0 0 0))
 
-(defparameter *light-pos* (v! -2000 1100 -1000))
-(defparameter *light-color* (v! .9 .9 .9))
-(defparameter *exposure* 2f0)
+(defparameter *light-pos* (v! -2000 1000 0))
+(defparameter *light-color* (v! .2 .2 .4))
 (defparameter *parallax-scale* .01f0)
 
 (defun update-all-the-things (l dt)
@@ -86,21 +85,19 @@
    :uv-repeat 1f0
    :uv-speed .1
    :metallic .1
-   :albedo    (get-tex "static/37.Paint01-1k/paint01_albedo.jpg" NIL T :rgb8)
-   :ao        (get-tex "static/37.Paint01-1k/paint01_ao.jpg" NIL T :r8)
-   :height    (get-tex "static/37.Paint01-1k/paint01_height.jpg" NIL T :r8)
-   :normal    (get-tex "static/37.Paint01-1k/paint01_normal.jpg" NIL T :rgb8)
-   :roughness (get-tex "static/37.Paint01-1k/paint01_roughness.jpg" NIL T :r8)))
+   :albedo    (get-tex "static/32.Rock01-1k/rock01_albedo.jpg" NIL T :rgb8)
+   :ao        (get-tex "static/32.Rock01-1k/rock01_ao.jpg" NIL T :r8)
+   :height    (get-tex "static/32.Rock01-1k/rock01_height.jpg" NIL T :r8)
+   :normal    (get-tex "static/32.Rock01-1k/rock01_normal.jpg" NIL T :rgb8)
+   :roughness (get-tex "static/32.Rock01-1k/rock01_roughness.jpg" NIL T :r8)))
 
 (defclass pbr-shadow (pbr) ())
 
 (defclass piso (pbr-simple) ())
-(defun make-piso (&optional (pos (v! 0 0 0))
-                    (rot (q:identity))
-                    (scale 1f0))
+(defun make-piso (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0))
   (let ((obj
          (make-instance
-          'piso
+          'pbr
           :buf (lattice 100 100 2 2 t)
           :pos pos
           :scale scale
@@ -163,19 +160,21 @@
 ;;--------------------------------------------------
 (defgeneric update (actor dt))
 (defmethod update (actor dt))
-(defmethod update ((actor pbr) dt))
+(defmethod update ((actor pbr) dt)
+  (with-slots (metallic) actor
+    (setf metallic .1f0)))
 (defmethod update ((actor pbr-simple) dt))
 (defmethod update ((actor box) dt)
-  ;; (with-slots (pos rot color name) actor
-  ;;   (unless (eq :piso name)
-  ;;     ;;(setf color (v! .1 .3 .9))
-  ;;     ;;(setf pos (v! 0 0 0))
-  ;;     (setf rot (q:* rot
-  ;;                    (q:from-axis-angle
-  ;;                     (v! 0 1 1)
-  ;;                     (radians (mod (* 20 dt) 360)))
-  ;;                    )))
-  ;;   )
+  (with-slots (pos rot color name) actor
+    (unless (eq :piso name)
+      ;;(setf color (v! .1 .3 .9))
+      ;;(setf pos (v! 0 0 0))
+      (setf rot (q:* rot
+                     (q:from-axis-angle
+                      (v! 0 1 1)
+                      (radians (mod (* 20 dt) 360)))
+                     )))
+    )
   )
 (defmethod update ((actor assimp-flat) dt)
   ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
