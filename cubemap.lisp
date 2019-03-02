@@ -119,18 +119,20 @@
 
 (defun make-render-cubemap (camera &optional (pos (v! 0 0 0)))
   (let ((dst-cubemap (make-texture
-                      nil
+                      NIL
                       :dimensions '(2048 2048)
-                      :cubes t
+                      :cubes T
                       :element-type :rgb16f)))
     (cubemap-render-to-cubemap camera dst-cubemap pos)
     dst-cubemap))
 (defun init-render-cubemap ()
-  (unless *cube-tex*
-    (setf *cube-tex* (make-render-cubemap *camera-cubemap*))
-    (setf *cube-sam* (sample *cube-tex*
-                             :wrap :clamp-to-edge
-                             :magnify-filter :linear))))
+  (when *cube-tex* (free *cube-tex*))
+  (setf *cube-tex*
+        (make-render-cubemap *camera-cubemap*))
+  (setf *cube-sam*
+        (sample *cube-tex*
+                :wrap :clamp-to-edge
+                :magnify-filter :linear)))
 (defun cubemap-render-to-cubemap (camera dst-cubemap &optional (pos (v! 0 0 0)))
   "Fills the provided DST-CUBEMAP texture with render of
    current scene. Dimensions of the DST-CUBEMAP adviced as 2048x2048"
@@ -158,23 +160,23 @@
               (let ((color (s~ (texture sam uv) :xyz)))
                 (v! color 1))))))
       (loop
-        :for side :in *cubemap-sides*
-        :for rotation :in *cubemap-rotations*
-        :for face :from 0
-        :do
-        ;; Rotate camera
+         :for side :in *cubemap-sides*
+         :for rotation :in *cubemap-rotations*
+         :for face :from 0
+         :do
+         ;; Rotate camera
            (destructuring-bind (up from to) rotation
              (setf (rot camera)
                    (q:look-at up from to)))
-           ;; Normal draw - preferably a 16bit fbo to avoid dithering
+         ;; Normal draw - preferably a 16bit fbo to avoid dithering
            (with-fbo-bound (external-fbo)
              (clear external-fbo)
              (loop :for actor :in *actors* :do
-                      (draw actor camera 1f0)))
-           ;; Switch FBO texture for one of the cubemap
+                  (draw actor camera 1f0)))
+         ;; Switch FBO texture for one of the cubemap
            (setf (attachment fbo 0)
                  (texref dst-cubemap :cube-face face))
-           ;; Final draw to LDR (? the colors
+         ;; Final draw to LDR (? the colors
            (map-g-into fbo pipeline bs
                        :sam external-sample)))))
 

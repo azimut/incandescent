@@ -24,7 +24,7 @@
     (free *t-cubemap-live*)
     (setf *t-cubemap-live* NIL)))
 
-(defun init-cubemap-ibl ()
+(defun init-ibl ()
   ;; IBL - Diffuse ambient
   (unless *t-cubemap-live*
     (setf *t-cubemap-live*
@@ -65,28 +65,26 @@
 ;; Is kind of garbage that I need a source cubemap to begin with
 ;; instead of use the scene. But, It makes it easier so i can just
 ;; use a separate render pipeline just for the source cubemap.
-(defun update-cubemap-ibl (&optional (src-tex *t-cubemap*) (src-sam *s-cubemap*))
+(defun update-ibl (&optional (src-tex *t-cubemap*) (src-sam *s-cubemap*))
   (declare (type cepl:texture src-tex)
            (type cepl:sampler src-sam))
   (assert (texture-cubes-p src-tex))
   ;; Diffuse
-  (unless *prefilter*
+  (when *t-cubemap-prefilter*
     (cubemap-render-to-prefilter-cubemap *camera-cubemap*
                                          src-tex
                                          src-sam
-                                         *t-cubemap-prefilter*)
-    (setf *prefilter* T))
+                                         *t-cubemap-prefilter*))
   ;; IBL - Specular
-  (unless *brdf*
-    (setf (resolution (current-viewport)) (v! 512 512))
-    (map-g-into *f-brdf* #'brdf-pipe *bs*)
-    (setf *brdf* T))
-  (unless *saved*
+  (setf (resolution (current-viewport)) (v! 512 512))
+  (when *f-brdf*
+    (map-g-into *f-brdf* #'brdf-pipe *bs*))
+  ;;
+  (when *t-cubemap-live*
     (cubemap-render-to-irradiance-cubemap *camera-cubemap*
                                           src-tex
                                           src-sam
-                                          *t-cubemap-live*)
-    (setf *saved* T)))
+                                          *t-cubemap-live*)))
 
 ;;--------------------------------------------------
 ;; Pipeline to create a BRDF 2d lut
@@ -190,7 +188,7 @@
     (v! irradiance 1)))
 
 (defpipeline-g cube-down-pipe ()
-  :vertex (cubemap-vert g-pnt)
+  :vertex   (cubemap-vert g-pnt)
   :fragment (cube-down-frag :vec3))
 
 ;;--------------------------------------------------
@@ -230,8 +228,9 @@
                (clear fbo)
                (map-g #'cube-down-pipe (box)
                       :tex src-cubemap-sample
-                      :mod-clip (m4:* (projection camera)
-                                      (world->view camera)))))))))
+                      :view (q:to-mat4
+                             (q:inverse (rot camera)))
+                      :projection (projection camera))))))))
 
 ;;--------------------------------------------------
 ;; GI - IBL - Prefilter cubemap
@@ -348,6 +347,7 @@
                    (map-g #'prefilter-pipe (box)
                           :roughness roughness
                           :environment-map src-cubemap-sample
-                          :mod-clip (m4:* (projection camera)
-                                          (world->view camera)))))))))))
+                          :view (q:to-mat4
+                                 (q:inverse (rot camera)))
+                          :projection (projection camera))))))))))
 
