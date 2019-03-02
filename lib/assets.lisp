@@ -126,7 +126,7 @@
                      :index-array index)
                     (make-buffer-stream vert :index-array index)))))))
 
-(defun cylinder (&optional (radius 1f0) (height 1f0) has-tangents)
+(defun cylinder (&optional (radius .5f0) (height 1f0) has-tangents)
   (declare (boolean has-tangents))
   (let ((key (list radius height has-tangents)))
     (or (gethash key *meshes*)
