@@ -206,7 +206,7 @@
 (defun free-all-c-tex ()
   (maphash-values #'free *c-samplers*)
   (clrhash *c-samplers*))
-(defun get-c-tex (path &optional (force nil) (image-format :rgba8))
+(defun get-c-tex (path &optional (force nil) (image-format :rgb))
   (when force
     (let ((s (gethash path *c-samplers*)))
       (when s
