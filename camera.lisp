@@ -71,6 +71,7 @@
   (m4:* (projection camera)
         (world->view camera)))
 
+;; Used for Raymarching. But I think it should be useful elsewhere.
 ;; https://github.com/Flafla2/Generic-Raymarch-Unity/blob/master/Assets/RaymarchGeneric.cs
 (defmethod get-frustum-corners ((camera pers))
   "Stores the normalized rays representing the camera frustum in a 4x4 matrix.
@@ -99,94 +100,11 @@
                       (v! bottom-left)))))
 
 ;;--------------------------------------------------
-;; UPDATE
+;; ANIMATION
 ;;--------------------------------------------------
-(defgeneric update (camera dt))
-(defmethod update ((camera orth) dt))
-
-
-
-(defun cam-turn (ang)
-  (with-slots (rot) *camera*
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 0 1 0) ang))))))
-
-(defun cam-tilt (ang)
-  (with-slots (rot) *camera*
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 1 0 0) ang))))))
-
-(defun cam-spin (ang)
-  (with-slots (rot) *camera*
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 0 0 1) ang))))))
-
-(defun control (camera dt)
-  "free camera controls"
-  (let ((factor 20))
-    ;; MODIFIERS
-    (when (keyboard-button (keyboard) key.lshift)
-      (setf factor 30))
-    (when (keyboard-button (keyboard) key.lctrl)
-      (setf factor 5))
-    ;; SPIN
-    (when (key-down-p key.q)
-      (cam-spin (radians 1.8f0)))
-    (when (key-down-p key.e)
-      (cam-spin (radians -1.8f0)))
-    ;; PAN
-    (when (key-down-p key.left)
-      (cam-turn (radians 1.8f0)))
-    (when (key-down-p key.right)
-      (cam-turn (radians -1.8f0)))
-    (when (key-down-p key.up)
-      (cam-tilt (radians 1.8f0)))
-    (when (key-down-p key.down)
-      (cam-tilt (radians -1.8f0)))
-    ;; MOVEMENT
-    ;; - forward
-    (when (keyboard-button (keyboard) key.w)
-      (v3:incf (pos camera)
-               (v3:*s (q:to-direction (rot camera))
-                      (* factor dt))))
-    ;; - left
-    (when (keyboard-button (keyboard) key.a)
-      (v3:incf (pos camera)
-               (v3:*s (q:rotate (v! -1 0 0) (rot camera))
-                      (* factor dt))))
-    ;; - right
-    (when (keyboard-button (keyboard) key.d)
-      (v3:incf (pos camera)
-               (v3:*s (q:rotate (v! 1 0 0) (rot camera))
-                      (* factor dt))))
-    ;; backwards
-    (when (keyboard-button (keyboard) key.s)
-      (v3:decf (pos camera)
-               (v3:*s (q:to-direction (rot camera))
-                      (* factor dt))))
-    ;; - up
-    (when (keyboard-button (keyboard) key.space)
-      (v3:decf (pos camera)
-               (v3:*s (q:rotate (v! 0 -1 0)
-                                (rot camera))
-                      (* factor dt))))
-    ;; - down
-    (when (keyboard-button (keyboard) key.c)
-      (v3:decf (pos camera)
-               (v3:*s (q:rotate (v! 0 1 0) (rot camera))
-                      (* factor dt)))))
-
-  (when (mouse-button (mouse) mouse.left)
-    (let ((move (v2:*s (mouse-move (mouse))
-                       0.03)))
-      (setf (rot camera)
-            (q:normalize
-             (q:* (rot camera)
-                  (q:normalize
-                   (q:* (q:from-axis-angle (v! 1 0 0) (- (y move)))
-                        (q:from-axis-angle (v! 0 1 0) (- (x move)))))))))))
 
 (defun shot-toggle (&optional (camera *currentcamera*))
+  "enable/disable animation play"
   (with-slots (n-shot) camera
     (if (numberp n-shot)
         (setf n-shot NIL)
@@ -223,17 +141,10 @@
     (setf n-shot NIL)
     (setf (fill-pointer (aref shots 0)) 0)))
 
-(defmethod update ((camera pers) dt)
-  ;;(setf (pos camera) (v! -20 90 485))
-  ;;(setf (pos camera) (v! 120 30 50))
-  ;;(setf (pos camera) (v! -4 -4 0))
-  ;;(setf (pos camera) (v! 0 0 10))
-  ;; (setf (pos camera) (v! (* 10 (cos (mynow)))
-  ;;                        (* 10 (cos (mynow)))
-  ;;                        (* 10 (sin (mynow)))))
-  ;;--------------------------------------------------
-  (when-let* ((shots-p  (slot-value camera 'n-shot))
-              (shot     (aref (shots camera) 0))
+(defmethod animate ((camera camera))
+  "actually animate the thing"
+  (when-let* ((n-shot   (slot-value camera 'n-shot))
+              (shot     (aref (shots camera) n-shot))
               (n-frames (fill-pointer shot))
               (enough-p (>= n-frames 2))
               (max-time (- (third
@@ -258,7 +169,23 @@
     (setf (pos camera)
           (v3:lerp (first (aref shot index))
                    (first (aref shot (1+ index)))
-                   lerp)))
+                   lerp))))
+
+;;--------------------------------------------------
+;; UPDATE
+;;--------------------------------------------------
+(defgeneric update (camera dt))
+(defmethod update ((camera orth) dt))
+(defmethod update ((camera pers) dt)
+  ;;(setf (pos camera) (v! -20 90 485))
+  ;;(setf (pos camera) (v! 120 30 50))
+  ;;(setf (pos camera) (v! -4 -4 0))
+  ;;(setf (pos camera) (v! 0 0 10))
+  ;; (setf (pos camera) (v! (* 10 (cos (mynow)))
+  ;;                        (* 10 (cos (mynow)))
+  ;;                        (* 10 (sin (mynow)))))
+  ;;--------------------------------------------------
+  (animate camera)
   ;;--------------------------------------------------
   ;;(setf (rot camera) (q:identity))
   ;;(setf (fov camera) 60f0)

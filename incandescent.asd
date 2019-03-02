@@ -1,7 +1,7 @@
 ;;;; incandescent.asd
 
 (asdf:defsystem #:incandescent
-  :description "Describe incandescent here"
+  :description "Main package"
   :author "azimut <azimut.github@protonmail.com>"
   :license  "MIT"
   :version "0.0.1"
@@ -15,25 +15,61 @@
                #:cepl.sdl2
                #:swank
                #:nineveh
-               #:classimp
                #:png
                #:livesupport
                #:cepl.skitter.sdl2
                #:dirt)
   :components ((:file "package")
                (:file "incandescent")
-               (:file "lib/assets")
+               (:file "lib/assets")   ;; lisp
                (:file "pbr")
                (:file "lib/misc-gpu")
-               (:file "actors")
-               (:file "lib/assimp")
-               (:file "camera")
-               (:file "postprocess")
-               (:file "draw")
-               (:file "render")
+               (:file "actors")       ;; lisp
+               (:file "camera")       ;; lisp
+               (:file "controls")     ;; lisp
+               (:file "postprocess")  ;; gpu
+               (:file "draw")         ;; lisp
+               (:file "render")       ;; gpu - main pipelines
                (:file "cubemap")
                (:file "ibl")
                (:file "main")))
+
+(asdf:defsystem #:incandescent/assimp
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               #:classimp)
+  :components ((:file "lib/assimp")))
+
+(asdf:defsystem #:incandescent/particles
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "particles")))
+
+(asdf:defsystem #:incandescent/fog
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "lib/fog")))
+
+(asdf:defsystem #:incandescent/godrays
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "godrays")))
 
 (asdf:defsystem #:incandescent/ssao
   :description "Describe incandescent here"
@@ -71,3 +107,12 @@
   :serial t
   :depends-on (#:incandescent)
   :components ((:file "shadowmap")))
+
+(asdf:defsystem #:incandescent/dof
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components ((:file "dof")))
