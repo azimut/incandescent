@@ -104,6 +104,29 @@
 ;;   (setf *brdf* T)
 ;;   (setf (resolution (current-viewport)) (v! 512 512))
 ;;   (map-g-into *f-brdf* #'brdf-pipe *bs*))
+(defun-g importance-sample-ggx ((xi :vec2)
+                                (n :vec3)
+                                (roughness :float))
+  (let* ((a (* roughness roughness))
+         (phi (* 2 +pi+ (x xi)))
+         (cos-theta (sqrt (/ (- 1 (y xi))
+                             (+ 1 (* (1- (* a a)) (y xi))))))
+         (sin-theta (sqrt (- 1 (* cos-theta cos-theta))))
+         ;; from spherical coordinates to cartesian coordinates
+         (h (v! (* (cos phi) sin-theta)
+                (* (sin phi) sin-theta)
+                cos-theta))
+         ;; from tangent-space vector to world-space sample vector
+         (up (if (< (abs (z n)) .999)
+                 (v! 0 0 1)
+                 (v! 1 0 0)))
+         (tangent (normalize (cross up n)))
+         (bitangent (cross n tangent))
+         (sample-vec (+ (* (x h) tangent)
+                        (* (y h) bitangent)
+                        (* (z h) n))))
+    (normalize sample-vec)))
+
 (defun-g integrate-brdf ((n-dot-v :float)
                          (roughness :float))
   ;; You might've recalled from the theory tutorial that the geometry
@@ -240,29 +263,6 @@
 ;; low-discrepancy sequence value Xi. Note that Epic Games uses the
 ;; squared roughness for better visual results as based on Disney's
 ;; original PBR research.
-(defun-g importance-sample-ggx ((xi :vec2)
-                                (n :vec3)
-                                (roughness :float))
-  (let* ((a (* roughness roughness))
-         (phi (* 2 +pi+ (x xi)))
-         (cos-theta (sqrt (/ (- 1 (y xi))
-                             (+ 1 (* (1- (* a a)) (y xi))))))
-         (sin-theta (sqrt (- 1 (* cos-theta cos-theta))))
-         ;; from spherical coordinates to cartesian coordinates
-         (h (v! (* (cos phi) sin-theta)
-                (* (sin phi) sin-theta)
-                cos-theta))
-         ;; from tangent-space vector to world-space sample vector
-         (up (if (< (abs (z n)) .999)
-                 (v! 0 0 1)
-                 (v! 1 0 0)))
-         (tangent (normalize (cross up n)))
-         (bitangent (cross n tangent))
-         (sample-vec (+ (* (x h) tangent)
-                        (* (y h) bitangent)
-                        (* (z h) n))))
-    (normalize sample-vec)))
-
 (defun-g prefilter-frag ((frag-pos :vec3)
                          &uniform
                          (environment-map :sampler-cube)
