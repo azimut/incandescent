@@ -198,3 +198,11 @@
          (fog   (- 1f0 (compute-fog-exp2 dist
                                          density))))
     (mix color fog-color fog)))
+
+;;--------------------------------------------------
+;; https://github.com/SlightlyMad/VolumetricLights/blob/master/Assets/Shaders/VolumetricLight.shader
+;; height-fog:
+;; x:  ground level, y: height scale, z: unused, w: unused
+(defun-g apply-height-fog ((wpos :vec3) (height-fog :vec4) (density :float))
+  (* density (exp (* (- (+ (y wpos) (x height-fog)))
+                     (y height-fog)))))
