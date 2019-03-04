@@ -26,9 +26,13 @@
   (:default-initargs
    :fov 60f0))
 
-(defparameter *camera* (make-instance 'pers :far 1000f0))
+(defparameter *camera*
+  (make-instance 'pers :far 1000f0))
 
-(defparameter *camera1* (make-instance 'orth))
+(defparameter *camera1*
+  (make-instance 'orth
+                 :rot (q:from-axis-angle (v! 1 0 0)
+                                         (radians -90))))
 (defparameter *cameras* (list *camera* *camera1*))
 (defparameter *currentcamera* *camera*)
 
@@ -186,6 +190,11 @@
   ;;                        (* 10 (sin (mynow)))))
   ;;--------------------------------------------------
   (animate camera)
+  (v3:incf (pos camera)
+           (v3! 0
+                0
+                (* .1 (sin (* .0000001 (mynow))))
+                (* .1 (sin (* .0000001 (mynow))))))
   ;;--------------------------------------------------
   ;;(setf (rot camera) (q:identity))
   ;;(setf (fov camera) 60f0)

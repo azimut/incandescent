@@ -1,9 +1,10 @@
 (in-package #:incandescent)
 
 ;; THE CAMERA
-(defvar *camera-cubemap* (make-instance 'pers
-                                        :name :cubemap-cam
-                                        :fov 90f0))
+(defvar *camera-cubemap*
+  (make-instance 'pers
+                 :name :cubemap-cam
+                 :fov 90f0))
 
 ;;--------------------------------------------------
 ;; Cubemap
@@ -23,11 +24,6 @@
     (push obj *actors*)
     obj))
 
-(defmethod update ((actor env-map) dt)
-  (setf (pos actor) (pos *currentcamera*))
-  ;;(setf (rot actor) (rot *currentcamera*))
-  )
-
 (defmethod draw ((actor env-map) camera time)
   (with-slots (buf cubesam) actor
     (with-setf* ((cull-face) :front
@@ -44,10 +40,11 @@
   "Returns a gpu texture from the provided images"
   (assert (= 6 (length paths)))
   (with-c-arrays-freed
-      (ca (mapcar (lambda (p)
-                    (dirt:load-image-to-c-array
-                     (asdf:system-relative-pathname :incandescent p)))
-                  paths))
+      (ca (mapcar
+           (lambda (p)
+             (dirt:load-image-to-c-array
+              (asdf:system-relative-pathname :incandescent p)))
+           paths))
     (make-texture ca :element-type :rgb8 :cubes t)))
 
 ;; Souce Cubemap with clouds

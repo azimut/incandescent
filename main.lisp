@@ -7,13 +7,15 @@
 
 ;;(defparameter *dimensions* '(1366 768))
 ;; (defparameter *dimensions* '(683 384))
-(defparameter *dimensions* '(533 400))
+;;(defparameter *dimensions* '(533 400))
+(defparameter *dimensions* '(227 365))
+;;(defparameter *dimensions* '(32 32))
 ;; (defparameter *dimensions* '(455 256))
 ;;(defparameter *dimensions* '(341 192))
 
 (defun init ()
   (setf *dimensions-v2* (v! *dimensions*))
-  ;;(init-god)
+  (init-raymarching)
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
   (unless *bs* (setf *bs* (make-buffer-stream nil :primitive :points)))
@@ -22,8 +24,10 @@
   (when *fbo* (free *fbo*))
   (setf *fbo*
         (make-fbo
-         (list 0 :element-type :rgb16f :dimensions *dimensions*)
-         (list 1 :element-type :rgb16f :dimensions *dimensions*)
+         `(0 :element-type :rgba16f
+             :dimensions ,*dimensions*)
+         `(1 :element-type :rgba16f
+             :dimensions ,*dimensions*)
          (list :d :dimensions *dimensions*)))
   (setf *sam*  (sample (attachment-tex *fbo* 0)  :wrap :clamp-to-edge))
   (setf *sam1* (sample (attachment-tex *fbo* 1)  :wrap :clamp-to-edge))
@@ -59,7 +63,15 @@
          :do
            (draw actor *currentcamera* time)
            (update actor delta)))
-    ;;(draw-god *sam1* time)
+    (draw-raymarching *sam*
+                      *samd*
+                      time)
+    ;; (with-fbo-bound (*fbo*)
+    ;;   (clear *fbo*)
+    ;;   (map-g #'simple-pipe (get-quad-stream-v2)))
+    ;; (as-frame
+    ;;   (map-g #'pass-pipe *bs*
+    ;;          :sam *sam*))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -67,7 +79,7 @@
                    ;;(clear-color) (v! 1 0 1 1)
                    )
         (map-g #'generic-2d-pipe *bs*
-               :sam  *sam*
+               :sam  *ray-sam*
                ;;:sam2 *god-sam*
                )))
     (decay-events)))
@@ -75,3 +87,19 @@
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
 
+(defun-g simple-vert ((pos :vec2))
+  (values (v! pos 0 1)
+          (+ .5 (* .5 pos))))
+(defun-g simple-frag ((uv :vec2))
+  ;; (saturate
+  ;;  (- (v3! (nineveh.noise:cellular-noise
+  ;;           (* 10 uv)))
+  ;;     (* .25 (- 1 (v3! (nineveh.noise:cellular-noise
+  ;;                       (* 20 uv)))))))
+  ;;1
+  ;;(- 1 (nineveh.noise:cellular-noise (* 21 uv)))
+  (v! 1 0 0 1)
+  )
+(defpipeline-g simple-pipe ()
+  :vertex (simple-vert :vec2)
+  :fragment (simple-frag :vec2))
