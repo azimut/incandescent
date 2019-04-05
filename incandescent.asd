@@ -116,3 +116,13 @@
   :serial t
   :depends-on (#:incandescent)
   :components ((:file "dof")))
+
+(asdf:defsystem #:incandescent/audio
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               #:sdl2-mixer)
+  :components ((:file "audio")))
