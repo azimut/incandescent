@@ -13,6 +13,8 @@
                 #:seconds)
   (:import-from #:alexandria
                 #:maphash-values
+                #:maphash-keys
+                #:hash-table-keys
                 #:positive-fixnum
                 #:emptyp
                 #:when-let
