@@ -23,7 +23,8 @@
 ;; TODO: default volume
 ;; TODO: dynamic volume, gain and 3d sound
 ;; TODO: start the play with sound paused, set the volume and then play it
-;;
+;; TODO: use sdl mix groups
+;; TODO: support different surface per sound???
 ;; "Lessons Learned from a Decade of Audio Programming"
 ;; https://www.youtube.com/watch?v=Vjm--AqG04Y
 
@@ -34,7 +35,7 @@
 (defvar *audio-chunks* (make-hash-table :test #'equal)
   "cache to store each audio file as a SDL2-FFI:MIX-CHUNK")
 (defvar *audio-sounds* (make-hash-table :test #'equal)
-  "hash to store sound objects")
+  "hash to lookup AUDIO-SOUND objects")
 
 (defclass audio-sound ()
   ((name   :initarg :name   :initform (error "missins name"))
@@ -104,45 +105,56 @@
                          :delay delay
                          :loops loops))))
 
+(defun play-audio (sound position)
+  "takes a SOUND and plays on a channel
+   TODO: delay"
+  (declare (type audio-sound sound)
+           (type rtg-math.types:vec3 position))
+  (with-slots (chunks volume delay loops) sound
+    (let* ((n       (random (length chunks)))
+           (chunk   (elt chunks n))
+           (channel (sdl2-mixer:play-channel -1 chunk loops))
+           (campos  (pos *camera*))
+           (campos  (v! (x campos)   0 (z campos)))
+           (pos     (v! (x position) 0 (z position))))
+      (declare (type fixnum channel))
+      (when (>= channel 0)
+        (sdl2-mixer:volume channel (- volume (random 10)))
+        (unless (v3:0p pos)
+          (sdl2-mixer::mix-set-position
+           channel
+           (round
+            (degrees (acos (v3:dot (v3:normalize campos)
+                                   (v3:normalize pos)))))
+           (round
+            (v3:length (v3:- campos pos))))))
+      channel)))
+
+(defun play-audio-event (sounds &optional (position (v! 0 0 0)))
+  "SOUNDS are list of keys on *AUDIO-SOUNDS*
+   TODO: position"
+  (declare (type list sounds) (type rtg-math.types:vec3 position))
+  (mapcar (lambda (sound) (play-audio sound position))
+          (mapcar (lambda (k) (gethash k *audio-sounds*)) sounds)))
+
 (defclass audio-event ()
   ((position :initarg :position :initform (v! 0 0 0))
    (sounds   :initarg :sounds   :initform '())))
 
-(defun play-audio (sound)
-  "takes a SOUND and plays on a channel
-   TODO: delay"
-  (with-slots (chunks volume delay loops) sound
-    (let* ((n       (random (length chunks)))
-           (chunk   (elt chunks n))
-           (channel (sdl2-mixer:play-channel -1 chunk loops)))
-      (declare (type fixnum channel))
-      (when (>= channel 0)
-        (sdl2-mixer:volume channel (- volume (random 10)))
-        (sdl2-mixer::mix-set-position channel 0 (first (alexandria:shuffle '(0 1))))
-        )
-      channel)))
-
-(defun play-audio-event (sounds position)
-  "SOUNDS are list of keys on *AUDIO-SOUNDS*
-   TODO: position"
-  (declare (type list sounds) (type rtg-math.types:vec3 position))
-  (mapcar (lambda (sound) (play-audio sound))
-          (mapcar (lambda (k) (gethash k *audio-sounds*)) sounds)))
-
 ;; event pos 5oun5
 ;; music fade in out, layers in out
-(make-audio-sound
- :footsteps
- (list (load-chunk "static/421131__giocosound__footstep-grass-1.wav")
-       (load-chunk "static/421130__giocosound__footstep-grass-2.wav")
-       (load-chunk "static/421129__giocosound__footstep-grass-3.wav")
-       (load-chunk "static/421128__giocosound__footstep-grass-4.wav")
-       (load-chunk "static/421135__giocosound__footstep-grass-5.wav"))
- 20)
-(play-audio-event '(:footsteps) (v! 0 0 0))
 
+(defun test ()
+  (make-audio-sound
+   :footsteps
+   (list (load-chunk "static/421131__giocosound__footstep-grass-1.wav")
+         (load-chunk "static/421130__giocosound__footstep-grass-2.wav")
+         (load-chunk "static/421129__giocosound__footstep-grass-3.wav")
+         (load-chunk "static/421128__giocosound__footstep-grass-4.wav")
+         (load-chunk "static/421135__giocosound__footstep-grass-5.wav"))
+   20)
+  (play-audio-event '(:footsteps) (v! 0 0 0)))
 
-;;(sdl2-mixer:play-channel 0 (load-chunk ) 0
 ;; set-channel-volume  // (sdl2-mixer:volume CHANNEL VOLUME)
 ;;
 ;; set-channel-3d-position (channel, position)
