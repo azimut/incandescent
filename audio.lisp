@@ -39,8 +39,11 @@
   "is the audio initialized?")
 (defvar *audio-channels* 4
   "number of channels to reserve on start")
+
 (defvar *audio-chunks* (make-hash-table :test #'equal)
   "cache to store each audio file as a SDL2-FFI:MIX-CHUNK")
+(defvar *audio-music* (make-hash-table :test #'equal))
+
 (defvar *audio-sounds* (make-hash-table :test #'equal)
   "hash to lookup AUDIO-SOUND objects")
 
@@ -55,7 +58,8 @@
 (defclass audio-event ()
   ((positional :initarg :positional :initform nil)
    (position   :initarg :position   :initform (v! 0 0 0))
-   (channel    :initarg :channel    :initform nil)))
+   (channel    :initarg :channel    :initform nil))
+  (:documentation "element keep on a *CHANNELS-PLAYING* queue"))
 
 ;; I might need
 (defparameter *channels-available* '(0 1 2 3))
@@ -77,14 +81,36 @@
   (maphash-values #'free *audio-chunks*)
   (clrhash *audio-chunks*))
 
+(defun list-music () (hash-table-keys *audio-music*))
+(defun free-music ()
+  (maphash-values #'sdl2-mixer:free-music *audio-music*)
+  (clrhash *audio-music*))
+
 (defun load-chunk (path)
+  (or (gethash path *audio-chunks*)
+      (setf (gethash path *audio-chunks*)
+            (sdl2-mixer:load-wav path))))
+
+(defun load-music (path)
+  (or (gethash path *audio-music*)
+      (setf (gethash path *audio-music*)
+            (sdl2-mixer:load-music path))))
+
+(defun get-audio-type (path)
+  (let ((spath (file-namestring path)))
+    (cond ((serapeum:string$= "wav" spath) :chunk)
+          ((serapeum:string$= "mp3" spath) :music)
+          ((serapeum:string$= "ogg" spath) :music))))
+
+(defun load-audio (path)
   (let* ((absolutep (uiop:absolute-pathname-p path))
-         (path      (if absolutep
-                        path
-                        (asdf:system-relative-pathname :incandescent path))))
-    (or (gethash path *audio-chunks*)
-        (setf (gethash path *audio-chunks*)
-              (sdl2-mixer:load-wav path)))))
+         (path       (if absolutep
+                         path
+                         (asdf:system-relative-pathname :incandescent path)))
+         (audio-type (get-audio-type path)))
+    (ecase audio-type
+      (:music (load-music path))
+      (:chunk (load-chunk path)))))
 
 ;;--------------------------------------------------
 
@@ -93,6 +119,7 @@
     (sdl2-mixer:halt-channel -1)
     (sdl2-mixer:close-audio)
     (free-chunks)
+    (free-music)
     (sdl2-mixer:quit)
     (setf *audio-init* nil)))
 
@@ -124,7 +151,7 @@
 (defun angle-to-cam (position)
   (declare (type rtg-math.types:vec3 position))
   (let* ((campos   (pos *camera*))
-         (campos   (v! (x campos) 0 (z campos)))
+         (campos   (v! (x campos)   0 (z campos)))
          (position (v! (x position) 0 (z position))))
     (declare (type rtg-math.types:vec3 position campos))
     (round
@@ -133,9 +160,9 @@
 
 (defun distance-to-cam (position)
   (declare (type rtg-math.types:vec3 position))
-  (let* ((campos (pos *camera*))
-         (campos (v! (x campos) 0 (z campos)))
-         (position (v! (x position) 0 (z position))))
+  (let* ((campos   (pos *camera*))
+         (campos   (v3! (x campos) 0 (z campos)))
+         (position (v3! (x position) 0 (z position))))
     (declare (type rtg-math.types:vec3 position campos))
     (round
      (v3:length (v3:- campos position)))))
@@ -193,18 +220,19 @@
                     audio-event)
                   (progn (pushnew channel *channels-available*) NIL))))
           *channels-playing*)))
-    (setf *channels-playing* new)))
+    (setf *channels-playing* new))
+  NIL)
 
 ;; music fade in out, layers in out
 
 (defun test ()
   ;; (make-audio-sound
   ;;  :footsteps
-  ;;  (list (load-chunk "static/421131__giocosound__footstep-grass-1.wav")
-  ;;        (load-chunk "static/421130__giocosound__footstep-grass-2.wav")
-  ;;        (load-chunk "static/421129__giocosound__footstep-grass-3.wav")
-  ;;        (load-chunk "static/421128__giocosound__footstep-grass-4.wav")
-  ;;        (load-chunk "static/421135__giocosound__footstep-grass-5.wav"))
+  ;;  (list (load-audio "static/421131__giocosound__footstep-grass-1.wav")
+  ;;        (load-audio "static/421130__giocosound__footstep-grass-2.wav")
+  ;;        (load-audio "static/421129__giocosound__footstep-grass-3.wav")
+  ;;        (load-audio "static/421128__giocosound__footstep-grass-4.wav")
+  ;;        (load-audio "static/421135__giocosound__footstep-grass-5.wav"))
   ;;  20)
   (play-audio-event '(:footsteps) (v! 0 0 0)))
 
