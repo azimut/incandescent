@@ -5,6 +5,7 @@
 ;; - no pitch shifting
 ;; - AO
 ;; - reverb
+;; - single music audio channel
 ;;
 ;; NON-interactive - layers added
 ;;
@@ -64,17 +65,19 @@
 ;; I might need
 (defparameter *channels-available* '(0 1 2 3))
 (defparameter *channels-playing* NIL)
-;;--------------------------------------------------
 
-(defun playing-p (channel)
-  (declare (type fixnum channel))
-  (not (zerop (sdl2-mixer::playing channel))))
+;;--------------------------------------------------
+;; Load audio files
 
 (defun chunk-p (s) (sdl2-ffi::mix-chunk-p s))
 
 (defmethod free ((object sdl2-ffi:mix-chunk))
   (when (sdl2-ffi::mix-chunk-validity object)
     (sdl2-mixer:free-chunk object)))
+
+(defmethod free ((object sdl2-ffi:mix-music))
+  (when (sdl2-ffi::mix-music-validity object)
+    (sdl2-mixer:free-music object)))
 
 (defun list-chunks () (hash-table-keys *audio-chunks*))
 (defun free-chunks ()
@@ -83,7 +86,7 @@
 
 (defun list-music () (hash-table-keys *audio-music*))
 (defun free-music ()
-  (maphash-values #'sdl2-mixer:free-music *audio-music*)
+  (maphash-values #'free *audio-music*)
   (clrhash *audio-music*))
 
 (defun load-chunk (path)
@@ -113,6 +116,7 @@
       (:chunk (load-chunk path)))))
 
 ;;--------------------------------------------------
+;; Initializers
 
 (defun stop-audio ()
   (when *audio-init*
@@ -131,6 +135,7 @@
     (setf *audio-init* t)))
 
 ;;--------------------------------------------------
+;; Load audio-sounds objects
 
 ;; TODO: print-object
 (defun list-sounds () (maphash-keys #'print *audio-sounds*))
@@ -148,6 +153,13 @@
                          :delay delay
                          :loops loops))))
 
+;;--------------------------------------------------
+;; Run-time code
+
+(defun playing-p (channel)
+  (declare (type fixnum channel))
+  (not (zerop (sdl2-mixer::playing channel))))
+
 (defun angle-to-cam (position)
   (declare (type rtg-math.types:vec3 position))
   (let* ((campos   (pos *camera*))
@@ -161,7 +173,7 @@
 (defun distance-to-cam (position)
   (declare (type rtg-math.types:vec3 position))
   (let* ((campos   (pos *camera*))
-         (campos   (v3! (x campos) 0 (z campos)))
+         (campos   (v3! (x campos)   0 (z campos)))
          (position (v3! (x position) 0 (z position))))
     (declare (type rtg-math.types:vec3 position campos))
     (round
