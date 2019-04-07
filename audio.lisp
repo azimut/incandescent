@@ -1,5 +1,11 @@
 (in-package #:incandescent)
 
+;; SDL2-MIX drawbacks:
+;; - no real 3d audio, no height
+;; - no pitch shifting
+;; - AO
+;; - reverb
+;;
 ;; NON-interactive - layers added
 ;;
 ;;  leaf cracking / crickets / owl (random or a music track)
@@ -16,7 +22,6 @@
 ;;  pick item
 
 ;; TODO: support music
-;; TODO: pitch randomization (?..not to be applied on things with pitch
 ;;
 ;; TODO: start delay, random or fixed
 ;; TODO: multiple events?
@@ -25,6 +30,8 @@
 ;; TODO: start the play with sound paused, set the volume and then play it
 ;; TODO: use sdl mix groups
 ;; TODO: support different surface per sound???
+;;
+;; Reference:
 ;; "Lessons Learned from a Decade of Audio Programming"
 ;; https://www.youtube.com/watch?v=Vjm--AqG04Y
 
@@ -45,25 +52,30 @@
    (loops  :initarg :loops  :initform   0))
   (:documentation "pack of 1 or more chunks of audio"))
 
-;; I might need
-(defvar *channels-available* '(0 1 2 3))
-(defvar *channels-playing* nil)
+(defclass audio-event ()
+  ((positional :initarg :positional :initform nil)
+   (position   :initarg :position   :initform (v! 0 0 0))
+   (channel    :initarg :channel    :initform nil)))
 
-(defun chunk-p       (s) (sdl2-ffi::mix-chunk-p s))
-(defun valid-chunk-p (s) (sdl2-ffi::mix-chunk-validity s))
+;; I might need
+(defparameter *channels-available* '(0 1 2 3))
+(defparameter *channels-playing* NIL)
+;;--------------------------------------------------
+
+(defun playing-p (channel)
+  (declare (type fixnum channel))
+  (not (zerop (sdl2-mixer::playing channel))))
+
+(defun chunk-p (s) (sdl2-ffi::mix-chunk-p s))
+
+(defmethod free ((object sdl2-ffi:mix-chunk))
+  (when (sdl2-ffi::mix-chunk-validity object)
+    (sdl2-mixer:free-chunk object)))
 
 (defun list-chunks () (hash-table-keys *audio-chunks*))
 (defun free-chunks ()
-  (maphash-values (lambda (x) (when (valid-chunk-p x)
-                           (sdl2-mixer:free-chunk x)))
-                  *audio-chunks*)
+  (maphash-values #'free *audio-chunks*)
   (clrhash *audio-chunks*))
-
-(defun free-chunk (path)
-  (let ((s (gethash path *audio-chunks*)))
-    (when (and s (valid-chunk-p s))
-      (sdl2-mixer:free-chunk s))
-    (remhash path *audio-chunks*)))
 
 (defun load-chunk (path)
   (let* ((absolutep (uiop:absolute-pathname-p path))
@@ -73,6 +85,8 @@
     (or (gethash path *audio-chunks*)
         (setf (gethash path *audio-chunks*)
               (sdl2-mixer:load-wav path)))))
+
+;;--------------------------------------------------
 
 (defun stop-audio ()
   (when *audio-init*
@@ -88,6 +102,8 @@
     (sdl2-mixer:open-audio 22050 :s16sys 2 1024)
     (sdl2-mixer:allocate-channels *audio-channels*)
     (setf *audio-init* t)))
+
+;;--------------------------------------------------
 
 ;; TODO: print-object
 (defun list-sounds () (maphash-keys #'print *audio-sounds*))
@@ -105,63 +121,97 @@
                          :delay delay
                          :loops loops))))
 
+(defun angle-to-cam (position)
+  (declare (type rtg-math.types:vec3 position))
+  (let* ((campos   (pos *camera*))
+         (campos   (v! (x campos) 0 (z campos)))
+         (position (v! (x position) 0 (z position))))
+    (declare (type rtg-math.types:vec3 position campos))
+    (round
+     (degrees (acos (v3:dot (v3:normalize campos)
+                            (v3:normalize position)))))))
+
+(defun distance-to-cam (position)
+  (declare (type rtg-math.types:vec3 position))
+  (let* ((campos (pos *camera*))
+         (campos (v! (x campos) 0 (z campos)))
+         (position (v! (x position) 0 (z position))))
+    (declare (type rtg-math.types:vec3 position campos))
+    (round
+     (v3:length (v3:- campos position)))))
+
+(defun get-channel ()
+  (or (pop *channels-available*)
+      -1))
+
 (defun play-audio (sound position)
   "takes a SOUND and plays on a channel
    TODO: delay"
   (declare (type audio-sound sound)
            (type rtg-math.types:vec3 position))
   (with-slots (chunks volume delay loops) sound
-    (let* ((n       (random (length chunks)))
-           (chunk   (elt chunks n))
-           (channel (sdl2-mixer:play-channel -1 chunk loops))
-           (campos  (pos *camera*))
-           (campos  (v! (x campos)   0 (z campos)))
-           (pos     (v! (x position) 0 (z position))))
-      (declare (type fixnum channel))
+    (let* ((n          (random (length chunks)))
+           (chunk      (elt chunks n))
+           (channel    (get-channel))
+           (campos     (pos *camera*))
+           (campos     (v! (x campos)   0 (z campos)))
+           (pos        (v! (x position) 0 (z position)))
+           (positional NIL))
+      (declare (type fixnum channel n))
       (when (>= channel 0)
+        (sdl2-mixer:play-channel channel chunk loops)
         (sdl2-mixer:volume channel (- volume (random 10)))
         (unless (v3:0p pos)
-          (sdl2-mixer::mix-set-position
-           channel
-           (round
-            (degrees (acos (v3:dot (v3:normalize campos)
-                                   (v3:normalize pos)))))
-           (round
-            (v3:length (v3:- campos pos))))))
+          (setf positional T)
+          (sdl2-mixer::mix-set-position channel (angle-to-cam pos) (distance-to-cam pos)))
+        (push (make-instance 'audio-event
+                             :positional positional
+                             :position pos
+                             :channel channel)
+              *channels-playing*))
       channel)))
 
 (defun play-audio-event (sounds &optional (position (v! 0 0 0)))
   "SOUNDS are list of keys on *AUDIO-SOUNDS*
    TODO: position"
   (declare (type list sounds) (type rtg-math.types:vec3 position))
-  (mapcar (lambda (sound) (play-audio sound position))
-          (mapcar (lambda (k) (gethash k *audio-sounds*)) sounds)))
+  (map NIL (lambda (sound) (play-audio sound position))
+       (mapcar (lambda (k) (gethash k *audio-sounds*)) sounds)))
 
-(defclass audio-event ()
-  ((position :initarg :position :initform (v! 0 0 0))
-   (sounds   :initarg :sounds   :initform '())))
+;; TODO: there is a better way...
+(defun update-audio ()
+  (let ((new
+         (serapeum:filter-map
+          (lambda (audio-event)
+            (with-slots (positional position channel) audio-event
+              (if (playing-p channel)
+                  (progn
+                    (when positional
+                      (sdl2-mixer::mix-set-position channel
+                                                    (angle-to-cam position)
+                                                    (distance-to-cam position)))
+                    audio-event)
+                  (progn (pushnew channel *channels-available*) NIL))))
+          *channels-playing*)))
+    (setf *channels-playing* new)))
 
-;; event pos 5oun5
 ;; music fade in out, layers in out
 
 (defun test ()
-  (make-audio-sound
-   :footsteps
-   (list (load-chunk "static/421131__giocosound__footstep-grass-1.wav")
-         (load-chunk "static/421130__giocosound__footstep-grass-2.wav")
-         (load-chunk "static/421129__giocosound__footstep-grass-3.wav")
-         (load-chunk "static/421128__giocosound__footstep-grass-4.wav")
-         (load-chunk "static/421135__giocosound__footstep-grass-5.wav"))
-   20)
+  ;; (make-audio-sound
+  ;;  :footsteps
+  ;;  (list (load-chunk "static/421131__giocosound__footstep-grass-1.wav")
+  ;;        (load-chunk "static/421130__giocosound__footstep-grass-2.wav")
+  ;;        (load-chunk "static/421129__giocosound__footstep-grass-3.wav")
+  ;;        (load-chunk "static/421128__giocosound__footstep-grass-4.wav")
+  ;;        (load-chunk "static/421135__giocosound__footstep-grass-5.wav"))
+  ;;  20)
   (play-audio-event '(:footsteps) (v! 0 0 0)))
 
 ;; set-channel-volume  // (sdl2-mixer:volume CHANNEL VOLUME)
 ;;
-;; set-channel-3d-position (channel, position)
+;; (sdl2-mixer::mix-set-position channel angle distance)
 ;; set-3d-listener-and-orientation (position, look, up)
 ;;
 ;; stop-channel        // (sdl2-mixer::mix-halt-channel CHANNEL)
 ;; stop-all-channels   // (sdl2-mixer::mix-halt-channel -1)
-;; playing-p (channel) // (sdl2-mixer:playing CHANNEL)
-
-;; update() - going to all channels, and removing stopped things (?
