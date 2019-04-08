@@ -124,5 +124,16 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent
+               #:harmony-simple
+               #:harmony-pulse)
+  :components ((:file "audio/harmony")))
+
+(asdf:defsystem #:incandescent/audio-sdl2mix
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
                #:sdl2-mixer)
-  :components ((:file "audio")))
+  :components ((:file "audio/sdl2mix")))
