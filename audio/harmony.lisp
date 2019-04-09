@@ -87,7 +87,6 @@
 ;;--------------------------------------------------
 ;; Runtime code
 
-(declaim (inline source-p))
 (defmethod harmony:paused-p ((server fixnum)) T)
 (defun playing-p (&optional (mixer :music))
   "returns the track currently playing on the MIXER or NIL"
