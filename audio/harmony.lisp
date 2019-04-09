@@ -1,6 +1,7 @@
 (in-package #:incandescent)
 
 ;; TODO: this kind of limits usage...
+;; TODO: for music it would be nice to have a weighted or boolean gated graph (? so i could see add more "generative" music sequences
 
 (defvar *audio-sources* (make-hash-table :test #'equal)
   "cache for MP3-SOURCES")
@@ -117,6 +118,9 @@
         ;; (when sync-to
         ;;   (harmony:seek source (harmony:sample-position sync-to)))
         (harmony-simple:resume source)))))
+
+;;--------------------------------------------------
+;; Test code
 
 (let ((state nil))
   (defun test-stop-music ()
