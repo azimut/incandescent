@@ -1,50 +1,141 @@
 (in-package #:incandescent)
 
-(defvar *audio-buffers* (make-hash-table :test #'equal))
-(defvar *audio-sources* (make-hash-table :test #'equal))
+;; TODO: this kind of limits usage...
 
-(defun list-buffers () (alexandria:hash-table-keys *audio-buffers*))
+(defvar *audio-sources* (make-hash-table :test #'equal)
+  "cache for MP3-SOURCES")
+(defvar *audio-sounds*  (make-hash-table)
+  "lookup table of AUDIO-SOUND objects")
+
+(deftype mixer () '(member :sfx :music))
+
+(defclass audio-music ()
+  ((name :initarg :name)
+   (sources :initarg :sources)
+   (volume :initarg :volume)))
+
+(defclass audio-sound ()
+  ((name    :initarg :name)
+   (sources :initarg :sources :documentation "list of MP3-SOURCES")
+   (volume  :initarg :volume))
+  (:default-initargs
+   :name (error "missing name")
+   :sources '()
+   :volume 1f0)
+  (:documentation "pack of audio sources of the same type"))
+
+(defclass audio-music ()
+  ((name      :initarg :name)
+   (sources   :initarg :sources :documentation "list of MP3-SOURCES")
+   (volume    :initarg :volume)
+   (fade-to   :initarg :fade-to :documentation "volume target")
+   (fade-time :initarg :fade-time :documentation "time in sec to fade"))
+  (:default-initargs
+   :name (error "missing name")
+   :sources '()
+   :volume 1f0
+   :fade-to NIL
+   :fade-time NIL)
+  (:documentation "pack of audio sources of the same type"))
+
 (defun list-sources () (alexandria:hash-table-keys *audio-sources*))
 
 (defun init-audio ()
-  (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain))
-  ;;(harmony-simple:initialize :output-spec '(harmony-out123:out123-drain))
-  ;;(harmony-simple:initialize :output-spec '(harmony-openal:openal-drain))
-  ;;(harmony-simple:initialize)
-  )
+  (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain)))
 
-(defun load-buffer (path)
-  (declare (type string path))
-  (or (gethash path *audio-buffers*)
-      (setf (gethash path *audio-buffers*)
-            (harmony-simple:decode (uiop:ensure-pathname path)))))
+(defun load-source (path &optional (mixer :sfx) (loop-p NIL))
+  (declare (type string path) (type mixer mixer) (type boolean loop-p))
+  (let* ((absolutep (uiop:absolute-pathname-p path))
+         (path      (if absolutep
+                        path
+                        (asdf:system-relative-pathname :incandescent path))))
+    (or (gethash path *audio-sources*)
+        (setf (gethash path *audio-sources*)
+              (harmony-simple:play (uiop:ensure-pathname path) mixer
+                                   :paused T
+                                   :loop loop-p)))))
 
-(defun load-source (path)
-  (declare (type string path))
-  (or (gethash path *audio-sources*)
-      (setf (gethash path *audio-sources*)
-            (harmony-simple:play 'harmony:buffer-source
-                                 :sfx
-                                 :paused T
-                                 :buffers (list (first (load-buffer path)))))))
+(defun load-sfx (path) (load-source path :sfx))
+(defun load-music (path) (load-source path :music T))
 
-(defun play-sound (path)
-  (declare (type (or string pathname) path))
-  (let ((source (load-source path)))
-    (harmony-simple:resume source))
-  (values))
+;; TODO: positional
+(defun make-sound (name volume &rest paths)
+  (declare (type symbol name)
+           (type list paths)
+           (type (single-float 0f0 1f0) volume))
+  (assert (keywordp name))
+  (setf (gethash name *audio-sounds*)
+        (make-instance 'audio-sound
+                       :name name
+                       :volume volume
+                       :sources (mapcar #'load-sfx paths))))
 
-(defun make-audio-sound (name sources)
-  "(make-audio-sound :footsteps \"a.wav\" \"b.wav\")"
-  )
+(defun make-music (name volume fade-to fade-time &rest paths)
+  (declare (type symbol name)
+           (type list paths)
+           (type single-float fade-time)
+           (type (single-float 0f0 1f0) volume fade-to))
+  (assert (and (keywordp name)))
+  (setf (gethash name *audio-sounds*)
+        (make-instance 'audio-music
+                       :name name
+                       :volume volume
+                       :fade-to fade-to
+                       :fade-time fade-time
+                       :sources (mapcar #'load-music paths))))
 
-(defun test-audio (path)
-  (harmony-simple:decode path)
-  ;;(harmony-simple:play #p"/home/sendai/tarea201.mp3" :music :loop T)
-  )
+;;--------------------------------------------------
+;; Runtime code
 
-(defvar *audio-sounds* (make-hash-table)
-  "lookup table of sounds")
-(defclass audio-sound ()
-  ((name    :initarg :name    :initform (error "missing name"))
-   (sources :initarg :sources :initform '())))
+(declaim (inline source-p))
+(defmethod harmony:paused-p ((server fixnum)) T)
+(defun playing-p (&optional (mixer :music))
+  "returns the track currently playing on the MIXER or NIL"
+  (declare (type mixer mixer))
+  (find-if-not #'harmony:paused-p
+               (cl-mixed:sources (harmony-simple:segment mixer))))
+
+(defun %play-sound (name)
+  (declare (type symbol name))
+  (assert (keywordp name))
+  (with-slots (sources volume) (gethash name *audio-sounds*)
+    (let* ((l (length sources))
+           (r (random l))
+           (s (nth r sources)))
+      (setf (harmony-simple:volume s) (- volume (random .1)))
+      (harmony-simple:resume s))))
+
+(defun play-sound (&rest names)
+  "Plays one or more AUDIO-SOUNDS
+  > (play-sound :footsteps :cloth :chains)"
+  (map NIL #'%play-sound names))
+
+(defun play-music (name)
+  (let ((sound   (gethash name *audio-sounds*))
+        (sync-to (playing-p :music)))
+    (with-slots (sources) sound
+      (let ((source (elt sources 0)))
+        ;; (when sync-to
+        ;;   (harmony:seek source (harmony:sample-position sync-to)))
+        (harmony-simple:resume source)))))
+
+(let ((state nil))
+  (defun test-stop-music ()
+    (setf state (not state))
+    (setf (harmony:looping-p (load-source "static/tarea201.mp3")) state)
+    (setf (harmony:looping-p (load-source "static/tarea202.mp3")) state)
+    (setf (harmony:looping-p (load-source "static/tarea203.mp3")) state)))
+
+(defun test-music ()
+  (make-music :curso201 .3 .5 2f0 "static/tarea201.mp3")
+  (make-music :curso202 .3 .5 2f0 "static/tarea202.mp3")
+  (make-music :curso203 .3 .5 2f0 "static/tarea203.mp3"))
+
+(defun test-sound ()
+  (make-sound
+   :footsteps .4
+   "static/421131__giocosound__footstep-grass-1.mp3"
+   "static/421130__giocosound__footstep-grass-2.mp3"
+   "static/421129__giocosound__footstep-grass-3.mp3"
+   "static/421128__giocosound__footstep-grass-4.mp3"
+   "static/421135__giocosound__footstep-grass-5.mp3"))
