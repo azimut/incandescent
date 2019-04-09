@@ -106,7 +106,7 @@
           ((serapeum:string$= "ogg" spath) :music))))
 
 (defun load-audio (path)
-  (let* ((absolutep (uiop:absolute-pathname-p path))
+  (let* ((absolutep  (uiop:absolute-pathname-p path))
          (path       (if absolutep
                          path
                          (asdf:system-relative-pathname :incandescent path)))
