@@ -88,7 +88,30 @@
 ;;--------------------------------------------------
 ;; Runtime code
 
+(defmethod flow:check-connection-accepted progn (new-connection (port flow:port)))
+(in-package :harmony-simple)
+(defmethod make-pipeline ((server default-server))
+  (let* ((*server* server)
+         (pipeline (make-instance 'pipeline))
+         (output (apply #'make-segment (output-spec server)))
+         (master (make-segment 'basic-mixer :name :master))
+         (music (make-segment 'basic-mixer :name :music :channels 1))
+         (sfx (make-segment 'space-mixer :name :sfx))
+         (voice (make-segment 'space-mixer :name :voice)))
+    (connect pipeline master 0 output 0)
+    (connect pipeline master 1 output 1)
+    (connect pipeline music 0 master 0)
+    (connect pipeline music 0 master 1)
+    (connect pipeline sfx 0 master 2)
+    (connect pipeline sfx 1 master 3)
+    (connect pipeline voice 0 master 4)
+    (connect pipeline voice 1 master 5)
+    (setf (volume master) 0.8)
+    (setf (volume sfx) 0.8)
+    pipeline))
+(in-package :incandescent)
 (defmethod harmony:paused-p ((server fixnum)) T)
+
 (defun playing-p (&optional (mixer :music))
   "returns the track currently playing on the MIXER or NIL"
   (declare (type mixer mixer))
@@ -115,8 +138,8 @@
         (sync-to (playing-p :music)))
     (with-slots (sources) sound
       (let ((source (elt sources 0)))
-        ;; (when sync-to
-        ;;   (harmony:seek source (harmony:sample-position sync-to)))
+        (when sync-to
+          (harmony:seek source (harmony:sample-position sync-to)))
         (harmony-simple:resume source)))))
 
 ;;--------------------------------------------------
@@ -125,14 +148,14 @@
 (let ((state nil))
   (defun test-stop-music ()
     (setf state (not state))
-    (setf (harmony:looping-p (load-source "static/tarea201.mp3")) state)
-    (setf (harmony:looping-p (load-source "static/tarea202.mp3")) state)
-    (setf (harmony:looping-p (load-source "static/tarea203.mp3")) state)))
+    (setf (harmony:looping-p (load-source "static/tarea201-mono.mp3")) state)
+    (setf (harmony:looping-p (load-source "static/tarea202-mono.mp3")) state)
+    (setf (harmony:looping-p (load-source "static/tarea203-mono.mp3")) state)))
 
 (defun test-music ()
-  (make-music :curso201 .3 .5 2f0 "static/tarea201.mp3")
-  (make-music :curso202 .3 .5 2f0 "static/tarea202.mp3")
-  (make-music :curso203 .3 .5 2f0 "static/tarea203.mp3"))
+  (make-music :curso201 .3 .5 2f0 "static/tarea201-mono.mp3")
+  (make-music :curso202 .3 .5 2f0 "static/tarea202-mono.mp3")
+  (make-music :curso203 .3 .5 2f0 "static/tarea203-mono.mp3"))
 
 (defun test-sound ()
   (make-sound
