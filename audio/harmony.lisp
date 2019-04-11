@@ -29,13 +29,13 @@
   ((name      :initarg :name)
    (sources   :initarg :sources :documentation "list of MP3-SOURCES")
    (volume    :initarg :volume)
-   (fade-to   :initarg :fade-to :documentation "volume target")
+   (fade-from   :initarg :fade-from :documentation "volume target")
    (fade-time :initarg :fade-time :documentation "time in sec to fade"))
   (:default-initargs
    :name (error "missing name")
    :sources '()
    :volume 1f0
-   :fade-to NIL
+   :fade-from NIL
    :fade-time NIL)
   (:documentation "pack of audio sources of the same type"))
 
@@ -44,20 +44,29 @@
 (defun init-audio ()
   (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain)))
 
-(defun load-source (path &optional (mixer :sfx) (loop-p NIL))
-  (declare (type string path) (type mixer mixer) (type boolean loop-p))
+(defun %load-source (path mixer &rest initargs)
+  (declare (type string path) (type mixer mixer))
   (let* ((absolutep (uiop:absolute-pathname-p path))
          (path      (if absolutep
                         path
                         (asdf:system-relative-pathname :incandescent path))))
     (or (gethash path *audio-sources*)
         (setf (gethash path *audio-sources*)
-              (harmony-simple:play (uiop:ensure-pathname path) mixer
-                                   :paused T
-                                   :loop loop-p)))))
+              (apply #'harmony-simple:play (uiop:ensure-pathname path) mixer
+                     :paused T
+                     initargs)))))
 
-(defun load-sfx (path) (load-source path :sfx))
-(defun load-music (path) (load-source path :music T))
+(defun load-sfx (path &rest initargs)
+  (apply #'%load-source path
+         :sfx
+         :loop nil
+         initargs))
+
+(defun load-music (path &rest initargs)
+  (apply #'%load-source path
+         :music
+         :loop T
+         initargs))
 
 ;; TODO: positional
 (defun make-sound (name volume &rest paths)
@@ -69,21 +78,31 @@
         (make-instance 'audio-sound
                        :name name
                        :volume volume
-                       :sources (mapcar #'load-sfx paths))))
+                       :sources (mapcar
+                                 (lambda (path)
+                                   (load-sfx path :volume volume))
+                                 paths))))
 
-(defun make-music (name volume fade-to fade-time &rest paths)
+(defun make-music (name volume fade-from fade-time &rest paths)
   (declare (type symbol name)
            (type list paths)
            (type single-float fade-time)
-           (type (single-float 0f0 1f0) volume fade-to))
+           (type (single-float 0f0 1f0) volume fade-from))
   (assert (and (keywordp name)))
   (setf (gethash name *audio-sounds*)
         (make-instance 'audio-music
                        :name name
                        :volume volume
-                       :fade-to fade-to
+                       :fade-from fade-from
                        :fade-time fade-time
-                       :sources (mapcar #'load-music paths))))
+                       :sources (mapcar
+                                 (lambda (path)
+                                   (load-music
+                                    path
+                                    :volume volume
+                                    :fade-from fade-from
+                                    :fade-time fade-time))
+                                 paths))))
 
 ;;--------------------------------------------------
 ;; Runtime code
@@ -109,6 +128,7 @@
     (setf (volume master) 0.8)
     (setf (volume sfx) 0.8)
     pipeline))
+
 (in-package :incandescent)
 (defmethod harmony:paused-p ((server fixnum)) T)
 
@@ -134,8 +154,11 @@
   (map NIL #'%play-sound names))
 
 (defun play-music (name)
-  (let ((sound   (gethash name *audio-sounds*))
-        (sync-to (playing-p :music)))
+  (declare (type symbol name))
+  (let ((sound    (gethash name *audio-sounds*))
+        (sync-to  (playing-p :music)))
+    (declare (type (or null audio-music) sound)
+             (type (or null harmony-mp3:mp3-source) sync-to))
     (with-slots (sources) sound
       (let ((source (elt sources 0)))
         (when sync-to
@@ -145,7 +168,7 @@
 ;;--------------------------------------------------
 ;; Test code
 
-(let ((state nil))
+(let ((state T))
   (defun test-stop-music ()
     (setf state (not state))
     (setf (harmony:looping-p (load-source "static/tarea201-mono.mp3")) state)
@@ -153,9 +176,9 @@
     (setf (harmony:looping-p (load-source "static/tarea203-mono.mp3")) state)))
 
 (defun test-music ()
-  (make-music :curso201 .3 .5 2f0 "static/tarea201-mono.mp3")
-  (make-music :curso202 .3 .5 2f0 "static/tarea202-mono.mp3")
-  (make-music :curso203 .3 .5 2f0 "static/tarea203-mono.mp3"))
+  (make-music :curso201 .3 .01 5f0 "static/tarea201-mono.mp3")
+  (make-music :curso202 .3 .01 5f0 "static/tarea202-mono.mp3")
+  (make-music :curso203 .3 .01 5f0 "static/tarea203-mono.mp3"))
 
 (defun test-sound ()
   (make-sound
