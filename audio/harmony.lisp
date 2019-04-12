@@ -29,13 +29,13 @@
   ((name      :initarg :name)
    (sources   :initarg :sources :documentation "list of MP3-SOURCES")
    (volume    :initarg :volume)
-   (fade-from   :initarg :fade-from :documentation "volume target")
+   (fade-to   :initarg :fade-to :documentation "volume target")
    (fade-time :initarg :fade-time :documentation "time in sec to fade"))
   (:default-initargs
    :name (error "missing name")
    :sources '()
    :volume 1f0
-   :fade-from NIL
+   :fade-to NIL
    :fade-time NIL)
   (:documentation "pack of audio sources of the same type"))
 
@@ -44,7 +44,7 @@
 (defun init-audio ()
   (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain)))
 
-(defun %load-source (path mixer &rest initargs)
+(defun %load-source (path mixer loop-p)
   (declare (type string path) (type mixer mixer))
   (let* ((absolutep (uiop:absolute-pathname-p path))
          (path      (if absolutep
@@ -52,21 +52,24 @@
                         (asdf:system-relative-pathname :incandescent path))))
     (or (gethash path *audio-sources*)
         (setf (gethash path *audio-sources*)
-              (apply #'harmony-simple:play (uiop:ensure-pathname path) mixer
-                     :paused T
-                     initargs)))))
+              (harmony-simple:play (uiop:ensure-pathname path) mixer
+                                   :paused T
+                                   :loop loop-p)))))
+
+(defun %init-source (source &rest initargs)
+  "sets parameters to source that cannot be set on play directly"
+  (destructuring-bind (&key volume fade-to fade-time) initargs
+    (when volume
+      (setf (harmony-simple:volume source) volume))
+    (when (and fade-to fade-time)
+      (harmony-simple:fade source fade-to fade-time)))
+  source)
 
 (defun load-sfx (path &rest initargs)
-  (apply #'%load-source path
-         :sfx
-         :loop nil
-         initargs))
+  (apply #'%init-source (%load-source path :sfx NIL) initargs))
 
 (defun load-music (path &rest initargs)
-  (apply #'%load-source path
-         :music
-         :loop T
-         initargs))
+  (apply #'%init-source (%load-source path :music T) initargs))
 
 ;; TODO: positional
 (defun make-sound (name volume &rest paths)
@@ -83,24 +86,24 @@
                                    (load-sfx path :volume volume))
                                  paths))))
 
-(defun make-music (name volume fade-from fade-time &rest paths)
+(defun make-music (name volume fade-to fade-time &rest paths)
   (declare (type symbol name)
            (type list paths)
            (type single-float fade-time)
-           (type (single-float 0f0 1f0) volume fade-from))
+           (type (single-float 0f0 1f0) volume fade-to))
   (assert (and (keywordp name)))
   (setf (gethash name *audio-sounds*)
         (make-instance 'audio-music
                        :name name
                        :volume volume
-                       :fade-from fade-from
+                       :fade-to fade-to
                        :fade-time fade-time
                        :sources (mapcar
                                  (lambda (path)
                                    (load-music
                                     path
                                     :volume volume
-                                    :fade-from fade-from
+                                    :fade-to fade-to
                                     :fade-time fade-time))
                                  paths))))
 
@@ -171,18 +174,18 @@
 (let ((state T))
   (defun test-stop-music ()
     (setf state (not state))
-    (setf (harmony:looping-p (load-source "static/tarea201-mono.mp3")) state)
-    (setf (harmony:looping-p (load-source "static/tarea202-mono.mp3")) state)
-    (setf (harmony:looping-p (load-source "static/tarea203-mono.mp3")) state)))
+    (setf (harmony:looping-p (load-sfx "static/tarea201-mono.mp3")) state)
+    (setf (harmony:looping-p (load-sfx "static/tarea202-mono.mp3")) state)
+    (setf (harmony:looping-p (load-sfx "static/tarea203-mono.mp3")) state)))
 
 (defun test-music ()
-  (make-music :curso201 .3 .01 5f0 "static/tarea201-mono.mp3")
-  (make-music :curso202 .3 .01 5f0 "static/tarea202-mono.mp3")
-  (make-music :curso203 .3 .01 5f0 "static/tarea203-mono.mp3"))
+  (make-music :curso201 .01 .3 5f0 "static/tarea201-mono.mp3")
+  (make-music :curso202 .01 .2 5f0 "static/tarea202-mono.mp3")
+  (make-music :curso203 .01 .3 5f0 "static/tarea203-mono.mp3"))
 
 (defun test-sound ()
   (make-sound
-   :footsteps .4
+   :footsteps .2
    "static/421131__giocosound__footstep-grass-1.mp3"
    "static/421130__giocosound__footstep-grass-2.mp3"
    "static/421129__giocosound__footstep-grass-3.mp3"
