@@ -2,20 +2,27 @@
 
 ;; Camera and Actors(TODO) keyboard controls
 
+(defvar *vec3-right*   (v!  1  0  0))
+(defvar *vec3-left*    (v! -1  0  0))
+(defvar *vec3-up*      (v!  0  1  0))
+(defvar *vec3-down*    (v!  0 -1  0))
+(defvar *vec3-forward* (v!  0  0  1))
+(defvar *vec3-back*    (v!  0  0 -1))
+
 (defun cam-spin (ang)
   (with-slots (rot) *camera*
     (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 0 0 1) ang))))))
+               (q:* rot (q:from-axis-angle *vec3-forward* ang))))))
 
 (defun cam-turn (ang)
   (with-slots (rot) *camera*
     (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 0 1 0) ang))))))
+               (q:* rot (q:from-axis-angle *vec3-up* ang))))))
 
 (defun cam-tilt (ang)
   (with-slots (rot) *camera*
     (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle (v! 1 0 0) ang))))))
+               (q:* rot (q:from-axis-angle *vec3-right* ang))))))
 
 (defun god-move (factor dt camera)
   "absolute movement"
@@ -30,12 +37,12 @@
   ;; ← left
   (when (keyboard-button (keyboard) key.a)
     (v3:incf (pos camera)
-             (v3:*s (q:rotate (v! -1 0 0) (rot camera))
+             (v3:*s (q:rotate *vec3-left* (rot camera))
                     (* factor dt))))
   ;; → right
   (when (keyboard-button (keyboard) key.d)
     (v3:incf (pos camera)
-             (v3:*s (q:rotate (v! 1 0 0) (rot camera))
+             (v3:*s (q:rotate *vec3-right* (rot camera))
                     (* factor dt))))
   ;; ↓ backwards
   (when (keyboard-button (keyboard) key.s)
@@ -45,13 +52,53 @@
   ;; - up - jump
   (when (keyboard-button (keyboard) key.space)
     (v3:decf (pos camera)
-             (v3:*s (q:rotate (v! 0 -1 0)
-                              (rot camera))
+             (v3:*s (q:rotate *vec3-down* (rot camera))
                     (* factor dt))))
   ;; - down - croutch
   (when (keyboard-button (keyboard) key.c)
     (v3:decf (pos camera)
-             (v3:*s (q:rotate (v! 0 1 0) (rot camera))
+             (v3:*s (q:rotate *vec3-up* (rot camera))
+                    (* factor dt)))))
+
+
+(defun human-move (factor dt camera)
+  "absolute movement"
+  (declare (type fixnum factor)
+           (type single-float dt)
+           (type camera camera))
+  ;; ↑ forward
+  (when (keyboard-button (keyboard) key.w)
+    (let* ((camdir (q:to-direction (rot camera)))
+           (dt-pos (v3:*s camdir (* factor dt)))
+           (dt-pos (v! (x dt-pos) 0 (z dt-pos))))
+      (v3:incf (pos camera) dt-pos)))
+  ;; ↓ backwards
+  (when (keyboard-button (keyboard) key.s)
+    (let* ((camdir (q:to-direction (rot camera)))
+           (dt-pos (v3:*s camdir (* factor dt)))
+           (dt-pos (v! (x dt-pos) 0 (z dt-pos))))
+      (v3:decf (pos camera) dt-pos)))
+  ;; ← left
+  (when (keyboard-button (keyboard) key.a)
+    (let* ((camdir (q:rotate *vec3-left* (rot camera)))
+           (dt-pos (v3:*s camdir (* factor dt)))
+           (dt-pos (v! (x dt-pos) 0 (z dt-pos))))
+      (v3:incf (pos camera) dt-pos)))
+  ;; → right
+  (when (keyboard-button (keyboard) key.d)
+    (let* ((camdir (q:rotate *vec3-right* (rot camera)))
+           (dt-pos (v3:*s camdir (* factor dt)))
+           (dt-pos (v! (x dt-pos) 0 (z dt-pos))))
+      (v3:incf (pos camera) dt-pos)))
+  ;; - up - jump
+  (when (keyboard-button (keyboard) key.space)
+    (v3:decf (pos camera)
+             (v3:*s (q:rotate *vec3-down* (rot camera))
+                    (* factor dt))))
+  ;; - down - croutch
+  (when (keyboard-button (keyboard) key.c)
+    (v3:decf (pos camera)
+             (v3:*s (q:rotate *vec3-up* (rot camera))
                     (* factor dt)))))
 
 (defmethod control ((camera camera) dt)
@@ -66,7 +113,7 @@
       (setf factor 5))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; MOVEMENT
-    (god-move factor dt camera)
+    (human-move factor dt camera)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; SPIN
     (when (key-down-p key.q)
@@ -90,5 +137,5 @@
             (q:normalize
              (q:* (rot camera)
                   (q:normalize
-                   (q:* (q:from-axis-angle (v! 1 0 0) (- (y move)))
-                        (q:from-axis-angle (v! 0 1 0) (- (x move)))))))))))
+                   (q:* (q:from-axis-angle *vec3-right* (- (y move)))
+                        (q:from-axis-angle *vec3-up*    (- (x move)))))))))))
