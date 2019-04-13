@@ -11,6 +11,21 @@
 (defparameter *light-color* (v! .2 .2 .4))
 (defparameter *parallax-scale* .01f0)
 
+(defclass actor ()
+  ((name  :initarg :name :reader actor-name)
+   (pos   :initarg :pos :accessor pos)
+   (rot   :initarg :rot :accessor rot)
+   (buf   :initarg :buf)
+   (color :initarg :color)
+   (scale :initarg :scale))
+  (:default-initargs
+   :name (gensym)
+   :pos (v! 0 0 0)
+   :rot (q:identity)
+   :buf (box)
+   :color (v! 1 1 1)
+   :scale 1f0))
+
 (defun update-all-the-things (l dt)
   (declare (list l))
   (loop :for actor :in l :do
@@ -42,27 +57,13 @@
 
 ;;--------------------------------------------------
 
-(defclass actor ()
-  ((name  :initarg :name :reader actor-name)
-   (pos   :initarg :pos :accessor pos)
-   (rot   :initarg :rot :accessor rot)
-   (buf   :initarg :buf)
-   (color :initarg :color)
-   (scale :initarg :scale))
-  (:default-initargs
-   :name (gensym)
-   :pos (v! 0 0 0)
-   :rot (q:identity)
-   :buf (box)
-   :color (v! 1 1 1)
-   :scale 1f0))
-
 (defclass pbr-simple (actor)
   ((roughness :initarg :roughness)
    (metallic  :initarg :metallic))
   (:default-initargs
    :roughness .1
    :metallic  .1))
+
 (defun make-pbr-simple (&optional (pos (v! 0 0 0)))
   (let ((obj
          (make-instance
@@ -98,6 +99,7 @@
   (let ((obj
          (make-instance
           'pbr
+          :uv-speed 0f0
           :buf (lattice 100 100 2 2 t)
           :pos pos
           :scale scale
