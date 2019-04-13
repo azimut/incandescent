@@ -3,6 +3,7 @@
 ;; TODO: this kind of limits usage...
 ;; TODO: for music it would be nice to have a weighted or boolean gated graph (? so i could see add more "generative" music sequences
 
+(defvar *sfx* nil "sfx mixer copy")
 (defvar *audio-sources* (make-hash-table :test #'equal)
   "cache for MP3-SOURCES")
 (defvar *audio-sounds*  (make-hash-table)
@@ -10,15 +11,10 @@
 
 (deftype mixer () '(member :sfx :music))
 
-(defclass audio-music ()
-  ((name :initarg :name)
-   (sources :initarg :sources)
-   (volume :initarg :volume)))
-
-(defclass audio-sound ()
-  ((name    :initarg :name)
-   (sources :initarg :sources :documentation "list of MP3-SOURCES")
-   (volume  :initarg :volume))
+(defclass audio-sound (actor)
+  ((name     :initarg :name)
+   (sources  :initarg :sources :documentation "list of MP3-SOURCES")
+   (volume   :initarg :volume))
   (:default-initargs
    :name (error "missing name")
    :sources '()
@@ -27,25 +23,28 @@
 
 (defclass audio-music ()
   ((name      :initarg :name)
-   (sources   :initarg :sources :documentation "list of MP3-SOURCES")
+   (sources   :initarg :sources   :documentation "list of MP3-SOURCES")
    (volume    :initarg :volume)
-   (fade-to   :initarg :fade-to :documentation "volume target")
+   (fade-to   :initarg :fade-to   :documentation "volume target")
    (fade-time :initarg :fade-time :documentation "time in sec to fade"))
   (:default-initargs
    :name (error "missing name")
    :sources '()
    :volume 1f0
-   :fade-to NIL
-   :fade-time NIL)
+   :fade-to 1f0
+   :fade-time 1f0)
   (:documentation "pack of audio sources of the same type"))
 
 (defun list-sources () (alexandria:hash-table-keys *audio-sources*))
+(defun list-sounds  () (alexandria:hash-table-keys *audio-sounds*))
 
 (defun init-audio ()
-  (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain)))
+  (prog1 (harmony-simple:initialize
+          :output-spec '(harmony-pulse:pulse-drain))
+    (setf *sfx* (harmony-simple:segment :sfx))))
 
-(defun %load-source (path mixer loop-p)
-  (declare (type string path) (type mixer mixer))
+(defun %load-source (name path mixer loop-p)
+  (declare (type symbol name) (type string path) (type mixer mixer))
   (let* ((absolutep (uiop:absolute-pathname-p path))
          (path      (if absolutep
                         path
@@ -53,23 +52,26 @@
     (or (gethash path *audio-sources*)
         (setf (gethash path *audio-sources*)
               (harmony-simple:play (uiop:ensure-pathname path) mixer
+                                   :name name
                                    :paused T
                                    :loop loop-p)))))
 
 (defun %init-source (source &rest initargs)
   "sets parameters to source that cannot be set on play directly"
-  (destructuring-bind (&key volume fade-to fade-time) initargs
-    (when volume
-      (setf (harmony-simple:volume source) volume))
-    (when (and fade-to fade-time)
-      (harmony-simple:fade source fade-to fade-time)))
+  (declare (type harmony-mp3:mp3-source source))
+  (when (harmony-simple:paused-p source)
+    (destructuring-bind (&key volume fade-to fade-time) initargs
+      (when volume
+        (setf (harmony-simple:volume source) volume))
+      (when (and fade-to fade-time)
+        (harmony-simple:fade source fade-to fade-time))))
   source)
 
-(defun load-sfx (path &rest initargs)
-  (apply #'%init-source (%load-source path :sfx NIL) initargs))
+(defun load-sfx (name path &rest initargs)
+  (apply #'%init-source (%load-source name path :sfx NIL) initargs))
 
-(defun load-music (path &rest initargs)
-  (apply #'%init-source (%load-source path :music T) initargs))
+(defun load-music (name path &rest initargs)
+  (apply #'%init-source (%load-source name path :music T) initargs))
 
 ;; TODO: positional
 (defun make-sound (name volume &rest paths)
@@ -83,7 +85,8 @@
                        :volume volume
                        :sources (mapcar
                                  (lambda (path)
-                                   (load-sfx path :volume volume))
+                                   (load-sfx name path
+                                             :volume volume))
                                  paths))))
 
 (defun make-music (name volume fade-to fade-time &rest paths)
@@ -100,11 +103,10 @@
                        :fade-time fade-time
                        :sources (mapcar
                                  (lambda (path)
-                                   (load-music
-                                    path
-                                    :volume volume
-                                    :fade-to fade-to
-                                    :fade-time fade-time))
+                                   (load-music name path
+                                               :volume volume
+                                               :fade-to fade-to
+                                               :fade-time fade-time))
                                  paths))))
 
 ;;--------------------------------------------------
@@ -168,15 +170,38 @@
           (harmony:seek source (harmony:sample-position sync-to)))
         (harmony-simple:resume source)))))
 
+(let ((stepper (make-stepper (seconds 1) (seconds 1))))
+  (defun update-audio ()
+    "runs on main loop to update 3D audio positions"
+    (when (funcall stepper)
+      ;; Camera
+      (setf (harmony-simple:location  *sfx*) (pos *camera*))
+      (setf (harmony-simple:direction *sfx*) (q:to-direction (rot *camera*)))
+      ;; Objects position update
+      (map 'vector
+           (lambda (mp3)
+             (when-let ((playing (not (harmony-simple:paused-p mp3)))
+                        (mp3name (harmony:name mp3)))
+               (setf (harmony:input-location mp3 *sfx*)
+                     (pos (gethash mp3name *audio-sounds*)))))
+           (cl-mixed:sources *sfx*)))
+    NIL))
+
 ;;--------------------------------------------------
 ;; Test code
 
 (let ((state T))
   (defun test-stop-music ()
     (setf state (not state))
-    (setf (harmony:looping-p (load-sfx "static/tarea201-mono.mp3")) state)
-    (setf (harmony:looping-p (load-sfx "static/tarea202-mono.mp3")) state)
-    (setf (harmony:looping-p (load-sfx "static/tarea203-mono.mp3")) state)))
+    (setf (harmony:looping-p
+           (load-sfx :curso201 "static/tarea201-mono.mp3"))
+          state)
+    (setf (harmony:looping-p
+           (load-sfx :curso202 "static/tarea202-mono.mp3"))
+          state)
+    (setf (harmony:looping-p
+           (load-sfx :curso203 "static/tarea203-mono.mp3"))
+          state)))
 
 (defun test-music ()
   (make-music :curso201 .01 .3 5f0 "static/tarea201-mono.mp3")
