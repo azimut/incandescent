@@ -30,11 +30,6 @@
 
 (defclass ray-plane (actor) ())
 
-(defmethod update ((actor ray-plane) dt)
-  ;;(setf (pos actor) (pos *currentcamera*))
-  (setf (rot actor) (rot *currentcamera*))
-  )
-
 (defun free-raymarching ()
   (when *ray-fbo* (free *ray-fbo*))
   (when *frustum* (free *frustum*))
@@ -64,13 +59,9 @@
                                           :primitive :triangle-strip)))
           buf)))
 
-(defvar *tmp2* (make-instance 'ray-plane))
-(defvar *tmp3* (make-instance 'actor))
-
 (defun draw-raymarching (sam samd time)
   (declare (type single-float time)
            (type cepl:sampler sam samd))
-  (update *tmp2* time)
   (with-setf* ((depth-test-function) #'always
                (cull-face) NIL
                (depth-mask) NIL)
@@ -86,31 +77,17 @@
              :cam-pos (pos *currentcamera*)
              :frustum-corners *frustum*
              :light-pos *light-pos*
-             :sam3 *32sam*
+             ;;:sam3 *32sam*
              :world-view
              (m4:*
-              ;;(projection *currentcamera*)
-              (rtg-math.projection:orthographic-v2
-               (v2! 1)
-               .1
-               100f0)
-              (world->view *tmp2*
-                           ;;*currentcamera*
-                           )
-              ;;(world->view *currentcamera*)
-                                        ;,(m4:identity)
-              (model->world *tmp2*)
-              ;;(model->world *currentcamera*)
-              )
+              ;; (rtg-math.projection:orthographic-v2
+              ;;  (v2! 1)
+              ;;  .1f0
+              ;;  10f0)
+              (q:to-mat4 (q:inverse (rot *currentcamera*)))
+              (q:to-mat4 (rot *currentcamera*)))
              :view-world (m4:inverse
-                          (m4:*
-                           ;;(projection *currentcamera*)
-                           (world->view *tmp2* ;;*currentcamera*
-                                        )
-                           ;;(model->world *currentcamera*)
-                           ;;(model->world *tmp2*)
-                           )
-                          )))))
+                          (world->view *tmp2*))))))
 
 ;;--------------------------------------------------
 
@@ -159,9 +136,11 @@
            (piso (f-plane p (v! 0 1 0) 2))
            ;;(orig (v! (x orig) (y orig) (p-mod1 (z orig) 10)))
 
-           ;;(piso (f-sphere orig 2))
+           (piso (f-sphere orig 2))
            )
-      (min piso dd))))
+      ;;(min piso dd)
+      dd
+      )))
 
 (defun-g raymarch ((ro :vec3)
                    (rd :vec3)
@@ -173,25 +152,29 @@
                    (irradiance-map :sampler-cube)
                    (diffuse-map :sampler-cube))
   (let* ((tt 0f0)
-         (ret (v! 0 0 0 0))
+         (ret (v! 1 1 1 0))
          ;; Geometry
          (center (v! 0 0 0))
          (radius (+ 1 (sin (* .01 time)))))
-    (dotimes (i 100)
-      (when (or (>= tt s)
-                (> tt 100f0))
-        (setf ret (v! 0 0 0 0))
+    (dotimes (i 60)
+      (when (or (>= tt s) (> tt 100f0))
+        (setf ret (v! 0 1 1 0))
         (break))
       (let* ((p (+ ro (* rd tt)))
-             (d (distance-estimator p center time)))
-        (when (< d .001)
+             (d (distance-estimator p center radius)))
+        (when (< d .0001)
           (setf ret
-                (v! (+ ;;(v! .01 .01 .01)
-                     (s~ ;;(render-surface p center radius (- light-pos))
-                      (render-pbr p center time cam-pos light-pos brdf-lut irradiance-map diffuse-map)
-                      :xyz)
-                     ;;(let* ((n (calc-normal p center radius))))
-                     )
+                (v! (+ (v! .01 .01 .01)
+                       (s~
+                        (render-surface p center radius (- light-pos))
+                        ;; (render-pbr p
+                        ;;             center
+                        ;;             time
+                        ;;             cam-pos light-pos
+                        ;;             brdf-lut irradiance-map diffuse-map)
+                        :xyz)
+                       ;;(let* ((n (calc-normal p center radius))))
+                       )
                     1))
           (break))
         (incf tt d)))
@@ -243,7 +226,7 @@
   (let* ((rd    (normalize ray))
          (ro    cam-pos)
          (depth (linear-eye-depth (x (texture samd uv))))
-         (depth (*  depth (length ray)))
+         (depth (* depth (length ray)))
          (color (s~ (texture sam uv) :xyz))
          (add   (raymarch ro rd depth time
                           cam-pos light-pos
@@ -253,10 +236,10 @@
                           ;;sam3
                           )))
     ;; return fixed4(col*(1.0 - add.w) + add.xyz * add.w,1.0);
-    ;; (v! (+ (* color         (- 1 (w add)))
-    ;;        (* (s~ add :xyz) (w add)))
-    ;;     1)
-    add
+    (v! (+ (* color         (- 1 (w add)))
+           (* (s~ add :xyz) (w add)))
+        1)
+    ;;add
     ;;ray
     ;;(v3! depth)
     ;;(v! 1 0 1 0)
@@ -314,15 +297,16 @@
 ;;         (incf tt d)))
 ;;     ret))
 
-;; (defun-g distance-estimator ((p :vec3)
-;;                              (c :vec3)
-;;                              (r :float)
-;;                              (sam3 :sampler-3d))
-;;   ;;(min)
-;;   ;;(x (texture sam3 p))
-;;   (f-sphere (- p c) .4)
-;;   ;;(f-box p (v! 1 1 1))
-;;   )
+(defun-g distance-estimator ((p :vec3)
+                             (c :vec3)
+                             (r :float)
+                             ;;(sam3 :sampler-3d)
+                             )
+  ;;(min)
+  ;;(x (texture sam3 p))
+  (f-sphere (- p c) .4)
+  ;;(f-box p (v! 1 1 1))
+  )
 
 (defpipeline-g raymarch-pipe (:triangle-strip)
   :vertex   (raymarch-vert g-pt)
