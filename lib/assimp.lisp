@@ -57,7 +57,7 @@
 
 ;; Might be I could have used the 1 without filling the other bone slots?
 (defstruct-g assimp-with-bones
-    (pos           :vec3 :accessor pos)
+  (pos           :vec3 :accessor pos)
   (normal        :vec3 :accessor norm)
   (uv            :vec2 :accessor tex)
   (tangent       :vec3 :accessor tangent)
@@ -94,10 +94,16 @@
 ;;--------------------------------------------------
 
 (defmethod free ((actor assimp-thing))
-  (free (slot-value actor 'buf)))
+  (with-slots (buf) actor
+    (free buf)
+    (free (alexandria:lastcar (buffer-stream-gpu-arrays buf)))
+    (free (car (car (buffer-stream-gpu-arrays buf))))))
 
 (defmethod free ((actor assimp-thing-with-bones))
-  (free (slot-value actor 'buf)))
+  (with-slots (buf) actor
+    (free buf)
+    (free (alexandria:lastcar (buffer-stream-gpu-arrays buf)))
+    (free (car (car (buffer-stream-gpu-arrays buf))))))
 
 (defun free-meshes ()
   (mapcar #'free *assimp-meshes*)
