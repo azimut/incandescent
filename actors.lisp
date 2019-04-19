@@ -33,8 +33,12 @@
 
 (defun model->world (actor)
   (with-slots (pos rot) actor
-      (m4:* (m4:translation pos)
-            (q:to-mat4 rot))))
+    (m4:* (m4:translation pos)
+          (q:to-mat4 rot))))
+(defun find-actor-class (class-name)
+  (declare (type symbol class-name))
+  (find-if (lambda (a) (typep a class-name))
+           *actors*))
 
 (defun delete-actor-name (actor-name)
   (declare (symbol actor-name))
