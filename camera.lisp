@@ -36,8 +36,10 @@
 (defparameter *cameras* (list *camera* *camera1*))
 (defparameter *currentcamera* *camera*)
 
-(defun reset-camera (&optional (camera *camera*))
-  (setf (pos camera) (v! 0 0 0))
+(defun reset-camera (&optional (camera *camera*) (pos (v! 0 0 0)))
+  (declare (type rtg-math.types:vec3)
+           (type camera camera))
+  (setf (pos camera) pos)
   (setf (rot camera) (q:identity)))
 
 (defun next-camera ()
