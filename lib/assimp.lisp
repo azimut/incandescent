@@ -325,11 +325,26 @@ for value and node name for the key")
 
 ;;--------------------------------------------------
 
-(defmethod assimp-mesh-to-stream (mesh scene file-path scale
-                                  (type (eql :textured)))
+(defun make-gpu-index-array (faces n-vertex)
+  "returns a gpu array mean to be the index of a buffer-stream"
+  (let* ((n-faces (* n-vertex 3))
+         (i-array (make-gpu-array NIL :dimensions n-faces :element-type :ushort)))
+    (with-gpu-array-as-c-array (c-arr i-array)
+      (loop
+         :for indices :across faces
+         :for i :from 0 :by 3
+         :do (setf (aref-c c-arr i)       (aref indices 0)
+                   (aref-c c-arr (+ i 1)) (aref indices 1)
+                   (aref-c c-arr (+ i 2)) (aref indices 2)))
+      i-array)))
+
+(defgeneric assimp-mesh-to-stream (mesh scene file-path scale pos rot type))
+(defmethod assimp-mesh-to-stream (mesh scene file-path scale pos rot (type (eql :textured)))
   "only textured assimp thing"
   (declare (ai:mesh mesh)
            (ai:scene scene)
+           (rtg-math.types:vec3 pos)
+           (rtg-math.types:quaternion rot)
            (pathname file-path)
            (single-float scale))
   (with-slots ((vertices       ai:vertices)
@@ -341,7 +356,6 @@ for value and node name for the key")
                (mat-index      ai:material-index))
       mesh
     (let* ((lenv (length vertices))
-           (lenf (* lenv 3))
            (texture-coords (elt texture-coords 0))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
            (textures   (gethash "$tex.file" material))
@@ -366,14 +380,7 @@ for value and node name for the key")
                        vertices
                        texture-coords))
       (let ((v-arr (make-gpu-array NIL :dimensions lenv :element-type 'assimp-mesh))
-            (i-arr (make-gpu-array NIL :dimensions lenf :element-type :ushort)))
-        (with-gpu-array-as-c-array (c-arr i-arr)
-          (loop
-             :for indices :across faces
-             :for i :from 0 :by 3
-             :do (setf (aref-c c-arr i)       (aref indices 0)
-                       (aref-c c-arr (+ i 1)) (aref indices 1)
-                       (aref-c c-arr (+ i 2)) (aref indices 2))))
+            (i-arr (make-gpu-index-array faces lenv)))
         (with-gpu-array-as-c-array (c-arr v-arr)
           (loop
              :for v  :across vertices
@@ -411,7 +418,6 @@ for value and node name for the key")
                (bones          ai:bones))
       mesh
     (let* ((lenv (length vertices))
-           (lenf (* lenv 3))
            (texture-coords (elt texture-coords 0))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
            (textures   (gethash "$tex.file" material))
@@ -438,14 +444,7 @@ for value and node name for the key")
                        vertices
                        texture-coords))
       (let ((v-arr (make-gpu-array NIL :dimensions lenv :element-type 'assimp-with-bones))
-            (i-arr (make-gpu-array NIL :dimensions lenf :element-type :ushort)))
-        (with-gpu-array-as-c-array (c-arr i-arr)
-          (loop
-             :for indices :across faces
-             :for i :from 0 :by 3
-             :do (setf (aref-c c-arr i)       (aref indices 0)
-                       (aref-c c-arr (+ i 1)) (aref indices 1)
-                       (aref-c c-arr (+ i 2)) (aref indices 2))))
+            (i-arr (make-gpu-index-array faces lenv)))
         (with-gpu-array-as-c-array (c-arr v-arr)
           (loop
              :for v  :across vertices
