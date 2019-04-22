@@ -1,6 +1,8 @@
 (in-package #:incandescent)
 
-(defvar *particle-systems* NIL)
+(defvar *blend* (make-blending-params))
+(defvar *particle-systems* NIL
+  "cache of particles creates with make- functions")
 
 (defclass particles ()
   ((gar-src :initarg :gar-src)
@@ -15,28 +17,25 @@
   (:documentation "class for point based particles"))
 
 (defclass billboards (particles)
-  ((sam :initarg :sam))
+  ((sam :initarg :sam :documentation "texture displayed in billboard"))
   (:documentation "class for point based billboards"))
+
+(defstruct-g pdata
+  (pos  :vec3)
+  (dir  :vec3)
+  (life :float))
 
 ;;--------------------------------------------------
 ;; PARTICLE LOGIC
 ;;--------------------------------------------------
 ;; Uses TTFS to delegate to the gpu all the movement logic.
 ;; Needs *bs* for the single stage pipeline.
-;; TODO:
-;; - Instacing for geometry/vertices rendending of particles
+;; TODO: Instacing for geometry/vertices rendending of particles.
 
-;; (init-particles)
-;; (update-particles)
-;; (draw-particles)
+;; (make-particles)
+;; (update)
+;; (draw)
 ;; (swap-particles)
-
-(defvar *blend* (make-blending-params))
-
-(defstruct-g pdata
-  (pos :vec3)
-  (dir :vec3)
-  (life :float))
 
 ;;--------------------------------------------------
 ;; Init particles
@@ -96,8 +95,8 @@
     (free str-dst)
     (free gar-src)
     (free gar-dst)
-    (setf tfs-src nil
-          tfs-dst nil)))
+    (setf tfs-src nil)
+    (setf tfs-dst nil)))
 
 (defmethod reset-particles ((actor particles))
   (with-slots (tfs-src tfs-dst) actor
@@ -147,7 +146,9 @@
               (:feedback pos)
               (:feedback dir)
               (:feedback life)))))
-(defpipeline-g pupdate-pipe (:points) :vertex (pupdate-vert pdata))
+
+(defpipeline-g pupdate-pipe (:points)
+  :vertex (pupdate-vert pdata))
 
 (defmethod update ((actor particles) dt)
   (with-slots (tfs-dst str-src source) actor
@@ -157,12 +158,6 @@
              :source source
              :time dt))))
 
-(defmethod swap-particles ((actor particles))
-  (with-slots (tfs-src tfs-dst str-src str-dst gar-src gar-dst) actor
-    (rotatef tfs-src tfs-dst)
-    (rotatef str-src str-dst)
-    (rotatef gar-src gar-dst)))
-
 ;;--------------------------------------------------
 ;; PARTICLE DRAW/RENDER
 ;;--------------------------------------------------
@@ -171,6 +166,12 @@
 ;; convert them to billboards. It is possible draw
 ;; triangles(geometries) using instancing. But might be the code above
 ;; needs change too.
+
+(defmethod swap-particles ((actor particles))
+  (with-slots (tfs-src tfs-dst str-src str-dst gar-src gar-dst) actor
+    (rotatef tfs-src tfs-dst)
+    (rotatef str-src str-dst)
+    (rotatef gar-src gar-dst)))
 
 ;;
 ;; A) POINTS
