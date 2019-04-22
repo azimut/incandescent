@@ -8,7 +8,10 @@
    (str-src :initarg :str-src)
    (str-dst :initarg :str-dst)
    (tfs-src :initarg :tfs-src)
-   (tfs-dst :initarg :tfs-dst))
+   (tfs-dst :initarg :tfs-dst)
+   (source  :initarg :source))
+  (:default-initargs
+   :source (v! 0 0 0))
   (:documentation "class for point based particles"))
 
 (defclass billboards (particles)
@@ -38,14 +41,14 @@
 ;;--------------------------------------------------
 ;; Init particles
 
-(defun-g pinit-vert (&uniform (time :float))
-  (let ((id (* .001 (+ time gl-vertex-id))))
-    (values (v! 0 0 0 0)
-            (:feedback (v! 0 0 0))
-            (:feedback (v! 0 0 0))
-            (:feedback 0f0))))
+(defun-g pinit-vert ()
+  (values (v! 0 0 0 0)
+          (:feedback (v! 0 0 0))
+          (:feedback (v! 0 0 0))
+          (:feedback 0f0)))
 
-(defpipeline-g pinit-pipe (:points) :vertex (pinit-vert))
+(defpipeline-g pinit-pipe (:points)
+  :vertex (pinit-vert))
 
 (defun make-particles (n-particles)
   (declare (type alexandria:positive-fixnum n-particles))
@@ -73,7 +76,7 @@
          (str-dst (make-buffer-stream gar-dst :primitive :points))
          (tfs-src (make-transform-feedback-stream gar-src))
          (tfs-dst (make-transform-feedback-stream gar-dst))
-         (obj (make-instance 'particles
+         (obj (make-instance 'billboards
                              :gar-src gar-src :gar-dst gar-dst
                              :str-src str-src :str-dst str-dst
                              :tfs-src tfs-src :tfs-dst tfs-dst
@@ -116,15 +119,14 @@
 ;; - move over lifetime
 
 ;; - Scale X
-(defparameter *distance* 0f0)
-(defparameter *offset* 1f0)
 (defun-g pupdate-vert ((pdata pdata)
                        &uniform
+                       (source :vec3)
                        (time :float))
   (with-slots (pos dir life) pdata
     (let* ((time (* time .2 (* 2f0 gl-vertex-id)))
            (life life)
-           (new-life (+ life .001))
+           (new-life (+ life .02))
            (dir dir)
            (pos pos)
            (r (rand (vec2 time))))
@@ -134,13 +136,13 @@
                            (+ 8 (* 5 r)) ;; scale
                            0))
             (setf life (* .5 r))
-            (setf pos  (v! (+ -15 (* 15 (rand (vec2 (* 3 time)))))
-                           (+ 2 (sin time))
-                           (+ -20 (- (* 5 r))))))
-          (progn
+            (setf pos  (+ source
+                          (v! (+ -7.4 (* 15 (rand (vec2 (* 3 time)))))
+                              (+ -2.5 (* 5 (sin time)))
+                              (+ -2.5 (* 5 r))))))
+          (progn ;; Update
             (setf life new-life)
-            (incf (x pos) .05)
-            (decf (z pos) -.1)))
+            (incf (z pos) -.3)))
       (values (v! 0 0 0 0)
               (:feedback pos)
               (:feedback dir)
@@ -148,9 +150,11 @@
 (defpipeline-g pupdate-pipe (:points) :vertex (pupdate-vert pdata))
 
 (defmethod update ((actor particles) dt)
-  (with-slots (tfs-dst str-src) actor
+  (with-slots (tfs-dst str-src source) actor
+    (setf source (v! 0 1 0))
     (with-transform-feedback (tfs-dst)
       (map-g #'pupdate-pipe str-src
+             :source source
              :time dt))))
 
 (defmethod swap-particles ((actor particles))
@@ -259,11 +263,11 @@
   (let* ((sprites 8)
          (uv (/ uv sprites))
          (color (texture sam uv)))
-    (v! (* (s~ color :xyz)
-           ;;(v! .18 .17843138 .1552941)
-           (v! 0.6392157 0.54901963 0.34509805)
-           ;;(v! 0 -1 0)
-           )
+    (v! (* ;;(s~ color :xyz)
+         ;;(v! .18 .17843138 .1552941)
+         (v! 0.6392157 0.54901963 0.34509805)
+         ;;(v! 0 -1 0)
+         )
 	(* (- 1 life)
            (w color)
            (calculate-fade
@@ -278,7 +282,7 @@
 (defun-g calculate-fade ((particle-depth :float)
                          (scene-depth :float))
   (let* ((z-fade 1f0)
-         (f-distance 50f0)
+         (f-distance 10f0)
          (f-contrast 1f0)
          (input-depth (* (- scene-depth particle-depth) f-distance)))
     (if (and (> input-depth 0) (< input-depth 1))
@@ -300,13 +304,14 @@
 (defmethod draw ((actor billboards) camera time)
   "textured particles blended into the scene"
   ;; Use a simple mask when not using soft-particles
-  ;;(with-setf (depth-mask) nil)
-  (with-slots (sam str-src) actor
-    (with-blending *blend*
-      (map-g #'billboard-pipe str-src
-             :sam sam
-             :samd *samd*
-             :res (resolution (current-viewport))
-             :world-view (world->view camera)
-             :view-clip  (projection camera))))
+  ;; Otherwise, setf (depth-mask) to nil AND make sure is the first element
+  (with-setf (depth-mask) nil
+    (with-slots (sam str-src) actor
+      (with-blending *blend*
+        (map-g #'billboard-pipe str-src
+               :sam sam
+               :samd *samd*
+               :res (resolution (current-viewport))
+               :world-view (world->view camera)
+               :view-clip  (projection camera)))))
   (swap-particles actor))
