@@ -1,8 +1,19 @@
 (in-package #:incandescent)
 
-(defvar *particle-fbo* nil)
-(defvar *sam-particle-fbo* nil)
-(defvar *samd-particle-fbo* nil)
+(defvar *particle-systems* NIL)
+
+(defclass particles ()
+  ((gar-src :initarg :gar-src)
+   (gar-dst :initarg :gar-dst)
+   (str-src :initarg :str-src)
+   (str-dst :initarg :str-dst)
+   (tfs-src :initarg :tfs-src)
+   (tfs-dst :initarg :tfs-dst))
+  (:documentation "class for point based particles"))
+
+(defclass billboards (particles)
+  ((sam :initarg :sam))
+  (:documentation "class for point based billboards"))
 
 ;;--------------------------------------------------
 ;; PARTICLE LOGIC
@@ -10,22 +21,12 @@
 ;; Uses TTFS to delegate to the gpu all the movement logic.
 ;; Needs *bs* for the single stage pipeline.
 ;; TODO:
-;; - Instacing for geomtry rendending of particles
-;; - Create CL class to contain all the components nicely
-;;   and more importantly easily allow multiple particle systems.
+;; - Instacing for geometry/vertices rendending of particles
 
 ;; (init-particles)
 ;; (update-particles)
 ;; (draw-particles)
 ;; (swap-particles)
-
-(defvar *gar-src* NIL)
-(defvar *str-src* NIL)
-(defvar *tfs-src* NIL)
-
-(defvar *gar-dst* NIL)
-(defvar *str-dst* NIL)
-(defvar *tfs-dst* NIL)
 
 (defvar *blend* (make-blending-params))
 
@@ -45,42 +46,62 @@
             (:feedback 0f0))))
 
 (defpipeline-g pinit-pipe (:points) :vertex (pinit-vert))
-(defun init-particles (&optional (n-particles 1000))
-  (unless *gar-src*
-    (setf *gar-src* (make-gpu-array
-                     nil
-                     :dimensions n-particles
-                     :element-type 'pdata)
-          *gar-dst* (make-gpu-array
-                     nil
-                     :dimensions n-particles
-                     :element-type 'pdata))
-    (setf *str-src* (make-buffer-stream *gar-src* :primitive :points)
-          *str-dst* (make-buffer-stream *gar-dst* :primitive :points))
-    (setf *tfs-src* (make-transform-feedback-stream *gar-src*)
-          *tfs-dst* (make-transform-feedback-stream *gar-dst*))
-    (reset-particles)))
+
+(defun make-particles (n-particles)
+  (declare (type alexandria:positive-fixnum n-particles))
+  (let* ((gar-src (make-gpu-array nil :dimensions n-particles :element-type 'pdata))
+         (gar-dst (make-gpu-array nil :dimensions n-particles :element-type 'pdata))
+         (str-src (make-buffer-stream gar-src :primitive :points))
+         (str-dst (make-buffer-stream gar-dst :primitive :points))
+         (tfs-src (make-transform-feedback-stream gar-src))
+         (tfs-dst (make-transform-feedback-stream gar-dst))
+         (obj (make-instance 'particles
+                             :gar-src gar-src :gar-dst gar-dst
+                             :str-src str-src :str-dst str-dst
+                             :tfs-src tfs-src :tfs-dst tfs-dst)))
+    (reset-particles obj)
+    (push obj *particle-systems*)
+    (push obj *actors*)
+    obj))
+
+(defun make-billboards (sam n-particles)
+  (declare (type cepl:sampler sam)
+           (type alexandria:positive-fixnum n-particles))
+  (let* ((gar-src (make-gpu-array nil :dimensions n-particles :element-type 'pdata))
+         (gar-dst (make-gpu-array nil :dimensions n-particles :element-type 'pdata))
+         (str-src (make-buffer-stream gar-src :primitive :points))
+         (str-dst (make-buffer-stream gar-dst :primitive :points))
+         (tfs-src (make-transform-feedback-stream gar-src))
+         (tfs-dst (make-transform-feedback-stream gar-dst))
+         (obj (make-instance 'particles
+                             :gar-src gar-src :gar-dst gar-dst
+                             :str-src str-src :str-dst str-dst
+                             :tfs-src tfs-src :tfs-dst tfs-dst
+                             :sam sam)))
+    (reset-particles obj)
+    (push obj *particle-systems*)
+    (push obj *actors*)
+    obj))
 
 ;;--------------------------------------------------
 ;; Free & Reset
 
-(defun free-particles ()
-  ;; (free *tfs-src*)
-  ;; (free *tfs-dst*)
-  (free *str-src*)
-  (free *str-dst*)
-  (free *gar-src*)
-  (free *gar-dst*)
-  (setf *str-src* NIL
-        *str-dst* NIL
-        *gar-src* NIL
-        *gar-dst* NIL))
+;; TFS?
+(defmethod free ((obj particles))
+  (with-slots (gar-src gar-dst str-src str-dst tfs-src tfs-dst) obj
+    (free str-src)
+    (free str-dst)
+    (free gar-src)
+    (free gar-dst)
+    (setf tfs-src nil
+          tfs-dst nil)))
 
-(defun reset-particles ()
-  (with-transform-feedback (*tfs-src*)
-    (map-g #'pinit-pipe *bs*))
-  (with-transform-feedback (*tfs-dst*)
-    (map-g #'pinit-pipe *bs*))
+(defmethod reset-particles ((actor particles))
+  (with-slots (tfs-src tfs-dst) actor
+    (with-transform-feedback (tfs-src)
+      (map-g #'pinit-pipe *bs*))
+    (with-transform-feedback (tfs-dst)
+      (map-g #'pinit-pipe *bs*)))
   (values))
 
 ;;--------------------------------------------------
@@ -93,7 +114,6 @@
 ;; - random init SPRITE (static per life)
 ;; - change SPRITE over lifetime
 ;; - move over lifetime
-
 
 ;; - Scale X
 (defparameter *distance* 0f0)
@@ -115,7 +135,7 @@
                            0))
             (setf life (* .5 r))
             (setf pos  (v! (+ -15 (* 15 (rand (vec2 (* 3 time)))))
-                           (+ -7 (sin time))
+                           (+ 2 (sin time))
                            (+ -20 (- (* 5 r))))))
           (progn
             (setf life new-life)
@@ -126,14 +146,18 @@
               (:feedback dir)
               (:feedback life)))))
 (defpipeline-g pupdate-pipe (:points) :vertex (pupdate-vert pdata))
-(defun update-particles ()
-  (with-transform-feedback (*tfs-dst*)
-    (map-g #'pupdate-pipe *str-src*
-           :time (mynow))))
-(defun swap-particles ()
-  (rotatef *tfs-src* *tfs-dst*)
-  (rotatef *str-src* *str-dst*)
-  (rotatef *gar-src* *gar-dst*))
+
+(defmethod update ((actor particles) dt)
+  (with-slots (tfs-dst str-src) actor
+    (with-transform-feedback (tfs-dst)
+      (map-g #'pupdate-pipe str-src
+             :time dt))))
+
+(defmethod swap-particles ((actor particles))
+  (with-slots (tfs-src tfs-dst str-src str-dst gar-src gar-dst) actor
+    (rotatef tfs-src tfs-dst)
+    (rotatef str-src str-dst)
+    (rotatef gar-src gar-dst)))
 
 ;;--------------------------------------------------
 ;; PARTICLE DRAW/RENDER
@@ -144,7 +168,9 @@
 ;; triangles(geometries) using instancing. But might be the code above
 ;; needs change too.
 
+;;
 ;; A) POINTS
+;;
 
 (defun-g prender-points-vert ((pdata pdata)
                               &uniform
@@ -161,12 +187,16 @@
   :vertex   (prender-points-vert pdata)
   :fragment (prender-points-frag))
 
-(gl:point-size 4)
-(defun draw-particles-points ()
-  (map-g #'prender-points-pipe *str-src*
-         :world-clip (world->clip *currentcamera*)))
+;;(gl:point-size 4)
+(defmethod draw ((actor particles) camera time)
+  (with-slots (str-src) actor
+    (map-g #'prender-points-pipe str-src
+           :world-clip (world->clip camera)))
+  (swap-particles actor))
 
+;;
 ;; B) POINTS -> BILLBOARDS
+;;
 
 (defun-g billboard-vert ((pdata pdata)
                          &uniform
@@ -267,15 +297,16 @@
   :fragment (billboard-frag :vec2 :float))
 
 ;; https://forum.processing.org/two/discussion/3955/textured-billboard-and-transparency-problem
-(defun draw-particles ()
+(defmethod draw ((actor billboards) camera time)
   "textured particles blended into the scene"
   ;; Use a simple mask when not using soft-particles
   ;;(with-setf (depth-mask) nil)
-  (with-blending *blend*
-    (map-g #'billboard-pipe *str-src*
-           :sam *cloud-tex*
-           :samd *samd*
-           :res (resolution (current-viewport))
-           :world-view (world->view *currentcamera*)
-           :view-clip  (projection *currentcamera*))))
-
+  (with-slots (sam str-src) actor
+    (with-blending *blend*
+      (map-g #'billboard-pipe str-src
+             :sam sam
+             :samd *samd*
+             :res (resolution (current-viewport))
+             :world-view (world->view camera)
+             :view-clip  (projection camera))))
+  (swap-particles actor))
