@@ -1,7 +1,9 @@
 (in-package #:incandescent)
 ;;--------------------------------------------------
 ;; Assimp - 3d object loader
-
+;; TODO: support objets with no UVs, like low poly things
+;; TODO: support more generic way to load that only returns the buffer
+;;
 ;; Might be a I can just drop the bones with low weight
 ;; instead of max limit
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
@@ -396,10 +398,10 @@ for value and node name for the key")
                        (assimp-mesh-uv a) (v! (x tc) (y tc))))
           v-arr))))
 
-(defun make-buffer-stream-cached (file-path mesh-index vertices faces normals tangents bitangents uvs &optional bones)
+(defun make-buffer-stream-cached (file mesh-index vertices faces normals tangents bitangents uvs &optional bones)
   "returns a CEPL:BUFFER-STREAM"
-  (declare (type fixnum mesh-index) (type pathname file-path))
-  (let ((key (cons file-path mesh-index)))
+  (declare (type fixnum mesh-index))
+  (let ((key (cons file mesh-index)))
     (or (gethash key *assimp-buffers*)
         (let* ((v-arr  (make-gpu-vertex-array vertices normals tangents bitangents uvs bones))
                (i-arr  (make-gpu-index-array faces (length vertices)))
@@ -407,12 +409,11 @@ for value and node name for the key")
           (setf (gethash key *assimp-buffers*)
                 buffer)))))
 
-(defgeneric assimp-mesh-to-stream (mesh scene file-path type))
-(defmethod assimp-mesh-to-stream (mesh scene file-path (type (eql :textured)))
+(defgeneric assimp-mesh-to-stream (mesh scene file type))
+(defmethod assimp-mesh-to-stream (mesh scene file (type (eql :textured)))
   "only textured assimp thing"
   (declare (ai:mesh mesh)
-           (ai:scene scene)
-           (pathname file-path))
+           (ai:scene scene))
   (with-slots ((vertices       ai:vertices)
                (faces          ai:faces)
                (normals        ai:normals)
@@ -431,6 +432,7 @@ for value and node name for the key")
                          (third (assoc :ai-texture-type-height textures))))
            (spec-file  (when (assoc :ai-texture-type-specular textures)
                          (third (assoc :ai-texture-type-specular textures))))
+           (file-path  (uiop:pathname-directory-pathname file))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
                            (get-tex *default-albedo*)))
@@ -445,16 +447,17 @@ for value and node name for the key")
                        normals
                        vertices
                        uvs))
-      (values (make-buffer-stream-cached file-path mesh-index vertices faces normals tangents bitangents uvs)
+      (values (make-buffer-stream-cached file mesh-index
+                                         vertices faces
+                                         normals tangents bitangents uvs)
               albedo
               normal-map
               specular))))
 
-(defmethod assimp-mesh-to-stream (mesh scene file-path (type (eql :bones)))
+(defmethod assimp-mesh-to-stream (mesh scene file (type (eql :bones)))
   "returns an assimp actor object"
   (declare (ai:mesh mesh)
-           (ai:scene scene)
-           (pathname file-path))
+           (ai:scene scene))
   (with-slots ((vertices       ai:vertices)
                (faces          ai:faces)
                (normals        ai:normals)
@@ -475,6 +478,7 @@ for value and node name for the key")
                          (third (assoc :ai-texture-type-height textures))))
            (spec-file  (when (assoc :ai-texture-type-specular textures)
                          (third (assoc :ai-texture-type-specular textures))))
+           (file-path  (uiop:pathname-directory-pathname file))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
                            (get-tex *default-albedo*)))
@@ -491,7 +495,7 @@ for value and node name for the key")
                        normals
                        vertices
                        texture-coords))
-      (let ((buffer (make-buffer-stream-cached file-path mesh-index
+      (let ((buffer (make-buffer-stream-cached file mesh-index
                                                vertices faces normals
                                                tangents bitangents texture-coords
                                                bones-per-vertex)))
@@ -516,15 +520,18 @@ for value and node name for the key")
                            (ai:meshes scene))))
     scene))
 
-(defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)))
+(defun assimp-get-type (scene)
+  (declare (type ai:scene scene))
+  (let ((bones     (list-bones scene)))
+    (if (emptyp bones) :textured :bones)))
+
+(defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)) (instantiate-p t))
   "returns a list of actor classes, instances ready to be render"
   (declare (type single-float scale))
-  (assert (probe-file file))
-  (let* ((scene     (assimp-safe-import-into-lisp file))
-         (meshes    (slot-value scene 'ai:meshes))
-         (bones     (list-bones scene))
-         (type      (if (emptyp bones) :textured :bones))
-         (file-path (uiop:pathname-directory-pathname file)))
+  (let* ((path      (resolve-path file))
+         (scene     (assimp-safe-import-into-lisp path))
+         (type      (assimp-get-type scene))
+         (meshes    (slot-value scene 'ai:meshes)))
     ;; add things upto we find an error, if any
     (loop
        :for mesh :across meshes
@@ -532,18 +539,24 @@ for value and node name for the key")
        ;;       and can ruin the load or rendering
        :when (not (emptyp (ai:texture-coords mesh)))
        :collect
-         (multiple-value-bind (buf albedo normals specular) (assimp-mesh-to-stream mesh scene file-path type)
-           (ecase type
-             (:textured (make-instance 'assimp-thing
-                                       :buf buf :albedo albedo :normals normals
-                                       :specular specular
-                                       :scale scale
-                                       :pos pos :rot rot))
-             (:bones    (make-instance 'assimp-thing-with-bones
-                                       :buf buf :albedo albedo :normals normals
-                                       :specular specular
-                                       :scale scale
-                                       :pos pos :rot rot)))))))
+         (multiple-value-bind (buf albedo normals specular)
+             (assimp-mesh-to-stream mesh scene path type)
+           (if instantiate-p
+               (ecase type
+                 (:textured (make-instance 'assimp-thing
+                                           :buf buf :albedo albedo :normals normals
+                                           :specular specular
+                                           :scale scale
+                                           :pos pos :rot rot))
+                 (:bones    (make-instance 'assimp-thing-with-bones
+                                           :buf buf :albedo albedo :normals normals
+                                           :specular specular
+                                           :scale scale
+                                           :pos pos :rot rot)))
+               (list buf
+                     albedo
+                     normals
+                     specular))))))
 
 ;;--------------------------------------------------
 ;; Draw
