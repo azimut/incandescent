@@ -39,9 +39,10 @@
 (defun list-sounds  () (alexandria:hash-table-keys *audio-sounds*))
 
 (defun init-audio ()
-  (prog1 (harmony-simple:initialize
-          :output-spec '(harmony-pulse:pulse-drain))
-    (setf *sfx* (harmony-simple:segment :sfx))))
+  (unless (harmony-simple:started-p harmony-simple:*server*)
+    (prog1 (harmony-simple:initialize
+            :output-spec '(harmony-pulse:pulse-drain))
+      (setf *sfx* (harmony-simple:segment :sfx)))))
 
 (defun %load-source (name path mixer loop-p)
   (declare (type symbol name) (type string path) (type mixer mixer))
