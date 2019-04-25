@@ -409,6 +409,17 @@ for value and node name for the key")
           (setf (gethash key *assimp-buffers*)
                 buffer)))))
 
+(defun get-texture-path (material key)
+  "returns a string with the path to the image file for KEY in MATERIAL hash"
+  (declare (type hash-table material) (type symbol key))
+  (when-let* ((textures (gethash "$tex.file" material))
+              (filepath (third (assoc key textures))))
+    ;; Lastly try to remove windows paths
+    (if (cl-ppcre:scan "\\" filepath)
+        (alexandria:lastcar
+         (cl-ppcre:split "\\" filepath))
+        filepath)))
+
 (defgeneric assimp-mesh-to-stream (mesh scene file type))
 (defmethod assimp-mesh-to-stream (mesh scene file (type (eql :textured)))
   "only textured assimp thing"
@@ -425,13 +436,9 @@ for value and node name for the key")
     (let* ((mesh-index (position mesh (ai:meshes scene)))
            (uvs        (elt texture-coords 0))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
-           (textures   (gethash "$tex.file" material))
-           (tex-file   (and textures
-                            (third (assoc :ai-texture-type-diffuse textures))))
-           (norm-file  (when (assoc :ai-texture-type-height textures)
-                         (third (assoc :ai-texture-type-height textures))))
-           (spec-file  (when (assoc :ai-texture-type-specular textures)
-                         (third (assoc :ai-texture-type-specular textures))))
+           (tex-file   (get-texture-path material :ai-texture-type-diffuse))
+           (norm-file  (get-texture-path material :ai-texture-type-height))
+           (spec-file  (get-texture-path material :ai-texture-type-specular))
            (file-path  (uiop:pathname-directory-pathname file))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
@@ -471,13 +478,9 @@ for value and node name for the key")
            (mesh-index (position mesh (ai:meshes scene)))
            (texture-coords (elt texture-coords 0))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
-           (textures   (gethash "$tex.file" material))
-           (tex-file   (and textures
-                            (third (assoc :ai-texture-type-diffuse textures))))
-           (norm-file  (when (assoc :ai-texture-type-height textures)
-                         (third (assoc :ai-texture-type-height textures))))
-           (spec-file  (when (assoc :ai-texture-type-specular textures)
-                         (third (assoc :ai-texture-type-specular textures))))
+           (tex-file   (get-texture-path material :ai-texture-type-diffuse))
+           (norm-file  (get-texture-path material :ai-texture-type-height))
+           (spec-file  (get-texture-path material :ai-texture-type-specular))
            (file-path  (uiop:pathname-directory-pathname file))
            (albedo     (if tex-file
                            (get-tex (merge-pathnames tex-file file-path))
