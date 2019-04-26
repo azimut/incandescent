@@ -150,17 +150,6 @@
                           (random 1f0))
                       (radians (random 360)))))))
 
-(defclass assimp-flat (actor)
-  ())
-(defclass assimp-thing (actor)
-  ((albedo   :initarg :albedo)
-   (normals  :initarg :normals)
-   (specular :initarg :specular)))
-(defclass assimp-thing-with-bones (actor)
-  ((albedo   :initarg :albedo)
-   (normals  :initarg :normals)
-   (specular :initarg :specular)))
-
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
@@ -182,40 +171,5 @@
                      )))
     )
   )
-(defmethod update ((actor assimp-flat) dt)
-  ;;(setf (rot actor) (q:from-axis-angle (v! 1 0 0) (radians -90)))
-  )
-(defmethod update ((actor assimp-thing) dt)
-  (with-slots (scale rot pos) actor
-    (setf pos (v! (mod (mynow) 20)
-                  10;;(- (mod (* 2 (mynow)) 20))
-                  (+ +100 (- (mod (* 10 (mynow)) 120)))))
-    ;;(setf pos (v! 0 0 100))
-    (setf rot (q:*
-               (q:from-axis-angle
-                (v! 0 0 1)
-                (radians (* 20 (sin (* 1 (mynow))))))
-               (q:from-axis-angle
-                (v! 0 1 0)
-                (radians 180))))
-    ;; (setf rot (q:from-axis-angle
-    ;;            (v! .9 .8 1)
-    ;;            (radians (* 30 (sin (* .5 (mynow)))))))
-    (setf scale 1f0))
-  )
 
-(defmethod update ((actor assimp-thing-with-bones) dt)
-  (with-slots (scale rot pos) actor
-    (setf pos (v! 0 0 0))
-    ;; (setf rot (q:* (q:from-axis-angle (v! 0 1 0)
-    ;;                                   (radians -30))
-    ;;                (q:from-axis-angle (v! 1 0 0)
-    ;;                                   (radians -90))))
-    ;; (setf rot (q:from-axis-angle (v! 1 0 0)
-    ;;                              (radians -90)))
-    ;; (setf rot (q:* (q:from-axis-angle (v! 1 0 0) (radians 270))
-    ;;                (q:from-axis-angle (v! 0 1 0)
-    ;;                                   (radians (mod (* .1 (get-internal-real-time))
-    ;;                                                 360)))))
-    (setf rot (q:identity))
-    (setf scale 1f0)))
+

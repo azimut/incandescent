@@ -1,11 +1,10 @@
 (in-package #:incandescent)
 ;;--------------------------------------------------
 ;; Assimp - 3d object loader
+;;
 ;; TODO: support objets with no UVs, like low poly things
 ;; TODO: support more generic way to load that only returns the buffer
-;;
-;; Might be a I can just drop the bones with low weight
-;; instead of max limit
+
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
   "override this locally to change the albedo")
 (defvar *default-normal* "static/37.Paint01-1k/paint01_normal.jpg"
@@ -13,9 +12,6 @@
 (defvar *default-specular* "static/37.Paint01-1k/paint01_height.jpg"
   "override this locally to change the normal map")
 (defvar *max-bones-per-vertex* 4)
-(defvar *number-of-bones* 0)
-(defvar *assimp-meshes* NIL
-  "Set of actor type objects, you can free this ones")
 (defvar *assimp-buffers* (make-hash-table :test #'equal))
 
 ;; flip-u-vs:          needed to unwrap texture correctly
@@ -25,6 +21,20 @@
 (defvar *processing-flags* '(:ai-process-triangulate
                              :ai-process-flip-u-vs
                              :ai-process-calc-tangent-space))
+
+(defclass assimp-thing (actor)
+  ((albedo   :initarg :albedo)
+   (normals  :initarg :normals)
+   (specular :initarg :specular)
+   (scene    :initarg :scene)))
+(defclass assimp-thing-with-bones (actor)
+  ((albedo   :initarg :albedo)
+   (normals  :initarg :normals)
+   (specular :initarg :specular)
+   (scene    :initarg :scene)))
+
+(defmethod update ((actor assimp-thing) dt))
+(defmethod update ((actor assimp-thing-with-bones) dt))
 
 ;; UBO
 ;;--------------------------------------------------
@@ -36,19 +46,6 @@
 ;;   (transform (:mat4 35)))
 
 (defvar *chuesos* NIL)
-(defvar *mann*    NIL)
-
-(defun init-assimp ()
-  (when *chuesos* (free *chuesos*))
-  ;; avoid loading something we are currently rendering
-  (setf *actors* NIL)
-  (let ((obj (asdf:system-relative-pathname
-              :incandescent
-              "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35.obj"))
-        (*default-normal* "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_N.png")
-        (*default-specular* "static/EOT_PC_VEHICLE_F35/EOT_PC_VEHICLE_F35_Body_S.png"))
-    (assimp-load-meshes obj)
-    (setf *mann* (ai:import-into-lisp obj))))
 
 ;; NOTE: see how assimp-mesh structure is similar to a "g-pnt + tb-data" one
 (defstruct-g assimp-mesh
@@ -116,10 +113,6 @@
      (free (car (car (buffer-stream-gpu-arrays buffer)))))
    *assimp-buffers*)
   (clrhash *assimp-buffers*))
-
-(defun free-meshes ()
-  (mapcar #'free *assimp-meshes*)
-  (setf *assimp-meshes* NIL))
 
 ;;--------------------------------------------------
 
@@ -547,11 +540,13 @@ for value and node name for the key")
            (if instantiate-p
                (ecase type
                  (:textured (make-instance 'assimp-thing
+                                           :scene scene
                                            :buf buf :albedo albedo :normals normals
                                            :specular specular
                                            :scale scale
                                            :pos pos :rot rot))
                  (:bones    (make-instance 'assimp-thing-with-bones
+                                           :scene scene
                                            :buf buf :albedo albedo :normals normals
                                            :specular specular
                                            :scale scale
@@ -559,7 +554,8 @@ for value and node name for the key")
                (list buf
                      albedo
                      normals
-                     specular))))))
+                     specular
+                     scene))))))
 
 ;;--------------------------------------------------
 ;; Draw
@@ -768,7 +764,6 @@ for value and node name for the key")
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
-
 
 (defpipeline-g assimp-tex-pipe-simple ()
   :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
