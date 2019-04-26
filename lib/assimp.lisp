@@ -275,7 +275,9 @@ for value and node name for the key")
   (:method ((scene ai:scene) (node-type (eql :animated)) &key frame time)
     (let* ((animation        (aref (ai:animations scene) *default-animation*))
            (duration         (ai:duration animation))
+           ;; NOTE: animation-index is a hash lookup table for BONE>NODE-ANIMATION
            (animation-index  (ai:index animation))
+           ;; NOTE: temporal lookup table for bones *thinking emoji*
            (nodes-transforms (make-hash-table :test #'equal)))
       (declare (type hash-table animation-index))
       (labels
@@ -286,11 +288,23 @@ for value and node name for the key")
                           (transform ai:transform)
                           (children  ai:children))
                  node
+               ;; FIXME: see below mess
                (let* ((node-anim (gethash name animation-index))
-                      (time-transform (when node-anim
-                                        (if frame
-                                            (get-frame-transform node-anim frame)
-                                            (get-time-transform  node-anim (mod time duration)))))
+                      (time-transform
+                       (when node-anim
+                         (if (length= (ai:position-keys node-anim)
+                                      (ai:rotation-keys node-anim)
+                                      1)
+                             (m4-n:*
+                              (m4:translation
+                               (ai:value
+                                (aref (ai:position-keys node-anim) 0)))
+                              (q:to-mat4
+                               (ai:value
+                                (aref (ai:rotation-keys node-anim) 0))))
+                             (if frame
+                                 (get-frame-transform node-anim frame)
+                                 (get-time-transform  node-anim (mod time duration))))))
                       (transform (if time-transform
                                      time-transform
                                      (m4:transpose transform)))
