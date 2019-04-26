@@ -4,6 +4,8 @@
 ;;
 ;; TODO: support objets with no UVs, like low poly things
 ;; TODO: support more generic way to load that only returns the buffer
+;; FIX: scale for mesh with bones
+;; FIX: c-array for bones leaking memory on restart
 
 (defvar *default-animation* 0 "default animation index")
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
@@ -229,7 +231,7 @@
     (m4-n:*
      (m4:translation (ai:value (aref pos-keys frame)))
      (q:to-mat4      (ai:value (aref rot-keys frame)))
-     (m4:scale (v3! 1.6))
+     ;;(m4:scale (v3! 1.6))
      ;;(m4:scale (ai:value (aref sca-keys 0)))
      )))
 
@@ -284,13 +286,13 @@ for value and node name for the key")
                           (transform ai:transform)
                           (children  ai:children))
                  node
-               (let* ((anim (gethash name animation-index))
-                      (arot (when anim
-                              (if frame
-                                  (get-frame-transform anim frame)
-                                  (get-time-transform  anim (mod time duration)))))
-                      (transform (if arot
-                                     arot
+               (let* ((node-anim (gethash name animation-index))
+                      (time-transform (when node-anim
+                                        (if frame
+                                            (get-frame-transform node-anim frame)
+                                            (get-time-transform  node-anim (mod time duration)))))
+                      (transform (if time-transform
+                                     time-transform
                                      (m4:transpose transform)))
                       (global (m4:* parent-transform
                                     transform)))
@@ -551,7 +553,9 @@ for value and node name for the key")
           (when (eq :bones type)
             (make-c-array
              (coerce
-              (get-bones-tranforms scene :time 0f0)
+              ;; NOTE: init using the first transform in the animation, for those that only have 1
+              ;; frame of "animation"
+              (get-bones-tranforms scene :frame 0)
               'list) :element-type :mat4))))
     ;; add things upto we find an error, if any
     (loop
@@ -639,15 +643,6 @@ for value and node name for the key")
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         ;; (world-pos (* (+ (* (aref (assimp-bones-weights bones) 0)
-         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 0))))
-         ;;                  (* (aref (assimp-bones-weights bones) 1)
-         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 1))))
-         ;;                  (* (aref (assimp-bones-weights bones) 2)
-         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 2))))
-         ;;                  (* (aref (assimp-bones-weights bones) 3)
-         ;;                     (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
-         ;;               (v! pos 1)))
          ;;(world-pos (* model-world world-pos))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
@@ -681,24 +676,25 @@ for value and node name for the key")
                                  (view-clip :mat4)
                                  (scale :float)
                                  ;;
-                                 (offsets (:mat4 23))
+                                 (offsets (:mat4 113))
                                  ;; Parallax vars
                                  (light-pos :vec3)
                                  (cam-pos :vec3))
-  (let* ((pos      ;; (* scale)
-          (pos vert))
+  (let* ((pos       (pos vert))
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* (* (aref (assimp-bones-weights bones) 0)
+         (world-pos (* (m4:scale (v3! scale)) ;; HACKS!!!
+                       model-world
+                       (* (aref (assimp-bones-weights bones) 0)
                           (aref offsets (int (aref (assimp-bones-ids bones) 0))))
                        ;; (* (aref (assimp-bones-weights bones) 1)
                        ;;    (aref offsets (int (aref (assimp-bones-ids bones) 1))))
                        ;; (* (aref (assimp-bones-weights bones) 2)
                        ;;    (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+                       ;; (* (aref (assimp-bones-weights bones) 3)
+                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 3))))
                        (v! pos 1)))
-         ;; (* (aref (assimp-bones-weights bones) 3)
-         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 3))))
          ;;(world-pos (* model-world world-pos))
          ;;(world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view world-pos))
