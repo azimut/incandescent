@@ -2,6 +2,7 @@
 
 ;; TODO: this kind of limits usage...
 ;; TODO: for music it would be nice to have a weighted or boolean gated graph (? so i could see add more "generative" music sequences
+;; TODO: heap, cycle additionally to random pick
 
 (defvar *sfx* nil "sfx mixer copy")
 (defvar *audio-sources* (make-hash-table :test #'equal)
@@ -144,16 +145,18 @@
   (find-if-not #'harmony:paused-p
                (cl-mixed:sources (harmony-simple:segment mixer))))
 
-(defun %play-sound (name)
-  (declare (type symbol name))
+;; Stop a sound by passing NIL to loop-p
+(defun %play-sound (name &optional loop-p)
+  (declare (type symbol name) (type boolean loop-p))
   (assert (keywordp name))
   (with-slots (sources volume) (gethash name *audio-sounds*)
-    (let* ((l (length sources))
-           (r (random l))
-           (s (nth r sources)))
-      (setf (harmony-simple:volume s) (- volume (random .1)))
+    ;; pick a random source from the list of them
+    (let ((s (alexandria:random-elt sources)))
+      (setf (harmony-simple:looping-p s) loop-p)
+      (setf (harmony-simple:volume s) (- volume (random .02)))
       (harmony-simple:resume s))))
 
+;; this seems kind of pointless now
 (defun play-sound (&rest names)
   "Plays one or more AUDIO-SOUNDS
   > (play-sound :footsteps :cloth :chains)"
@@ -171,7 +174,7 @@
           (harmony:seek source (harmony:sample-position sync-to)))
         (harmony-simple:resume source)))))
 
-(let ((stepper (make-stepper (seconds 1) (seconds 1))))
+(let ((stepper (make-stepper (seconds .1) (seconds .1))))
   (defun update-audio ()
     "runs on main loop to update 3D audio positions"
     (when (funcall stepper)
