@@ -5,6 +5,7 @@
 ;; TODO: support objets with no UVs, like low poly things
 ;; TODO: support more generic way to load that only returns the buffer
 
+(defvar *default-animation* 0 "default animation index")
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
   "override this locally to change the albedo")
 (defvar *default-normal* "static/37.Paint01-1k/paint01_normal.jpg"
@@ -15,7 +16,7 @@
 (defvar *assimp-buffers* (make-hash-table :test #'equal))
 
 ;; flip-u-vs:          needed to unwrap texture correctly
-;; gen-smooth-normals: needed for meshes without normals
+;; gen-smooth-normals: ONLY needed for meshes without normals
 ;; triangulate:        use it ALWAYS
 ;; calc-tangent-space: generates arc/bi tan from normals
 (defvar *processing-flags* '(:ai-process-triangulate
@@ -27,14 +28,25 @@
    (normals  :initarg :normals)
    (specular :initarg :specular)
    (scene    :initarg :scene)))
+
 (defclass assimp-thing-with-bones (actor)
   ((albedo   :initarg :albedo)
    (normals  :initarg :normals)
    (specular :initarg :specular)
-   (scene    :initarg :scene)))
+   (scene    :initarg :scene)
+   (bones    :initarg :bones
+             :documentation "c-array of mat4s, of transforms for each bone in the whole scene")))
 
 (defmethod update ((actor assimp-thing) dt))
-(defmethod update ((actor assimp-thing-with-bones) dt))
+
+(let ((time 0f0)
+      (frame 0)
+      (step (make-stepper (seconds .05) (seconds .05))))
+  (defmethod update ((actor assimp-thing-with-bones) dt)
+    (with-slots (scene bones) actor
+      (when (funcall step)
+        (push-g (get-bones-tranforms scene :time time) bones)
+        (incf time .1)))))
 
 ;; UBO
 ;;--------------------------------------------------
@@ -66,7 +78,7 @@
   (bones-weights :vec4 :accessor weights))
 
 (defstruct-g assimp-bones
-  (ids :vec4)
+  (ids     :vec4)
   (weights :vec4))
 
 ;;--------------------------------------------------
@@ -115,6 +127,7 @@
   (clrhash *assimp-buffers*))
 
 ;;--------------------------------------------------
+;; Bones loader
 
 (defun list-bones (scene)
   "returns a plain list with all the bones in SCENE, helper for the REPL"
@@ -162,6 +175,7 @@
     v-to-bones))
 
 ;;--------------------------------------------------
+;; Bone animation helpers
 
 (defun find-index (etime positions)
   "returns the index position matching the current ETIME"
@@ -170,7 +184,7 @@
   (let ((pos (position-if (lambda (p) (< etime (slot-value p 'time)))
                           positions)))
     (if pos
-        pos
+        (max 0 (1- pos))
         0)))
 
 (defun calc-interpolated-position (etime positions)
@@ -202,13 +216,13 @@
                (qinterp (q:lerp start end (coerce factor 'single-float))))
           (q:normalize qinterp))))))
 
-(defun get-frame-transform (animation frame)
+(defun get-frame-transform (node-animation frame)
   "returns a matrix"
-  (declare (type ai::node-animation animation))
+  (declare (type ai::node-animation node-animation))
   (with-slots ((pos-keys ai::position-keys)
                (rot-keys ai::rotation-keys)
                (sca-keys ai::scaling-keys))
-      animation
+      node-animation
     ;; reset frame position
     (setf frame (mod frame (length rot-keys)))
     ;; Calculate tranform matrix based on time
@@ -219,20 +233,20 @@
      ;;(m4:scale (ai:value (aref sca-keys 0)))
      )))
 
-(defun get-time-transform (animation time)
+(defun get-time-transform (node-animation time)
   "calculate the tansform matrix based on time
 returns a matrix"
-  (declare (type ai::node-animation animation))
+  (declare (type ai::node-animation node-animation))
   (with-slots ((pos-keys ai::position-keys)
                (rot-keys ai::rotation-keys)
                (sca-keys ai::scaling-keys))
-      animation
-    (let* ((irot (calc-interpolated-rotation time rot-keys))
-           (ipos (calc-interpolated-position time pos-keys)))
+      node-animation
+    (let ((irot (calc-interpolated-rotation time rot-keys))
+          (ipos (calc-interpolated-position time pos-keys)))
       (m4-n:*
        (m4:translation ipos)
        (q:to-mat4 irot)
-       (m4:scale (v3! 1.6))
+       ;;(m4:scale (v3! .9f0))
        ;;(m4:scale (ai:value (aref sca-keys 0)))
        ))))
 
@@ -257,7 +271,8 @@ for value and node name for the key")
         (walk-node (ai:root-node scene) (m4:identity)))
       nodes-transforms))
   (:method ((scene ai:scene) (node-type (eql :animated)) &key frame time)
-    (let* ((animation        (aref (ai:animations scene) 0))
+    (let* ((animation        (aref (ai:animations scene) *default-animation*))
+           (duration         (ai:duration animation))
            (animation-index  (ai:index animation))
            (nodes-transforms (make-hash-table :test #'equal)))
       (declare (type hash-table animation-index))
@@ -273,7 +288,7 @@ for value and node name for the key")
                       (arot (when anim
                               (if frame
                                   (get-frame-transform anim frame)
-                                  (get-time-transform  anim time))))
+                                  (get-time-transform  anim (mod time duration)))))
                       (transform (if arot
                                      arot
                                      (m4:transpose transform)))
@@ -294,18 +309,18 @@ for value and node name for the key")
   (let* ((root-offset      (m4:transpose (ai:transform (ai:root-node scene))))
          (root-offset      (m4:inverse root-offset))
          (unique-bones     (list-bones-unique scene))
-         (node-type        (print (if (emptyp (ai:animations scene))
-                                      :static
-                                      :animated)))
-         ;; (valid            (assert (or (eq :static node-type)
-         ;;                               (or frame-p time-p))))
-         ;; (nodes-transforms
-         ;;  (if (print frame-p)
-         ;;      (get-nodes-transforms scene node-type
-         ;;                            :frame frame)
-         ;;      (get-nodes-transforms scene node-type
-         ;;                            :time time)))
-         (nodes-transforms (get-nodes-transforms scene :static))
+         (node-type        (if (emptyp (ai:animations scene))
+                               :static
+                               :animated))
+         (valid            (assert (or (eq :static node-type)
+                                       (or frame-p time-p))))
+         (nodes-transforms
+          (if frame-p
+              (get-nodes-transforms scene node-type
+                                    :frame frame)
+              (get-nodes-transforms scene node-type
+                                    :time time)))
+         ;;(nodes-transforms (get-nodes-transforms scene :static))
          (bones-transforms (make-array (length unique-bones))))
     (loop
        :for bone :in unique-bones
@@ -324,8 +339,7 @@ for value and node name for the key")
                              node-transform)
                        (m4:* root-offset
                              node-transform
-                             (m4:transpose offset)))
-                   ))))
+                             (m4:transpose offset)))))))
     bones-transforms))
 
 ;;--------------------------------------------------
@@ -412,6 +426,8 @@ for value and node name for the key")
         (alexandria:lastcar
          (cl-ppcre:split "\\" filepath))
         filepath)))
+
+;;--------------------------------------------------
 
 (defgeneric assimp-mesh-to-stream (mesh scene file type))
 (defmethod assimp-mesh-to-stream (mesh scene file (type (eql :textured)))
@@ -521,13 +537,22 @@ for value and node name for the key")
   (let ((bones     (list-bones scene)))
     (if (emptyp bones) :textured :bones)))
 
+;;--------------------------------------------------
+
 (defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)) (instantiate-p t))
   "returns a list of actor classes, instances ready to be render"
   (declare (type single-float scale))
   (let* ((path      (resolve-path file))
          (scene     (assimp-safe-import-into-lisp path))
          (type      (assimp-get-type scene))
-         (meshes    (slot-value scene 'ai:meshes)))
+         (meshes    (slot-value scene 'ai:meshes))
+         ;; FIXME
+         (bone-transforms
+          (when (eq :bones type)
+            (make-c-array
+             (coerce
+              (get-bones-tranforms scene :time 0f0)
+              'list) :element-type :mat4))))
     ;; add things upto we find an error, if any
     (loop
        :for mesh :across meshes
@@ -546,6 +571,7 @@ for value and node name for the key")
                                            :scale scale
                                            :pos pos :rot rot))
                  (:bones    (make-instance 'assimp-thing-with-bones
+                                           :bones bone-transforms
                                            :scene scene
                                            :buf buf :albedo albedo :normals normals
                                            :specular specular
@@ -580,14 +606,14 @@ for value and node name for the key")
 (defmethod draw ((actor assimp-thing-with-bones)
                  camera
                  (time single-float))
-  (with-slots (buf albedo normals scale) actor
+  (with-slots (buf albedo normals scale bones) actor
     (map-g #'assimp-tex-pipe-bones buf
            :scale scale
            ;; Lighting
            :model-world (model->world actor)
            :world-view (world->view camera)
            :view-clip  (projection camera)
-           :offsets *chuesos*
+           :offsets bones
            ;; PBR
            :albedo albedo
            :normals normals)))
@@ -655,25 +681,26 @@ for value and node name for the key")
                                  (view-clip :mat4)
                                  (scale :float)
                                  ;;
-                                 (offsets (:mat4 26))
+                                 (offsets (:mat4 23))
                                  ;; Parallax vars
                                  (light-pos :vec3)
                                  (cam-pos :vec3))
-  (let* ((pos       (* scale (pos vert)))
+  (let* ((pos      ;; (* scale)
+          (pos vert))
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         ;; (world-pos (* (* (aref (assimp-bones-weights bones) 0)
-         ;;                  (aref offsets (int (aref (assimp-bones-ids bones) 0))))
-         ;;               (v! pos 1)))
-         ;; (* (aref (assimp-bones-weights bones) 1)
-         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 1))))
-         ;; (* (aref (assimp-bones-weights bones) 2)
-         ;;    (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+         (world-pos (* (* (aref (assimp-bones-weights bones) 0)
+                          (aref offsets (int (aref (assimp-bones-ids bones) 0))))
+                       ;; (* (aref (assimp-bones-weights bones) 1)
+                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 1))))
+                       ;; (* (aref (assimp-bones-weights bones) 2)
+                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 2))))
+                       (v! pos 1)))
          ;; (* (aref (assimp-bones-weights bones) 3)
          ;;    (aref offsets (int (aref (assimp-bones-ids bones) 3))))
          ;;(world-pos (* model-world world-pos))
-         (world-pos (* model-world (v! pos 1)))
+         ;;(world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view world-pos))
          (clip-pos  (* view-clip  view-pos))
          (t0 (normalize
