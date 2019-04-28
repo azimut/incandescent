@@ -33,8 +33,15 @@
   (make-instance 'orth
                  :rot (q:from-axis-angle (v! 1 0 0)
                                          (radians -90))))
+
 (defparameter *cameras* (list *camera* *camera1*))
 (defparameter *currentcamera* *camera*)
+
+(defun distance-to-camera (pos distance)
+  (declare (type rtg-math.types:vec3 pos)
+           (type number distance))
+  (< (v3:length (v3:- pos (pos *camera*)))
+     distance))
 
 (defun reset-camera (&optional (camera *camera*) (pos (v! 0 0 0)))
   (declare (type rtg-math.types:vec3)
@@ -121,6 +128,10 @@
     (format T "Shot status: ~a~%" n-shot)
     (format T "Shots: ~a~%" shots)))
 
+(defun shot-pop ()
+  (with-slots (shots) *currentcamera*
+    (vector-pop (aref shots 0))))
+
 (defun shot-add (time &optional (camera *currentcamera*) (shot 0))
   "use this to add the current POS/ROT frame into the SHOT"
   (declare (type unsigned-byte shot))
@@ -139,13 +150,14 @@
               (rotation     (second element)))
     (with-slots (pos rot) camera
       (setf pos position)
-      (setf rot rotation))))
+      (setf rot rotation))
+    frame))
 
 (defun shot-clear (&optional (camera *currentcamera*))
   "REMOVE all shots"
   (with-slots (shots n-shot) camera
     (setf n-shot NIL)
-    (setf (fill-pointer (aref shots 0)) 0)))
+    (setf shots (vect (vect)))))
 
 (defmethod animate ((camera camera))
   "actually animate the thing"
