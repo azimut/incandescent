@@ -1,42 +1,15 @@
 (in-package :incandescent)
 
-;; @baggers code from discord
-(in-package :%cepl.types)
-(defun make-buffer-stream-from-id (vao-gl-object
-                                   length
-                                   &key
-                                     index-type
-                                     (start 0)
-                                     (primitive :triangles))
-  "NOTE: If the vao has an index buffer then length MUST be the length of
-         the index, not the number of primatives."
-  (assert (and (numberp length) (>= length 0)))
-  (assert (and (numberp vao-gl-object) (>= vao-gl-object 0)))
-  (assert (or (null index-type)
-              (find index-type #(:ushort :uint))))
-  (let* ((stream-obj (make-raw-buffer-stream :primitive primitive)))
-    (setf (buffer-stream-start stream-obj) start
-          (buffer-stream-length stream-obj) length
-          (buffer-stream-managed stream-obj) nil
-          (buffer-stream-vao stream-obj) vao-gl-object
-          (buffer-stream-index-type stream-obj) index-type)
-    stream-obj))
-
-(in-package :incandescent)
-
-;; @baggers code from:
-;; https://gist.github.com/cbaggers/63929b2897de41c47ef687ec0fccbb81
-
-(defvar *font-blending*
-  (make-blending-params :source-alpha :one-minus-src-alpha))
+(defvar *font-blending* (make-blending-params :source-alpha :one-minus-src-alpha))
 (defvar *font* nil)
-(defvar *font-sample* nil)
-(defvar *default-font* #p"/home/sendai/Downloads/scpcb-master/GFX/font/courbd/Courier New.ttf")
-(defvar *default-charset* "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ .!?")
+(defvar *text* nil)
+(defvar *default-font*
+  #p"/home/sendai/Downloads/scpcb-master/GFX/font/courbd/Courier New.ttf")
+(defvar *default-charset*
+  "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ .!?")
 
 (defclass text ()
-  ((bs   :initarg :bs)
-   (pos  :initarg :pos :documentation "2D screen position"
+  ((pos  :initarg :pos :documentation "2D screen position"
          :accessor pos)
    (text :initarg :text))
   (:default-initargs
@@ -44,10 +17,10 @@
 
 (defun make-text (&optional (string "hello!") (pos (v! 0 0)))
   (declare (type string string) (type rtg-math.types:vec2 pos))
+  (cepl.fond:update-fond-text *text* string)
   (let ((obj (make-instance 'text
                             :text string
-                            :pos pos
-                            :bs (compute-text-stream string))))
+                            :pos pos)))
     (push obj *actors*)
     obj))
 
@@ -56,27 +29,14 @@
 (defun init-text (&key (font *default-font*) (charset *default-charset*))
   (declare (type pathname font) (type string charset))
   (unless *font*
-    (setf *font*        (cl-fond:make-font font charset))
-    (setf *font-sample* (sample
-                         (make-texture-from-id (cl-fond:texture *font*)
-                                               :base-dimensions '(? ?)
-                                               :element-type :rgba8))))
+    (setf *font* (cepl.fond:make-fond-font font charset))
+    (setf *text* (cepl.fond:make-fond-text *font* "...")))
   nil)
 
 ;;--------------------------------------------------
-;; (defun maybe-this (text)
-;;   (multiple-value-bind (vao-id count)
-;;       (cl-fond:compute-text *font* "Heyo.")
-;;     (make-buffer-stream-from-id vao-id count :index-type :uint)))
 
 (defmethod update ((actor text) dt)
   (setf (pos actor) (v! -50 120)))
-
-(defun compute-text-stream (string)
-  (multiple-value-bind (vao num-of-elements)
-      (cl-fond:compute-text *font* string)
-    (%cepl.types::make-buffer-stream-from-id
-     vao num-of-elements :index-type :uint)))
 
 (defmethod draw ((actor text) camera time)
   (with-blending *font-blending*
@@ -85,10 +45,11 @@
                  (cull-face) nil
                  ;;(depth-test-function) #'never
                  )
-      (with-slots (bs pos) actor
-        (map-g #'fondness bs
+      (with-slots (pos) actor
+        (map-g #'fondness (cepl.fond::fond-text-stream *text*)
                :extent (v! pos 638f0 384f0)
-               :tex-image *font-sample*
+               :tex-image (cepl.fond::fond-font-sampler
+                           (cepl.fond::fond-text-font *text*))
                :text-color (v! 1 1 1 1))))))
 
 ;;--------------------------------------------------
