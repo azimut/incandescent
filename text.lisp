@@ -11,18 +11,28 @@
 (defclass text ()
   ((pos  :initarg :pos :documentation "2D screen position"
          :accessor pos)
-   (text :initarg :text))
+   (text :initarg :text :accessor text))
   (:default-initargs
    :pos (v! 0 0)))
 
 (defun make-text (&optional (string "hello!") (pos (v! 0 0)))
   (declare (type string string) (type rtg-math.types:vec2 pos))
-  (cepl.fond:update-fond-text *text* string)
-  (let ((obj (make-instance 'text
-                            :text string
-                            :pos pos)))
-    (push obj *actors*)
-    obj))
+  (let ((current (find-actor-class 'text)))
+    (if current
+        (progn
+          (setf (text current) string)
+          (setf (pos current)  pos)
+          (cepl.fond:update-fond-text *text* string)
+          current)
+        (let ((obj (make-instance 'text :text string :pos pos)))
+          (push obj *actors*)
+          obj))))
+
+(defun kill-text ()
+  (setf *actors*
+        (remove (find-actor-class 'text)
+                *actors*))
+  NIL)
 
 ;;--------------------------------------------------
 
