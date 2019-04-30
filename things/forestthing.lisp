@@ -28,7 +28,7 @@
        (time init)
        (step (make-stepper (seconds .5) (seconds .5))))
   (defmethod update ((actor monster) dt)
-    (with-slots (scene bones pos duration lerp) actor
+    (with-slots (scene rot bones pos duration lerp) actor
       ;;
       (when (funcall step)
         (setf (harmony:input-location
@@ -39,10 +39,12 @@
       ;;
       (if (> lerp 1)
           (setf *actors* (remove actor *actors*))
-          (setf pos (v! -100 0 (lerp -150f0 -800f0 lerp))))
-      (incf lerp .001)
+          (setf pos (v! (lerp -100f0 100f0 lerp) 0 (lerp -150f0 -400f0 lerp))))
+      (incf lerp .002)
       (push-g (get-bones-tranforms scene :time time)
               bones)
+      (setf rot (q:* (q:from-axis-angle (v! 1 0 0) (radians 90))
+                     (q:from-axis-angle (v! 0 0 1) (radians 45))))
       ;; loop
       (if (> time duration)
           (setf time init)
