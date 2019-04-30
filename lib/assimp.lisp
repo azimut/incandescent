@@ -4,8 +4,8 @@
 ;;
 ;; TODO: support objets with no UVs, like low poly things
 ;; TODO: support more generic way to load that only returns the buffer
-;; FIX: scale for mesh with bones
-;; FIX: c-array for bones leaking memory on restart
+;; TODO: c-array for bones leaking memory on restart
+;; TODO: fix the animation loop so it does it automatically...might be with a helper, is really manual now
 
 (defvar *default-animation* 0 "default animation index")
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
@@ -40,15 +40,7 @@
              :documentation "c-array of mat4s, of transforms for each bone in the whole scene")))
 
 (defmethod update ((actor assimp-thing) dt))
-
-(let ((time 0f0)
-      (frame 0)
-      (step (make-stepper (seconds .05) (seconds .05))))
-  (defmethod update ((actor assimp-thing-with-bones) dt)
-    (with-slots (scene bones) actor
-      (when (funcall step)
-        (push-g (get-bones-tranforms scene :time time) bones)
-        (incf time .1)))))
+(defmethod update ((actor assimp-thing-with-bones) dt))
 
 ;; UBO
 ;;--------------------------------------------------
@@ -58,8 +50,6 @@
 
 ;; (defstruct-g bone-transforms
 ;;   (transform (:mat4 35)))
-
-(defvar *chuesos* NIL)
 
 ;; NOTE: see how assimp-mesh structure is similar to a "g-pnt + tb-data" one
 (defstruct-g assimp-mesh
@@ -192,7 +182,8 @@
 (defun calc-interpolated-position (etime positions)
   "returns a vec3"
   (declare (type vector positions))
-  (if (< etime (slot-value (aref positions 0) 'time))
+  (if (or (< etime (slot-value (aref positions 0) 'time))
+          (length= 1 positions))
       (ai:value (aref positions 0))
       (let* ((index       (find-index etime positions))
              (next-index  (1+ index))
@@ -209,7 +200,8 @@
 (defun calc-interpolated-rotation (etime rotations)
   "returns a quaternion"
   (declare (type vector rotations))
-  (if (< etime (slot-value (aref rotations 0) 'time))
+  (if (or (< etime (slot-value (aref rotations 0) 'time))
+          (length= 1 rotations))
       (ai:value (aref rotations 0))
       (let* ((index       (find-index etime rotations))
              (next-index  (1+ index))
@@ -295,19 +287,10 @@ for value and node name for the key")
                (let* ((node-anim (gethash name animation-index))
                       (time-transform
                        (when node-anim
-                         (if (length= (ai:position-keys node-anim)
-                                      (ai:rotation-keys node-anim)
-                                      1)
-                             (m4-n:*
-                              (m4:translation
-                               (ai:value
-                                (aref (ai:position-keys node-anim) 0)))
-                              (q:to-mat4
-                               (ai:value
-                                (aref (ai:rotation-keys node-anim) 0))))
-                             (if frame
-                                 (get-frame-transform node-anim frame)
-                                 (get-time-transform  node-anim (mod time duration))))))
+                         (if frame
+                             (get-frame-transform node-anim frame)
+                             (get-time-transform  node-anim (mod time duration)
+                                                  ))))
                       (final-transform (if time-transform
                                            time-transform
                                            (m4:transpose transform)))
@@ -553,58 +536,65 @@ for value and node name for the key")
                            (ai:meshes scene))))
     scene))
 
-(defun assimp-get-type (scene)
-  (declare (type ai:scene scene))
-  (let ((bones     (list-bones scene)))
+(defgeneric assimp-get-type (obj))
+(defmethod assimp-get-type ((obj ai:scene))
+  (let ((bones (list-bones obj)))
+    (if (emptyp bones) :textured :bones)))
+(defmethod assimp-get-type ((obj ai:mesh))
+  (let ((bones (ai:bones obj)))
     (if (emptyp bones) :textured :bones)))
 
 ;;--------------------------------------------------
-
+;; FIXME: see below mess
 (defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)) (instantiate-p t))
   "returns a list of actor classes, instances ready to be render"
   (declare (type single-float scale))
-  (let* ((path      (resolve-path file))
-         (scene     (assimp-safe-import-into-lisp path))
-         (type      (assimp-get-type scene))
-         (meshes    (slot-value scene 'ai:meshes))
-         ;; FIXME
-         (bone-transforms
-          (when (eq :bones type)
-            (make-c-array
-             (coerce
-              ;; NOTE: init using the first transform in the animation, for those that only have 1
-              ;; frame of "animation"
-              (get-bones-tranforms scene :frame 0)
-              'list) :element-type :mat4))))
-    ;; add things upto we find an error, if any
+  (let* ((path   (resolve-path file))
+         (scene  (assimp-safe-import-into-lisp path))
+         (meshes (slot-value scene 'ai:meshes)))
     (loop
        :for mesh :across meshes
        ;; NOTE: Drop meshes with not UVs, afaik they are placeholders
        ;;       and can ruin the load or rendering
        :when (not (emptyp (ai:texture-coords mesh)))
        :collect
-         (multiple-value-bind (buf albedo normals specular)
-             (assimp-mesh-to-stream mesh scene path type)
-           (if instantiate-p
-               (ecase type
-                 (:textured (make-instance 'assimp-thing
-                                           :scene scene
-                                           :buf buf :albedo albedo :normals normals
-                                           :specular specular
-                                           :scale scale
-                                           :pos pos :rot rot))
-                 (:bones    (make-instance 'assimp-thing-with-bones
-                                           :bones bone-transforms
-                                           :scene scene
-                                           :buf buf :albedo albedo :normals normals
-                                           :specular specular
-                                           :scale scale
-                                           :pos pos :rot rot)))
-               (list buf
-                     albedo
-                     normals
-                     specular
-                     scene))))))
+       ;; NOTE: We delay the type check because there could be meshes
+       ;; without bones and meshes with on the same scene.
+         (let ((type (assimp-get-type mesh)))
+           (multiple-value-bind (buf albedo normals specular)
+               (assimp-mesh-to-stream mesh scene path type)
+             (if instantiate-p
+                 (ecase type
+                   (:textured (make-instance 'assimp-thing
+                                             :scene scene
+                                             :buf buf :albedo albedo :normals normals
+                                             :specular specular
+                                             :scale scale
+                                             :pos pos :rot rot))
+                   (:bones
+                    (make-instance 'assimp-thing-with-bones
+                                   :duration (if (not (emptyp (ai:animations scene)))
+                                                 (coerce
+                                                  (ai:duration
+                                                   (aref (ai:animations scene) 0))
+                                                  'single-float)
+                                                 0f0)
+                                   :bones (make-c-array
+                                           (coerce
+                                            ;; NOTE: init using the first transform in the animation, for those that only have 1
+                                            ;; frame of "animation"
+                                            (get-bones-tranforms scene :frame 0)
+                                            'list) :element-type :mat4)
+                                   :scene scene
+                                   :buf buf :albedo albedo :normals normals
+                                   :specular specular
+                                   :scale scale
+                                   :pos pos :rot rot)))
+                 (list buf
+                       albedo
+                       normals
+                       specular
+                       scene)))))))
 
 ;;--------------------------------------------------
 ;; Draw
@@ -695,7 +685,7 @@ for value and node name for the key")
                                  (view-clip :mat4)
                                  (scale :float)
                                  ;;
-                                 (offsets (:mat4 41)) ;; FIXME
+                                 (offsets (:mat4 100)) ;; FIXME
                                  ;; Parallax vars
                                  (light-pos :vec3)
                                  (cam-pos :vec3))
