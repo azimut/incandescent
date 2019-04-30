@@ -6,8 +6,14 @@
    (rot    :initarg :rot   :accessor rot)
    (near   :initarg :near  :accessor near)
    (far    :initarg :far   :accessor far)
-   (shots  :initarg :shots :accessor shots)
-   (n-shot :initarg :n-shot)
+   (shots  :initarg :shots :accessor shots
+           :documentation "vector of shots, which are vectors of frames")
+   (n-shot :initarg :n-shot
+           :documentation "number of shots")
+   (atime  :initarg :atime
+           :documentation "current animation time")
+   (aspeed :initarg :aspeed
+           :documentation "animation speed")
    (frame-size :initarg :frame-size
                :accessor frame-size))
   (:default-initargs
@@ -18,6 +24,8 @@
    :far 400f0
    :frame-size nil
    :n-shot nil
+   :atime 0f0
+   :aspeed 1f0
    :shots (vect (vect))))
 
 (defclass orth (camera) ())
@@ -116,9 +124,15 @@
 ;; ANIMATION
 ;;--------------------------------------------------
 
+(defun shot-on (&optional (camera *currentcamera*))
+  (with-slots (n-shot atime) camera
+    (setf atime 0f0)
+    (setf n-shot 0)))
+
 (defun shot-toggle (&optional (camera *currentcamera*))
   "enable/disable animation play"
-  (with-slots (n-shot) camera
+  (with-slots (n-shot atime) camera
+    (setf atime 0f0)
     (if (numberp n-shot)
         (setf n-shot NIL)
         (setf n-shot 0))))
@@ -160,26 +174,35 @@
     (setf shots (vect (vect)))))
 
 (defmethod animate ((camera camera))
-  "actually animate the thing"
+  "actually animate the thing
+   FIXME: DOMO ARIGATO"
   (when-let* ((n-shot   (slot-value camera 'n-shot))
               (shot     (aref (shots camera) n-shot))
               (n-frames (fill-pointer shot))
               (enough-p (>= n-frames 2))
+              ;;
               (max-time (- (third
                             (aref shot (1- n-frames)))
-                           .1))
-              (now      (* (mynow)))
-              (time     (fmod now max-time))
+                           .01))
+              ;;(now      (* (slot-value camera 'aspeed) (mynow))) ;; FIXME
+              ;;(time     (mod now max-time))
+              (animp (< (slot-value camera 'atime) max-time))
+              (time  (min max-time
+                          (incf (slot-value camera 'atime)
+                                (* (slot-value camera 'aspeed)
+                                   .01))))
+              ;;
               (ipos     (1- (position-if
                              (lambda (x) (< time (third x)))
                              shot)))
               (index    (if ipos
                             ipos
                             0))
+              ;;
               (c-time   (third (aref shot index)))
               (n-time   (third (aref shot (1+ index))))
-              (dt       (- n-time c-time))
-              (lerp     (/ (- time c-time) dt)))
+              (lerp     (/ (-   time c-time)
+                           (- n-time c-time))))
     (setf (rot camera)
           (q:lerp (second (aref shot index))
                   (second (aref shot (1+ index)))
