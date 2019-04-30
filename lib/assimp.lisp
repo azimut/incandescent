@@ -37,7 +37,8 @@
    (specular :initarg :specular)
    (scene    :initarg :scene)
    (bones    :initarg :bones
-             :documentation "c-array of mat4s, of transforms for each bone in the whole scene")))
+             :documentation "c-array of mat4s, of transforms for each bone in the whole scene")
+   (duration :initform 0f0 :initarg :duration)))
 
 (defmethod update ((actor assimp-thing) dt))
 (defmethod update ((actor assimp-thing-with-bones) dt))
