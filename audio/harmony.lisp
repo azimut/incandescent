@@ -9,13 +9,16 @@
   "cache for MP3-SOURCES")
 (defvar *audio-sounds*  (make-hash-table)
   "lookup table of AUDIO-SOUND objects")
+(defvar *default-max-distance* 1000f0
+  "max distance we can hear something on default sfx mixer.
+   NOTE: harmony default is 100K")
 
 (deftype mixer () '(member :sfx :music))
 
-(defclass audio-sound (actor)
-  ((name     :initarg :name)
-   (sources  :initarg :sources :documentation "list of MP3-SOURCES")
-   (volume   :initarg :volume))
+(defclass audio-sound ()
+  ((name         :initarg :name)
+   (sources      :initarg :sources :documentation "list of MP3-SOURCES")
+   (volume       :initarg :volume))
   (:default-initargs
    :name (error "missing name")
    :sources '()
@@ -43,9 +46,10 @@
   (unless (harmony-simple:started-p harmony-simple:*server*)
     (prog1 (harmony-simple:initialize
             :output-spec '(harmony-pulse:pulse-drain))
-      (setf *sfx* (harmony-simple:segment :sfx)))))
+      (setf *sfx* (harmony-simple:segment :sfx))))
+  (setf (harmony:max-distance *sfx*) *default-max-distance*))
 
-(defun %load-source (name path mixer loop-p)
+(defun %load-source (name path mixer)
   (declare (type symbol name) (type string path) (type mixer mixer))
   (let* ((absolutep (uiop:absolute-pathname-p path))
          (path      (if absolutep
@@ -55,25 +59,26 @@
         (setf (gethash path *audio-sources*)
               (harmony-simple:play (uiop:ensure-pathname path) mixer
                                    :name name
-                                   :paused T
-                                   :loop loop-p)))))
+                                   :paused T)))))
 
 (defun %init-source (source &rest initargs)
-  "sets parameters to source that cannot be set on play directly"
+  "sets parameters to source that cannot be set on harmony:play directly"
   (declare (type harmony-mp3:mp3-source source))
-  (when (harmony-simple:paused-p source)
-    (destructuring-bind (&key volume fade-to fade-time) initargs
-      (when volume
-        (setf (harmony-simple:volume source) volume))
-      (when (and fade-to fade-time)
-        (harmony-simple:fade source fade-to fade-time))))
+  ;;(when (harmony-simple:paused-p source))
+  (destructuring-bind (&key volume fade-to fade-time) initargs
+    (when volume
+      (setf (harmony-simple:volume source) volume))
+    (when (and fade-to fade-time)
+      (harmony-simple:fade source fade-to fade-time)))
   source)
 
 (defun load-sfx (name path &rest initargs)
-  (apply #'%init-source (%load-source name path :sfx NIL) initargs))
+  "loads and cache a mp3 file in PATH into SFX mixer"
+  (apply #'%init-source (%load-source name path :sfx) initargs))
 
 (defun load-music (name path &rest initargs)
-  (apply #'%init-source (%load-source name path :music T) initargs))
+  "laods and cache a mp3 file in PATH into MUSIC mixer"
+  (apply #'%init-source (%load-source name path :music) initargs))
 
 ;; TODO: positional
 (defun make-sound (name volume &rest paths)
@@ -114,6 +119,7 @@
 ;;--------------------------------------------------
 ;; Runtime code
 
+;; HACKS!
 (defmethod flow:check-connection-accepted progn (new-connection (port flow:port)))
 (in-package :harmony-simple)
 (defmethod make-pipeline ((server default-server))
@@ -135,6 +141,7 @@
     (setf (volume master) 0.8)
     (setf (volume sfx) 0.8)
     pipeline))
+;; HACKS END HERE ... sorta
 
 (in-package :incandescent)
 (defmethod harmony:paused-p ((server fixnum)) T)
@@ -145,24 +152,39 @@
   (find-if-not #'harmony:paused-p
                (cl-mixed:sources (harmony-simple:segment mixer))))
 
+;;--------------------------------------------------
+
 ;; Stop a sound by passing NIL to loop-p
-(defun %play-sound (name &optional loop-p)
+(defgeneric play-sound (name &key loop-p pause-p))
+(defmethod play-sound ((name harmony:source) &key loop-p pause-p)
+  (setf (harmony-simple:looping-p name) loop-p)
+  (if pause-p
+      (harmony-simple:pause name)
+      (harmony-simple:resume name)))
+(defmethod play-sound ((name audio-sound) &key loop-p pause-p)
+  (with-slots (sources volume) name
+    (let ((s (if (listp sources)
+                 (alexandria:random-elt sources)
+                 sources)))
+      (setf (harmony-simple:looping-p s) loop-p)
+      (setf (harmony-simple:volume s) (- volume (random .02)))
+      (if pause-p
+          (harmony-simple:pause s)
+          (harmony-simple:resume s)))))
+(defmethod play-sound ((name symbol) &key loop-p pause-p)
   (declare (type symbol name) (type boolean loop-p))
   (assert (keywordp name))
   (with-slots (sources volume) (gethash name *audio-sounds*)
-    ;; pick a random source from the list of them
     (let ((s (alexandria:random-elt sources)))
       (setf (harmony-simple:looping-p s) loop-p)
       (setf (harmony-simple:volume s) (- volume (random .02)))
-      (harmony-simple:resume s))))
+      (if pause-p
+          (harmony-simple:pause s)
+          (harmony-simple:resume s)))))
 
-;; this seems kind of pointless now
-(defun play-sound (&rest names)
-  "Plays one or more AUDIO-SOUNDS
-  > (play-sound :footsteps :cloth :chains)"
-  (map NIL #'%play-sound names))
-
-(defun play-music (name)
+;;--------------------------------------------------
+(defgeneric play-music (name))
+(defmethod play-music ((name symbol))
   (declare (type symbol name))
   (let ((sound    (gethash name *audio-sounds*))
         (sync-to  (playing-p :music)))
@@ -174,7 +196,9 @@
           (harmony:seek source (harmony:sample-position sync-to)))
         (harmony-simple:resume source)))))
 
-(let ((stepper (make-stepper (seconds .1) (seconds .1))))
+;;--------------------------------------------------
+
+(let ((stepper (make-stepper (seconds .05) (seconds .05))))
   (defun update-audio ()
     "runs on main loop to update 3D audio positions"
     (when (funcall stepper)
@@ -182,13 +206,14 @@
       (setf (harmony-simple:location  *sfx*) (pos *camera*))
       (setf (harmony-simple:direction *sfx*) (q:to-direction (rot *camera*)))
       ;; Objects position update
-      (map 'vector
-           (lambda (mp3)
-             (when-let ((playing (not (harmony-simple:paused-p mp3)))
-                        (mp3name (harmony:name mp3)))
-               (setf (harmony:input-location mp3 *sfx*)
-                     (pos (gethash mp3name *audio-sounds*)))))
-           (cl-mixed:sources *sfx*)))
+      ;; (map 'vector
+      ;;      (lambda (mp3)
+      ;;        (when-let ((playing (not (harmony-simple:paused-p mp3)))
+      ;;                   (mp3name (harmony:name mp3)))
+      ;;          (setf (harmony:input-location mp3 *sfx*)
+      ;;                (pos (gethash mp3name *audio-sounds*)))))
+      ;;      (cl-mixed:sources *sfx*))
+      )
     NIL))
 
 ;;--------------------------------------------------
@@ -198,13 +223,13 @@
   (defun test-stop-music ()
     (setf state (not state))
     (setf (harmony:looping-p
-           (load-sfx :curso201 "static/tarea201-mono.mp3"))
+           (load-music :curso201 "static/tarea201-mono.mp3"))
           state)
     (setf (harmony:looping-p
-           (load-sfx :curso202 "static/tarea202-mono.mp3"))
+           (load-music :curso202 "static/tarea202-mono.mp3"))
           state)
     (setf (harmony:looping-p
-           (load-sfx :curso203 "static/tarea203-mono.mp3"))
+           (load-music :curso203 "static/tarea203-mono.mp3"))
           state)))
 
 (defun test-music ()
@@ -214,9 +239,16 @@
 
 (defun test-sound ()
   (make-sound
+   :generator .1
+   "/home/sendai/Downloads/scpcb-master/SFX/General/GeneratorOn.ogg.mp3")
+  (make-sound
    :footsteps .2
+   ;; "static/StepForest1.ogg.mp3"
+   ;; "static/StepForest2.ogg.mp3"
+   ;; "static/StepForest3.ogg.mp3"
    "static/421131__giocosound__footstep-grass-1.mp3"
    "static/421130__giocosound__footstep-grass-2.mp3"
    "static/421129__giocosound__footstep-grass-3.mp3"
    "static/421128__giocosound__footstep-grass-4.mp3"
-   "static/421135__giocosound__footstep-grass-5.mp3"))
+   ;;"static/421135__giocosound__footstep-grass-5.mp3"
+   ))
