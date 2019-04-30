@@ -2,12 +2,9 @@
 
 ;; Camera and Actors(TODO) keyboard controls
 
-(defvar *vec3-right*   (v!  1  0  0))
-(defvar *vec3-left*    (v! -1  0  0))
-(defvar *vec3-up*      (v!  0  1  0))
-(defvar *vec3-down*    (v!  0 -1  0))
-(defvar *vec3-forward* (v!  0  0  1))
-(defvar *vec3-back*    (v!  0  0 -1))
+(defparameter *crawl* (make-stepper (seconds .8) (seconds .8)))
+(defparameter *walk*  (make-stepper (seconds .7) (seconds .7)))
+(defparameter *run*   (make-stepper (seconds .5) (seconds .5)))
 
 (defun cam-spin (ang)
   (with-slots (rot) *camera*
