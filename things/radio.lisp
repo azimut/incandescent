@@ -16,7 +16,7 @@
                   :pos pos :rot rot
                   :scale .04
                   :buf buf
-                  :volume .2
+                  :volume .1
                   :pickup (load-sfx :pickradio "static/PickItem1.mp3")
                   :sources (list
                             (load-sfx :radio "static/RadioHelp1-short.mp3")

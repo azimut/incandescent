@@ -3,8 +3,7 @@
 (defvar *font-blending* (make-blending-params :source-alpha :one-minus-src-alpha))
 (defvar *font* nil)
 (defvar *text* nil)
-(defvar *default-font*
-  #p"/home/sendai/Downloads/scpcb-master/GFX/font/courbd/Courier New.ttf")
+(defvar *default-font* (resolve-path "static/Courier New.ttf"))
 (defvar *default-charset*
   "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ .!?")
 
