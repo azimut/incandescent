@@ -1,0 +1,16 @@
+# Blender MTL File: 'grass-share.blend'
+# Material Count: 1
+
+newmtl grass_patch_d-alpha
+Ns 96.078431
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 0.000000
+illum 2
+map_Kd grass_patch_d.png
+map_Bump grass_patch_n.png
+map_Ks grass_patch_s.png
+map_d grass_patch_d.png
