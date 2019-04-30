@@ -1,6 +1,6 @@
 # incandescent (renderman)
 
-2019 April Lisp Game Jam entry. Want it to be something based on, "Slender", [I remember this dream](https://gamejolt.com/games/i-remember-this-dream/79304) and [Fariwalk](https://aihasto.itch.io/fariwalk-the-past). But alas the tools weren't there so you got a 30sec walking simulator.
+2019 April Lisp Game Jam entry. Want it to be something based on, "Slender", [I remember this dream](https://gamejolt.com/games/i-remember-this-dream/79304) and [Fariwalk](https://aihasto.itch.io/fariwalk-the-past). But alas my brain wasn't there so you got a 5sec walking simulator.
 
 NOTE: lots of code here is not necessary for renderman, I just salvage another repo for this.
 
