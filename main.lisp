@@ -10,16 +10,6 @@
 (defparameter *dimensions* '(683 384))
 (defvar *p3* nil)
 
-(defun to-sphere (pos radius)
-  (declare (type rtg-math.types:vec3 pos)
-           (type single-float radius))
-  (let ((lon (radians )))))
-
-(defun move-thing ()
-  (let ((newpos (v! (+ -5 (random 10f0)) 0 (+ -5 (random 10f0)))))
-    (setf (pos (find-actor-class 'box))
-          newpos)))
-
 (defun init ()
   (setf *dimensions-v2* (v! *dimensions*))
   ;;--------------------------------------------------
@@ -81,7 +71,7 @@
              :ai-process-calc-tangent-space)))
       (mapcar (lambda (mesh) (push mesh *actors*))
               (assimp-load-meshes
-               "/home/sendai/Downloads/assets/tre/Tree/tree_obj.obj"
+               "static/tree/tree_obj.obj"
                :scale (serapeum:random-in-range .1 .25)
                :pos (v! (serapeum:random-in-range -100f0 100f0)
                         0
@@ -95,7 +85,7 @@
     (mapcar (lambda (mesh) (push mesh *actors*))
             (cdr
              (assimp-load-meshes
-              "/home/sendai/Downloads/scpcb-master/GFX/173box.b3d"
+              "static/173box/173box.b3d"
               :pos (v! 0 -5 30)
               :rot (q:from-axis-angle (v! 0 1 0) (radians 270))
               :scale 1f0))))
