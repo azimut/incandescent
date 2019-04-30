@@ -16,17 +16,20 @@
    :pos (v! 0 0)))
 
 (defun make-text (&optional (string "hello!") (pos (v! 0 0)))
-  (declare (type string string) (type rtg-math.types:vec2 pos))
-  (let ((current (find-actor-class 'text)))
-    (if current
-        (progn
-          (setf (text current) string)
-          (setf (pos current)  pos)
-          (cepl.fond:update-fond-text *text* string)
-          current)
-        (let ((obj (make-instance 'text :text string :pos pos)))
-          (push obj *actors*)
-          obj))))
+  (declare (type (or null string) string) (type rtg-math.types:vec2 pos))
+  (if (null string)
+      (kill-text)
+      (let ((current (find-actor-class 'text)))
+        (if current
+            (progn
+              (setf (text current) string)
+              (setf (pos current)  pos)
+              (cepl.fond:update-fond-text *text* string)
+              current)
+            (let ((obj (make-instance 'text :text string :pos pos)))
+              (cepl.fond:update-fond-text *text* string)
+              (push obj *actors*)
+              obj)))))
 
 (defun kill-text ()
   (setf *actors*
