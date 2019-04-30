@@ -6,12 +6,13 @@ NOTE: lots of code here is not necessary for renderman, I just salvage another r
 
 ## Controls
 
+```
 WASD   - for displacement
 QE     - for tilting
 arrows - for rotations
 shift  - for running
 ctrl   - for slow walking
-
+```
 ... yeah no mouse support
 
 ## Dep not on quicklisp

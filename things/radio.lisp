@@ -16,11 +16,11 @@
                   :pos pos :rot rot
                   :scale .04
                   :buf buf
-                  :volume .1
+                  :volume .5
                   :pickup (load-sfx :pickradio "static/PickItem1.mp3")
                   :sources (list
-                            (load-sfx :radio "static/RadioHelp1-short.mp3")
-                            (load-sfx :radio "static/RadioHelp2.mp3"))
+                            (load-sfx :radio "static/RadioHelp1-short.mp3" :volume .5)
+                            (load-sfx :radio "static/RadioHelp2.mp3" :volume .5))
                   :albedo albedo :normals normals :specular specular
                   :scene scene)))
         (push obj *actors*)
