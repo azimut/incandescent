@@ -178,6 +178,9 @@
 
 (defvar *samplers* (make-hash-table :test #'equal)
   "GPU objects loaded")
+(defun list-samplers ()
+  (alexandria:maphash-keys #'print *samplers*))
+
 (defun free-all-tex ()
   (maphash-values (lambda (s) (free (sampler-texture s)))
                   *samplers*)
