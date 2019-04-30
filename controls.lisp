@@ -21,6 +21,37 @@
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle *vec3-right* ang))))))
 
+(defun walk-sound (factor)
+  (declare (type fixnum factor))
+  (when (or (key-down-p key.w)
+            (key-down-p key.a)
+            (key-down-p key.s)
+            (key-down-p key.d))
+    (let ((campos (pos *camera*))
+          (s      (alexandria:random-elt
+                   (slot-value
+                    (gethash :footsteps *audio-sounds*)
+                    'sources)))) ;; FIXME!
+      ;; NOTE: negative Y on sound position workaround an audio glitch where
+      ;;       sound played on 1 channel at times
+      (ecase factor
+        (5  (and (funcall *crawl*)
+                 (setf (harmony:input-location s *sfx*)
+                       (v! (x campos) -10 (z campos)))
+                 (harmony-simple:resume s)))
+        (10  (and (funcall *walk*)
+                  (setf (harmony:input-location s *sfx*)
+                        (v! (x campos) -10 (z campos)))
+                  (harmony-simple:resume s)))
+        (20 (and (funcall *run*)
+                 (setf (harmony:input-location s *sfx*)
+                       (v! (x campos) -10 (z campos)))
+                 (harmony-simple:resume s)))
+        ;; (20 (and (funcall *crawl*)
+        ;;          (setf (harmony:input-location (play-sound :footsteps) *sfx*)
+        ;;                (pos *camera*))))
+        ))))
+
 (defun god-move (factor dt camera)
   "absolute movement"
   (declare (type fixnum factor)
@@ -100,17 +131,19 @@
 
 (defmethod control ((camera camera) dt)
   "free camera controls"
-  (let ((factor 20))
+  (let ((factor 10))
     ;; MODIFIERS
     ;; - run
     (when (keyboard-button (keyboard) key.lshift)
-      (setf factor 30))
+      (setf factor 20))
     ;; - stealth
     (when (keyboard-button (keyboard) key.lctrl)
       (setf factor 5))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; MOVEMENT
+    ;;(human-move factor dt camera)
     (human-move factor dt camera)
+    (walk-sound factor)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
     ;; SPIN
     (when (key-down-p key.q)

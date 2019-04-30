@@ -8,7 +8,7 @@
 (defvar *pointlight-pos* (v! 0 0 0))
 
 (defparameter *light-pos* (v! -2000 1000 0))
-(defparameter *light-color* (v! .2 .2 .4))
+(defparameter *light-color* (v! 0.78823537 0.8862746 1.0))
 (defparameter *parallax-scale* .01f0)
 
 (defclass actor ()
@@ -87,7 +87,7 @@
    (uv-speed  :initarg :uv-speed)
    (metallic  :initarg :metallic))
   (:default-initargs
-   :uv-repeat 1f0
+   :uv-repeat (v! 1 1)
    :uv-speed .1
    :metallic .1
    :albedo    (get-tex "static/32.Rock01-1k/rock01_albedo.jpg" NIL T :rgb8)
@@ -99,12 +99,13 @@
 (defclass pbr-shadow (pbr) ())
 
 (defclass piso (pbr-simple) ())
-(defun make-piso (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0))
+(defun make-piso (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0) (buf (lattice 100 100 2 2 t)) (uv-repeat (v! 1 1)))
   (let ((obj
          (make-instance
           'pbr
           :uv-speed 0f0
-          :buf (lattice 100 100 2 2 t)
+          :uv-repeat uv-repeat
+          :buf buf
           :pos pos
           :scale scale
           :rot rot)))

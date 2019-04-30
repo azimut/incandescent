@@ -145,6 +145,131 @@
                              specular))))
 
 ;;--------------------------------------------------
+;; Spotlight
+;;
+;; NOTE: cut-off and outer-cut-off are the result of: (cos (radians ANGLE))
+(defun-g spot-light-apply ((color :vec3)
+                           (light-color :vec3)
+                           (light-pos :vec3)
+                           (frag-pos :vec3)
+                           (normal :vec3)
+                           ;;
+                           (constant :float)
+                           (linear :float)
+                           (quadratic :float)
+                           ;;
+                           (cut-off :float)
+                           (outer-cut-off :float))
+  (let* ((light-dir   (normalize (- light-pos frag-pos)))
+         (diff        (saturate  (dot normal light-dir)))
+         ;; HDR distance, not squared
+         (distance    (length    (- light-pos frag-pos)))
+         (attenuation (/ 1 (+ constant
+                              (* linear distance)
+                              (* quadratic distance distance))))
+         ;;
+         (theta (dot light-dir (normalize (- (v! 0 -1 0)))))
+         (epsilon (- cut-off outer-cut-off))
+         (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1))
+         ;;
+         (ambient (* light-color .1))
+         (diffuse (* light-color diff)))
+    (* color attenuation intensity (+ ambient diffuse))))
+
+;;--------------------------------------------------
+;; Flashlight
+
+;; https://www.shadertoy.com/view/4slGz7
+(defun-g light-pulse ((e0 :float) (e1 :float) (x :float))
+  (- (step e0 x)
+     (step e1 x)))
+(defun-g light-flicker ((time :float))
+  (- 1 (+ (* (light-pulse .0 .4 (fract (* time .2)))
+             (light-pulse .4 .5 (fract (* time 6.0) ))
+             .3)
+          (light-pulse .1 .12 (fract (* time .12))))))
+
+(defun cl-step (edge x)
+  "For element i of the return value, 0.0 is returned if x[i] < edge[i], and 1.0 is returned otherwise."
+  (declare (type number edge x))
+  (if (< x edge)
+      0f0
+      1f0))
+
+(defun light-pulse (e0 e1 x)
+  (- (cl-step e0 x)
+     (cl-step e1 x)))
+(defun fract (x)
+  (mod x 1f0))
+(defun light-flicker (&optional (time (* .1 (get-internal-real-time))))
+  (- 1 (+ (* (light-pulse .0 .4 (fract (* time .2)))
+             (light-pulse .4 .5 (fract (* time 6.0) ))
+             .3)
+          (light-pulse .1 .12 (fract (* time .12))))))
+
+(defun-g flash-light-apply ((color :vec3)
+                            (light-color :vec3)
+                            (light-pos :vec3)
+                            (frag-pos :vec3)
+                            (normal :vec3)
+                            (cam-dir :vec3)
+                            ;;
+                            (constant :float)
+                            (linear :float)
+                            (quadratic :float)
+                            ;;
+                            (cut-off :float)
+                            (outer-cut-off :float))
+  (let* ((light-dir   (normalize (- light-pos frag-pos)))
+         (diff        (saturate  (dot normal light-dir)))
+         ;; HDR distance, not squared
+         (distance    (length    (- light-pos frag-pos)))
+         (attenuation (/ 1 (+ constant
+                              (* linear distance)
+                              (* quadratic distance distance))))
+         ;;
+         (theta     (dot light-dir (- cam-dir)))
+         (epsilon   (- cut-off outer-cut-off))
+         (intensity (saturate (/ (- theta outer-cut-off) epsilon)))
+         ;;
+         (ambient (* light-color .1))
+         (diffuse (* light-color diff)))
+    (* color attenuation intensity (+ ambient diffuse))))
+
+(defun-g flash-light-apply ((color :vec3)
+                            (light-color :vec3)
+                            (light-pos :vec3)
+                            (frag-pos :vec3)
+                            (normal :vec3)
+                            (cam-dir :vec3)
+                            ;;
+                            (constant :float)
+                            (linear :float)
+                            (quadratic :float)
+                            ;;
+                            (cut-off :float)
+                            (outer-cut-off :float)
+                            ;;
+                            (time :float))
+  (let* ((light-dir   (normalize (- light-pos frag-pos)))
+         (diff        (saturate  (dot normal light-dir)))
+         ;; HDR distance, not squared
+         (distance    (length    (- light-pos frag-pos)))
+         (attenuation (/ 1 (+ constant
+                              (* linear distance)
+                              (* quadratic distance distance))))
+         ;;
+         (theta     (dot light-dir (- cam-dir)))
+         (epsilon   (- cut-off outer-cut-off))
+         (intensity (saturate (/ (- theta outer-cut-off) epsilon)))
+         ;;
+         (ambient (* light-color .1))
+         (diffuse (* light-color diff))
+         ;;
+         (flicker (light-flicker (* .1 time))))
+    (* color attenuation intensity flicker (+ ambient diffuse))))
+
+;;--------------------------------------------------
 
 ;; Only lambert diffuse
 (defun-g dir-light-apply ((color :vec3)

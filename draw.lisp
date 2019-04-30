@@ -42,6 +42,7 @@
            :samd *samd*
            ;; Lighting
            :cam-pos (pos camera)
+           :cam-dir (q:to-direction (rot *camera*)) ;; flashlight
            :light-pos *light-pos*
            ;;
            :model-world (model->world actor)

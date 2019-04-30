@@ -125,23 +125,23 @@
   (with-slots (pos dir life) pdata
     (let* ((time (* time .2 (* 2f0 gl-vertex-id)))
            (life life)
-           (new-life (+ life .02))
+           (new-life (+ life .01))
            (dir dir)
            (pos pos)
            (r (rand (vec2 time))))
       (if (>= new-life 1f0)
           (progn ;; Reset
             (setf dir  (v! (* 360 r) ;; rot
-                           (+ 8 (* 5 r)) ;; scale
+                           (+ 7 (* 5 r)) ;; scale
                            0))
-            (setf life (* .5 r))
+            (setf life (* .4 r))
             (setf pos  (+ source
-                          (v! (+ -7.4 (* 15 (rand (vec2 (* 3 time)))))
-                              (+ -2.5 (* 5 (sin time)))
-                              (+ -2.5 (* 5 r))))))
+                          (v! (+ -9 (* 18 (rand (vec2 (* 3 time)))))
+                              (+ .5 r)
+                              (+ -25 (* 50 r))))))
           (progn ;; Update
             (setf life new-life)
-            (incf (z pos) -.3)))
+            (incf (z pos) -.005)))
       (values (v! 0 0 0 0)
               (:feedback pos)
               (:feedback dir)
@@ -152,7 +152,12 @@
 
 (defmethod update ((actor particles) dt)
   (with-slots (tfs-dst str-src source) actor
-    (setf source (v! 0 1 0))
+    ;; try placing things in front of camera, hacky
+    (let* ((dir  (q:to-direction (rot *camera*)))
+           (zdir (v! (x dir) 0 (z dir)))
+           (c (pos *camera*)))
+      (setf source (v3:+ (v3:*s zdir 5f0)
+                         (v! (x c) -5 (z c)))))
     (with-transform-feedback (tfs-dst)
       (map-g #'pupdate-pipe str-src
              :source source
@@ -217,15 +222,18 @@
                          (camera-pos :vec3)
                          (view-clip :mat4))
   (declare (output-primitive :kind :triangle-strip :max-vertices 4))
-  (let ((p (s~ (gl-position (aref gl-in 0)) :xyz)))
-    (when (and (< (aref life 0) .9f0)
-               (< (z p) -3))
+  (let ((life (aref life 0))
+        (p    (s~ (gl-position (aref gl-in 0)) :xyz)))
+    (when (< life 1f0)
       (let* ((to-camera (normalize (- camera-pos p)))
-             (up (v! 0 1 0))
+             (up    (v! 0 1 0))
              (right (cross to-camera up))
-             (life (aref life 0))
              (scale (y (aref rot 0))))
-        ;;
+        ;; try discard closer to the camera billboads
+        (let ((zp (v! (x p) 0 (z p)))
+              (zc (v! (x camera-pos) 0 (z camera-pos))))
+          (when (< (length (- zc zp)) 3)
+            (setf life .999f0)))
         (decf p (/ right (* scale 2)))
         (emit ()
               (* view-clip (v! p 1))
@@ -266,7 +274,8 @@
          (color (texture sam uv)))
     (v! (* ;;(s~ color :xyz)
          ;;(v! .18 .17843138 .1552941)
-         (v! 0.6392157 0.54901963 0.34509805)
+         ;;(v! 0.6392157 0.54901963 0.34509805)
+         (* 2 (v! .5 .6 .7))
          ;;(v! 0 -1 0)
          )
 	(* (- 1 life)

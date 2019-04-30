@@ -216,8 +216,16 @@
 ;; UPDATE
 ;;--------------------------------------------------
 (defgeneric update (camera dt))
-(defmethod update ((camera orth) dt))
+(defmethod update ((camera orth) dt)
+  (setf (slot-value camera 'frame-size) (v2! 3))
+  (setf (pos camera) (v! 0 0 10))
+  (setf (rot camera) (q:point-at *vec3-up* (pos camera) (v! 0 0 0))))
 (defmethod update ((camera pers) dt)
+  ;;(setf (slot-value camera 'aspeed) .6)
+  (with-slots (pos) camera
+    ;; no backwards
+    (setf (z pos) (min (z pos) 50f0))
+    (setf (x pos) (alexandria:clamp (x pos) -50f0 50f0)))
   ;;(setf (pos camera) (v! -20 90 485))
   ;;(setf (pos camera) (v! 120 30 50))
   ;;(setf (pos camera) (v! -4 -4 0))
@@ -240,3 +248,6 @@
   ;;       ;;(q:from-axis-angle (v! 0 0 1) (radians (* 20 (sin (* .1 (mynow))))))
   ;;       )
   )
+;; shots?
+
+

@@ -122,21 +122,11 @@
                    (light-pos :vec3)
                    (cam-pos :vec3)
                    (albedo :sampler-2d))
-  (let* ((light-pos *pointlight-pos*)
-         ;; ---------
-         (light-color (v! 1 1 1))
-         (light-strength 1f0)
-         ;;--------------------
-         (vec-to-light (- light-pos frag-pos))
-         (dir-to-light (normalize vec-to-light))
-         ;;--------------------
-         (color (expt (s~ (texture albedo (* 20 uv)) :xyz)
-                      (vec3 2.2)))
-         ;;--------------------
-         ;;(normal (normalize frag-norm))
-         ;;(nfm    (norm-from-map normap uv))
-         )
-    (v! color 1)))
+  (let* (
+         (color4 (texture albedo uv))
+         (color3 (expt (s~ color4 :xyz)
+                       (vec3 2.2))))
+    (v! color3 (w color4))))
 
 (defpipeline-g tex-pipe ()
   :vertex (vert g-pnt)
@@ -190,13 +180,15 @@
                    (tan-frag-pos :vec3)
                    &uniform
                    (samd :sampler-2d)
-                   (uv-repeat :float)
+                   (uv-repeat :vec2)
                    (uv-speed :float)
                    (time :float)
                    (color :vec3)
                    ;; Lighting
                    (light-pos :vec3)
                    (cam-pos :vec3)
+                   (cam-dir :vec3) ;; flashlight
+                   (shape :sampler-2d) ;; flashlight
                    ;; PBR
                    (metallic :float)
                    (albedo :sampler-2d)
@@ -209,8 +201,10 @@
                    (prefilter-map :sampler-cube)
                    (irradiance-map :sampler-cube))
   (let* (;; First change UV, then parallax!
-         (uv (+ (* uv uv-repeat)
-                (v! 0 (* uv-speed time))))
+         ;; (uv (+ (* uv uv-repeat)
+         ;;        (v! 0 (* uv-speed time))))
+         (uv (v! (* (x uv-repeat) (x uv))
+                 (* (y uv-repeat) (y uv))))
          (uv (parallax-mapping-offset-flipped
               uv
               (normalize (- tan-cam-pos tan-frag-pos))
@@ -274,7 +268,18 @@
          (env-brdf (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
          (specular (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
          (ambient (* (+ specular (* kd diffuse)) ao))
-         (final-color (+ ambient lo)))
+         (final-color (+ ambient lo))
+         ;; (final-color (flash-light-apply final-color
+         ;;                                 (* 4 (v! 1 1 1))
+         ;;                                 cam-pos
+         ;;                                 frag-pos
+         ;;                                 normal
+         ;;                                 cam-dir
+         ;;                                 1 .14 .07
+         ;;                                 (cos (radians 12.5))
+         ;;                                 (cos (radians 30f0))
+         ;;                                 time))
+         )
     (v! final-color 1)
     ;;(v! uv 0 1)
     ;;(v! color 1)

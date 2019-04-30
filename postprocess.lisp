@@ -14,15 +14,10 @@
                   (sam :sampler-2d)
                   (sam2 :sampler-2d)
                   (samd :sampler-2d))
-  (let* (;; (color (defered-fog
-         ;;            ;;(v! .5 .6 .7)
-         ;;            (v! .18 .17 .15)
-         ;;            uv
-         ;;          sam
-         ;;          samd))
-         (final-color (*   (s~ (texture sam uv) :xyz)
-                           ;;(s~ (texture sam2 uv) :xyz)
-                           ))
+  (let* ((final-color (defered-fog (v! .5 .6 .7) uv sam samd .03))
+         ;; (final-color (*   (s~ (texture sam uv) :xyz)
+         ;;                   ;;(s~ (texture sam2 uv) :xyz)
+         ;;                   ))
          ;; godrays
          ;; (final-color (+ (s~ (texture sam uv) :xyz)
          ;;                 (* (v! .2 .2 .6)

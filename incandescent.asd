@@ -154,9 +154,14 @@
   :license  "MIT"
   :version "0.0.1"
   :serial t
-  :depends-on (#:incandescent
+  :depends-on (#:harmony-simple ;; fixme: due controls.lisp
+               #:incandescent
                #:incandescent/audio
                #:incandescent/assimp
                #:incandescent/particles
                #:incandescent/text
-               #:incandescent/fog))
+               #:incandescent/fog)
+  :components ((:file "things/grass")
+               (:file "things/radio")
+               (:file "things/forestthing")
+               (:file "things/dirt")))
