@@ -91,6 +91,7 @@
               :scale 1f0))))
   (setf *exposure* 0f0)
   (make-radio)
+  (make-book (v! 0 0 -250))
   (reset-camera *camera* (v! 0 2 40))
   ;;
   (make-sound

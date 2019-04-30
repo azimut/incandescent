@@ -164,4 +164,5 @@
   :components ((:file "things/grass")
                (:file "things/radio")
                (:file "things/forestthing")
-               (:file "things/dirt")))
+               (:file "things/dirt")
+               (:file "things/book")))
