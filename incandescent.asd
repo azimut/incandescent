@@ -42,7 +42,9 @@
   :serial t
   :depends-on (#:incandescent
                #:classimp)
-  :components ((:file "lib/assimp")))
+  :components ((:file "lib/assimp/main")
+               (:file "lib/assimp/render")
+               (:file "lib/assimp/draw")))
 
 (asdf:defsystem #:incandescent/particles
   :description "Describe incandescent here"
