@@ -16,12 +16,12 @@
 (deftype mixer () '(member :sfx :music))
 
 (defclass audio-sound ()
-  ((name         :initarg :name)
-   (sources      :initarg :sources :documentation "list of MP3-SOURCES")
-   (volume       :initarg :volume))
+  ((name    :initarg :name)
+   (sources :initarg :sources :documentation "list of MP3-SOURCES")
+   (volume  :initarg :volume))
   (:default-initargs
-   :name (error "missing name")
    :sources '()
+   :name (gensym)
    :volume 1f0)
   (:documentation "pack of audio sources of the same type"))
 
@@ -32,9 +32,9 @@
    (fade-to   :initarg :fade-to   :documentation "volume target")
    (fade-time :initarg :fade-time :documentation "time in sec to fade"))
   (:default-initargs
-   :name (error "missing name")
    :sources '()
    :volume 1f0
+   :name (gensym)
    :fade-to 1f0
    :fade-time 1f0)
   (:documentation "pack of audio sources of the same type"))
@@ -49,13 +49,32 @@
     (setf (harmony:max-distance *sfx*) *default-max-distance*))
   T)
 
-(defun %load-source (name path mixer)
-  (declare (type symbol name) (type mixer mixer))
+;;--------------------------------------------------
+
+;; Update listener to match current camera
+(let ((stepper (make-stepper (seconds .05) (seconds .05))))
+  (defmethod update :after ((camera pers) dt)
+    (when (funcall stepper)
+      (setf (harmony-simple:location  *sfx*) (pos camera))
+      (setf (harmony-simple:direction *sfx*) (q:to-direction (rot camera))))))
+
+;; Update position of sound attached to an actor in *actors*
+(defmethod update :after ((actor audio-sound) dt)
+  (with-slots (sources pos) actor
+    (map 'vector
+         (lambda (mp3)
+           (unless (harmony:paused-p mp3)
+             (setf (harmony:input-location mp3 *sfx*)
+                   pos)))
+         sources)))
+;;--------------------------------------------------
+
+(defun %load-source (path mixer)
+  (declare (type mixer mixer))
   (let ((realpath (resolve-path path)))
     (or (gethash realpath *audio-sources*)
         (setf (gethash path *audio-sources*)
               (harmony-simple:play realpath mixer
-                                   :name name
                                    :paused T)))))
 
 (defun %init-source (source &rest initargs)
@@ -69,14 +88,15 @@
       (harmony-simple:fade source fade-to fade-time)))
   source)
 
-(defun load-sfx (name path &rest initargs)
+(defun load-sfx (path &rest initargs)
   "loads and cache a mp3 file in PATH into SFX mixer"
-  (apply #'%init-source (%load-source name path :sfx) initargs))
+  (apply #'%init-source (%load-source path :sfx) initargs))
 
-(defun load-music (name path &rest initargs)
+(defun load-music (path &rest initargs)
   "laods and cache a mp3 file in PATH into MUSIC mixer"
-  (apply #'%init-source (%load-source name path :music) initargs))
+  (apply #'%init-source (%load-source path :music) initargs))
 
+;;--------------------------------------------------
 ;; TODO: positional
 (defun make-sound (name volume &rest paths)
   (declare (type symbol name)
@@ -89,7 +109,7 @@
                        :volume volume
                        :sources (mapcar
                                  (lambda (path)
-                                   (load-sfx name path
+                                   (load-sfx path
                                              :volume volume))
                                  paths))))
 
@@ -143,7 +163,7 @@
 (in-package :incandescent)
 (defmethod harmony:paused-p ((server fixnum)) T)
 
-(defun playing-p (&optional (mixer :music))
+(defun now-playing (&optional (mixer :music))
   "returns the track currently playing on the MIXER or NIL"
   (declare (type mixer mixer))
   (find-if-not #'harmony:paused-p
@@ -152,17 +172,18 @@
 ;;--------------------------------------------------
 
 ;; Stop a sound by passing NIL to loop-p
-(defgeneric play-sound (name &key loop-p pause-p))
+(defgeneric play-sound (name &key))
 (defmethod play-sound ((name harmony:source) &key loop-p pause-p)
   (setf (harmony-simple:looping-p name) loop-p)
   (if pause-p
       (harmony-simple:pause name)
       (harmony-simple:resume name)))
-(defmethod play-sound ((name audio-sound) &key loop-p pause-p)
+(defmethod play-sound ((name audio-sound) &key loop-p pause-p seek-to)
+  (declare (type boolean loop-p pause-p) (type (or null fixnum) seek-to))
   (with-slots (sources volume) name
-    (let ((s (if (listp sources)
-                 (alexandria:random-elt sources)
-                 sources)))
+    (let ((s (alexandria:random-elt
+              (alexandria:ensure-list sources))))
+      (when seek-to (harmony:seek-to-sample s seek-to))
       (setf (harmony-simple:looping-p s) loop-p)
       (setf (harmony-simple:volume s) (- volume (random .02)))
       (if pause-p
@@ -185,7 +206,7 @@
 (defmethod play-music ((name symbol))
   (declare (type symbol name))
   (let ((sound    (gethash name *audio-sounds*))
-        (sync-to  (playing-p :music)))
+        (sync-to  (now-playing :music)))
     (declare (type (or null audio-music) sound)
              (type (or null harmony-mp3:mp3-source) sync-to))
     (with-slots (sources) sound
