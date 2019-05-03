@@ -44,20 +44,17 @@
 
 (defun init-audio ()
   (unless (harmony-simple:started-p harmony-simple:*server*)
-    (prog1 (harmony-simple:initialize
-            :output-spec '(harmony-pulse:pulse-drain))
-      (setf *sfx* (harmony-simple:segment :sfx))))
-  (setf (harmony:max-distance *sfx*) *default-max-distance*))
+    (harmony-simple:initialize :output-spec '(harmony-pulse:pulse-drain))
+    (setf *sfx* (harmony-simple:segment :sfx))
+    (setf (harmony:max-distance *sfx*) *default-max-distance*))
+  T)
 
 (defun %load-source (name path mixer)
-  (declare (type symbol name) (type string path) (type mixer mixer))
-  (let* ((absolutep (uiop:absolute-pathname-p path))
-         (path      (if absolutep
-                        path
-                        (asdf:system-relative-pathname :incandescent path))))
-    (or (gethash path *audio-sources*)
+  (declare (type symbol name) (type mixer mixer))
+  (let ((realpath (resolve-path path)))
+    (or (gethash realpath *audio-sources*)
         (setf (gethash path *audio-sources*)
-              (harmony-simple:play (uiop:ensure-pathname path) mixer
+              (harmony-simple:play realpath mixer
                                    :name name
                                    :paused T)))))
 
@@ -183,6 +180,7 @@
           (harmony-simple:resume s)))))
 
 ;;--------------------------------------------------
+
 (defgeneric play-music (name))
 (defmethod play-music ((name symbol))
   (declare (type symbol name))
