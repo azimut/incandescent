@@ -6,6 +6,7 @@
 ;; TODO: support more generic way to load that only returns the buffer
 ;; TODO: c-array for bones leaking memory on restart
 ;; TODO: fix the animation loop so it does it automatically...might be with a helper, is really manual now
+;; TODO: scale bone transform
 
 (defvar *default-animation* 0 "default animation index")
 (defvar *default-albedo* "static/37.Paint01-1k/paint01_albedo.jpg"
@@ -42,15 +43,6 @@
 
 (defmethod update ((actor assimp-thing) dt))
 (defmethod update ((actor assimp-thing-with-bones) dt))
-
-;; UBO
-;;--------------------------------------------------
-;; max HARDCODED bones length
-;; (defstruct-g (bone-transforms :layout :std-140)
-;;   (transform (:mat4 60)))
-
-;; (defstruct-g bone-transforms
-;;   (transform (:mat4 35)))
 
 ;; NOTE: see how assimp-mesh structure is similar to a "g-pnt + tb-data" one
 (defstruct-g assimp-mesh
@@ -146,25 +138,23 @@
            (type positive-fixnum n-vertices))
   (let ((unique-scene-bones (list-bones-unique scene))
         (v-to-bones (make-array n-vertices :initial-element NIL)))
-    (loop
-       :for bone :across mesh-bones
-       :for bone-id := (position (ai:name bone) unique-scene-bones
-                                 :test #'string=
-                                 :key  #'ai:name)
-       :do
-         (loop
-            :for weight :across (ai:weights bone)
-            :do
-              (with-slots ((v ai:id) (w ai:weight)) weight
-                (when (and (>= w .1) ;; discard bones with low influence
-                           (< (length (aref v-to-bones v))
-                              *max-bones-per-vertex*))
-                  (push (cons bone-id w)
-                        (aref v-to-bones v))
-                  ;; Sort descending by weights
-                  (setf (aref v-to-bones v)
-                        (sort (aref v-to-bones v) #'>
-                              :key #'cdr))))))
+    (loop :for bone :across mesh-bones
+          :for bone-id := (position (ai:name bone) unique-scene-bones
+                                    :test #'string=
+                                    :key  #'ai:name)
+          :do
+             (loop :for weight :across (ai:weights bone)
+                   :do
+                      (with-slots ((v ai:id) (w ai:weight)) weight
+                        (when (and (>= w .1) ;; discard bones with low influence
+                                   (< (length (aref v-to-bones v))
+                                      *max-bones-per-vertex*))
+                          (push (cons bone-id w)
+                                (aref v-to-bones v))
+                          ;; Sort descending by weights
+                          (setf (aref v-to-bones v)
+                                (sort (aref v-to-bones v) #'>
+                                      :key #'cdr))))))
     v-to-bones))
 
 ;;--------------------------------------------------
@@ -228,7 +218,6 @@
     (m4-n:*
      (m4:translation (ai:value (aref pos-keys frame)))
      (q:to-mat4      (ai:value (aref rot-keys frame)))
-     ;;(m4:scale (v3! 1.6))
      ;;(m4:scale (ai:value (aref sca-keys 0)))
      )))
 
@@ -245,14 +234,13 @@ returns a matrix"
       (m4-n:*
        (m4:translation ipos)
        (q:to-mat4 irot)
-       ;;(m4:scale (v3! .9f0))
        ;;(m4:scale (ai:value (aref sca-keys 0)))
        ))))
 
-(defgeneric get-nodes-transforms (scene node-type &key frame time)
+(defgeneric get-nodes-transforms (scene node-type &key)
   (:documentation "returns a hash of mat4's with each node transform
 for value and node name for the key")
-  (:method ((scene ai:scene) (node-type (eql :static)) &key frame time)
+  (:method ((scene ai:scene) (node-type (eql :static)) &key)
     (let ((nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
                  (declare (type ai:node node)
@@ -262,7 +250,7 @@ for value and node name for the key")
                               (children  ai:children))
                      node
                    (let ((global
-                          (m4:* parent-transform (m4:transpose transform))))
+                           (m4:* parent-transform (m4:transpose transform))))
                      (setf (gethash name nodes-transforms) global)
                      (map 'vector
                           (lambda (c) (walk-node c global))
@@ -287,11 +275,10 @@ for value and node name for the key")
                ;; FIXME: see below mess
                (let* ((node-anim (gethash name animation-index))
                       (time-transform
-                       (when node-anim
-                         (if frame
-                             (get-frame-transform node-anim frame)
-                             (get-time-transform  node-anim (mod time duration)
-                                                  ))))
+                        (when node-anim
+                          (if frame
+                              (get-frame-transform node-anim frame)
+                              (get-time-transform  node-anim (mod time duration)))))
                       (final-transform (if time-transform
                                            time-transform
                                            (m4:transpose transform)))
@@ -355,12 +342,11 @@ for value and node name for the key")
   (let* ((n-faces (* n-vertex 3))
          (i-array (make-gpu-array NIL :dimensions n-faces :element-type :ushort)))
     (with-gpu-array-as-c-array (c-arr i-array)
-      (loop
-         :for indices :across faces
-         :for i :from 0 :by 3
-         :do (setf (aref-c c-arr i)       (aref indices 0)
-                   (aref-c c-arr (+ i 1)) (aref indices 1)
-                   (aref-c c-arr (+ i 2)) (aref indices 2)))
+      (loop :for indices :across faces
+            :for i :from 0 :by 3
+            :do (setf (aref-c c-arr i)       (aref indices 0)
+                      (aref-c c-arr (+ i 1)) (aref indices 1)
+                      (aref-c c-arr (+ i 2)) (aref indices 2)))
       i-array)))
 
 (defun make-gpu-vertex-array (vertices normals tangents bitangents uvs &optional bones)
@@ -369,45 +355,43 @@ for value and node name for the key")
       (let* ((n-vertex (length vertices))
              (v-arr    (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-with-bones)))
         (with-gpu-array-as-c-array (c-arr v-arr)
-          (loop
-             :for v  :across vertices
-             :for n  :across normals
-             :for ta :across tangents
-             :for bt :across bitangents
-             :for tc :across uvs
-             :for bv :across bones ;; per vertex
-             :for i  :from 0
-             :for a  := (aref-c c-arr i)
-             :do
-               (setf (assimp-mesh-pos a) v
-                     (assimp-mesh-normal a) n
-                     (assimp-mesh-tangent a) ta
-                     (assimp-mesh-bitangent a) bt
-                     (assimp-mesh-uv a) (v! (x tc) (y tc)))
+          (loop :for v  :across vertices
+                :for n  :across normals
+                :for ta :across tangents
+                :for bt :across bitangents
+                :for tc :across uvs
+                :for bv :across bones ;; per vertex
+                :for i  :from 0
+                :for a  := (aref-c c-arr i)
+                :do
+                   (setf (assimp-mesh-pos a) v
+                         (assimp-mesh-normal a) n
+                         (assimp-mesh-tangent a) ta
+                         (assimp-mesh-bitangent a) bt
+                         (assimp-mesh-uv a) (v! (x tc) (y tc)))
 
-               (setf (ids a)
-                     (v! (serapeum:pad-end
-                          (map 'vector #'car bv) *max-bones-per-vertex* 0)))
-               (setf (weights a)
-                     (v! (serapeum:pad-end
-                          (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))
+                   (setf (ids a)
+                         (v! (serapeum:pad-end
+                              (map 'vector #'car bv) *max-bones-per-vertex* 0)))
+                   (setf (weights a)
+                         (v! (serapeum:pad-end
+                              (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))
           v-arr))
       (let* ((n-vertex (length vertices))
              (v-arr    (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-mesh)))
         (with-gpu-array-as-c-array (c-arr v-arr)
-          (loop
-             :for v  :across vertices
-             :for n  :across normals
-             :for ta :across tangents
-             :for bt :across bitangents
-             :for tc :across uvs
-             :for i  :from 0
-             :for a  := (aref-c c-arr i)
-             :do (setf (assimp-mesh-pos a) v
-                       (assimp-mesh-normal a) n
-                       (assimp-mesh-tangent a) ta
-                       (assimp-mesh-bitangent a) bt
-                       (assimp-mesh-uv a) (v! (x tc) (y tc))))
+          (loop :for v  :across vertices
+                :for n  :across normals
+                :for ta :across tangents
+                :for bt :across bitangents
+                :for tc :across uvs
+                :for i  :from 0
+                :for a  := (aref-c c-arr i)
+                :do (setf (assimp-mesh-pos a) v
+                          (assimp-mesh-normal a) n
+                          (assimp-mesh-tangent a) ta
+                          (assimp-mesh-bitangent a) bt
+                          (assimp-mesh-uv a) (v! (x tc) (y tc))))
           v-arr))))
 
 (defun make-buffer-stream-cached (file mesh-index vertices faces normals tangents bitangents uvs &optional bones)
@@ -553,262 +537,46 @@ for value and node name for the key")
   (let* ((path   (resolve-path file))
          (scene  (assimp-safe-import-into-lisp path))
          (meshes (slot-value scene 'ai:meshes)))
-    (loop
-       :for mesh :across meshes
-       ;; NOTE: Drop meshes with not UVs, afaik they are placeholders
-       ;;       and can ruin the load or rendering
-       :when (not (emptyp (ai:texture-coords mesh)))
-       :collect
-       ;; NOTE: We delay the type check because there could be meshes
-       ;; without bones and meshes with on the same scene.
-         (let ((type (assimp-get-type mesh)))
-           (multiple-value-bind (buf albedo normals specular)
-               (assimp-mesh-to-stream mesh scene path type)
-             (if instantiate-p
-                 (ecase type
-                   (:textured (make-instance 'assimp-thing
-                                             :scene scene
-                                             :buf buf :albedo albedo :normals normals
-                                             :specular specular
-                                             :scale scale
-                                             :pos pos :rot rot))
-                   (:bones
-                    (make-instance 'assimp-thing-with-bones
-                                   :duration (if (not (emptyp (ai:animations scene)))
-                                                 (coerce
-                                                  (ai:duration
-                                                   (aref (ai:animations scene) 0))
-                                                  'single-float)
-                                                 0f0)
-                                   :bones (make-c-array
-                                           (coerce
-                                            ;; NOTE: init using the first transform in the animation, for those that only have 1
-                                            ;; frame of "animation"
-                                            (get-bones-tranforms scene :frame 0)
-                                            'list) :element-type :mat4)
-                                   :scene scene
-                                   :buf buf :albedo albedo :normals normals
-                                   :specular specular
-                                   :scale scale
-                                   :pos pos :rot rot)))
-                 (list buf
-                       albedo
-                       normals
-                       specular
-                       scene)))))))
-
-;;--------------------------------------------------
-;; Draw
-;;--------------------------------------------------
-(defmethod draw ((actor assimp-thing)
-                 camera
-                 (time single-float))
-  (with-slots (buf albedo normals scale specular) actor
-    (map-g #'assimp-tex-pipe-simple buf
-           :scale scale
-           ;; Lighting
-           :model-world (model->world actor)
-           :world-view (world->view camera)
-           :view-clip  (projection camera)
-           ;; PBR
-           :cam-pos (pos camera)
-           :albedo albedo
-           :time time
-           :specular specular
-           :normals normals)))
-
-(defmethod draw ((actor assimp-thing-with-bones)
-                 camera
-                 (time single-float))
-  (with-slots (buf albedo normals scale bones) actor
-    (map-g #'assimp-tex-pipe-bones buf
-           :scale scale
-           ;; Lighting
-           :model-world (model->world actor)
-           :world-view (world->view camera)
-           :view-clip  (projection camera)
-           :offsets bones
-           ;; PBR
-           :albedo albedo
-           :normals normals)))
-
-;;--------------------------------------------------
-;; Renders
-;;--------------------------------------------------
-
-;; 3D - g-pnt with tangent info in tb-data AND textures
-(defun-g vert-with-tbdata ((vert g-pnt)
-                           (tb tb-data)
-                           (bones assimp-bones)
-                           &uniform
-                           (model-world :mat4)
-                           (world-view :mat4)
-                           (view-clip :mat4)
-                           (scale :float)
-                           (offsets (:mat4 36))
-                           ;; Parallax vars
-                           (light-pos :vec3)
-                           (cam-pos :vec3))
-  (let* ((pos       (* scale (pos vert)))
-         (norm      (norm vert))
-         (uv        (treat-uvs (tex vert)))
-         (norm      (* (m4:to-mat3 model-world) norm))
-         ;;(world-pos (* model-world world-pos))
-         (world-pos (* model-world (v! pos 1)))
-         (view-pos  (* world-view  world-pos))
-         (clip-pos  (* view-clip   view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
-         (tbn (mat3 t0 b0 n0)))
-    (values clip-pos
-            (treat-uvs uv)
-            norm
-            (s~ world-pos :xyz)
-            tbn
-            (* tbn light-pos)
-            (* tbn cam-pos)
-            (* tbn (s~ world-pos :xyz)))))
-
-;; https://github.com/cbaggers/cepl/issues/288
-(defun-g vert-with-tbdata-bones ((vert g-pnt)
-                                 (tb tb-data)
-                                 (bones assimp-bones)
-                                 ;;(vert g-pnt) (tb tb-data) (bones assimp-bones)
-                                 &uniform
-                                 (model-world :mat4)
-                                 (world-view :mat4)
-                                 (view-clip :mat4)
-                                 (scale :float)
-                                 ;;
-                                 (offsets (:mat4 100)) ;; FIXME
-                                 ;; Parallax vars
-                                 (light-pos :vec3)
-                                 (cam-pos :vec3))
-  (let* ((pos       (pos vert))
-         (norm      (norm vert))
-         (uv        (treat-uvs (tex vert)))
-         (norm      (* (m4:to-mat3 model-world) norm))
-         (world-pos (* (m4:scale (v3! scale)) ;; FIXME
-                       model-world
-                       (* (aref (assimp-bones-weights bones) 0)
-                          (aref offsets (int (aref (assimp-bones-ids bones) 0))))
-                       ;; (* (aref (assimp-bones-weights bones) 1)
-                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 1))))
-                       ;; (* (aref (assimp-bones-weights bones) 2)
-                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 2))))
-                       ;; (* (aref (assimp-bones-weights bones) 3)
-                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 3))))
-                       (v! pos 1)))
-         ;;(world-pos (* model-world world-pos))
-         ;;(world-pos (* model-world (v! pos 1)))
-         (view-pos  (* world-view world-pos))
-         (clip-pos  (* view-clip  view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
-         (tbn (mat3 t0 b0 n0)))
-    (values clip-pos
-            (treat-uvs uv)
-            norm
-            (s~ world-pos :xyz)
-            tbn
-            (* tbn light-pos)
-            (* tbn cam-pos)
-            (* tbn (s~ world-pos :xyz)))))
-
-
-;; no parallax
-(defun-g frag-tex-tbn ((uv :vec2)
-                       (frag-norm :vec3)
-                       (frag-pos :vec3)
-                       (tbn :mat3)
-                       (tan-light-pos :vec3)
-                       (tan-cam-pos :vec3)
-                       (tan-frag-pos :vec3)
-                       &uniform
-                       (cam-pos :vec3)
-                       (time :float)
-                       (albedo :sampler-2d)
-                       (normals :sampler-2d)
-                       (specular :sampler-2d))
-  (let* ((color (expt (s~ (texture albedo uv) :xyz)
-                      (vec3 2.2)))
-         (normal (norm-from-map normals uv))
-         (normal (normalize (* tbn normal)))
-         (color (dir-light-apply color
-                                 (v! 1 1 1)
-                                 (v! 100 1000 100)
-                                 frag-pos
-                                 normal)))
-    (values
-     (v! color 1)
-     ;;(v! 1 .2 1 0)
-     ;;frag-pos
-     (normalize frag-norm))))
-
-;; parallax
-;; (defun-g frag-tex-tbn ((uv :vec2)
-;;                        (frag-norm :vec3)
-;;                        (frag-pos :vec3)
-;;                        (tbn :mat3)
-;;                        (tan-light-pos :vec3)
-;;                        (tan-cam-pos :vec3)
-;;                        (tan-frag-pos :vec3)
-;;                        &uniform
-;;                        (cam-pos :vec3)
-;;                        (albedo :sampler-2d)
-;;                        (normap :sampler-2d)
-;;                        (height-map :sampler-2d))
-;;   (let* ((light-pos *pointlight-pos*)
-;;          ;; Parallax
-;;          (tan-cam-dir (- tan-cam-pos tan-frag-pos))
-;;          (newuv (parallax-mapping uv tan-cam-dir height-map .1))
-;;          ;; ---------
-;;          (light-color (v! 1 1 1))
-;;          (light-strength 1f0)
-;;          ;;--------------------
-;;          (vec-to-light (- light-pos frag-pos))
-;;          (dir-to-light (normalize vec-to-light))
-;;          ;;--------------------
-;;          (color (expt (s~ (texture albedo newuv) :xyz)
-;;                       (vec3 2.2)))
-;;          (normal (norm-from-map normap newuv))
-;;          (normal (normalize (* tbn normal))))
-;;     (values
-;;      (v! color 1)
-;;      ;; (v! 1 1 1 1)
-;;      ;;frag-pos
-;;      ;;(normalize frag-norm)
-;;      )))
-
-(defpipeline-g assimp-tex-pipe ()
-  :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
-  :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
-                          ;; Parallax
-                          :vec3 :vec3 :vec3))
-
-(defpipeline-g assimp-tex-pipe-simple ()
-  :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
-  :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
-                          ;; Parallax
-                          :vec3 :vec3 :vec3))
-
-(defpipeline-g assimp-tex-pipe-bones ()
-  :vertex (vert-with-tbdata-bones g-pnt tb-data assimp-bones)
-  :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
-                          ;; Parallax
-                          :vec3 :vec3 :vec3))
-
-;;--------------------------------------------------
+    (loop :for mesh :across meshes
+          ;; NOTE: Drop meshes with not UVs, afaik they are placeholders
+          ;;       and can ruin the load or rendering
+          :when (not (emptyp (ai:texture-coords mesh)))
+          :collect
+          ;; NOTE: We delay the type check because there could be meshes
+          ;; without bones and meshes with on the same scene.
+             (let ((type (assimp-get-type mesh)))
+               (multiple-value-bind (buf albedo normals specular)
+                   (assimp-mesh-to-stream mesh scene path type)
+                 (if instantiate-p
+                     (ecase type
+                       (:textured (make-instance 'assimp-thing
+                                                 :scene scene
+                                                 :buf buf :albedo albedo :normals normals
+                                                 :specular specular
+                                                 :scale scale
+                                                 :pos pos :rot rot))
+                       (:bones
+                        (make-instance 'assimp-thing-with-bones
+                                       :duration (if (not (emptyp (ai:animations scene)))
+                                                     (coerce
+                                                      (ai:duration
+                                                       (aref (ai:animations scene) 0))
+                                                      'single-float)
+                                                     0f0)
+                                       :bones (make-c-array
+                                               (coerce
+                                                ;; NOTE: init using the first transform in the animation, for those that only have 1
+                                                ;; frame of "animation"
+                                                (get-bones-tranforms scene :frame 0)
+                                                'list) :element-type :mat4)
+                                       :scene scene
+                                       :buf buf :albedo albedo :normals normals
+                                       :specular specular
+                                       :scale scale
+                                       :pos pos :rot rot)))
+                     (list buf
+                           albedo
+                           normals
+                           specular
+                           scene)))))))
 
