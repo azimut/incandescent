@@ -76,9 +76,11 @@
       (al:source-play asource))))
 
 (defun init-audio ()
-  ;;(alut:init)
   (unless *dev*
-    (setf *dev* (alc:open-device))))
+    (alut:init)
+    (setf *dev* t)
+    ;;(setf *dev* (alc:open-device))
+    ))
 
 (defun update-audio ()
   (al:listener :position (pos *camera*))
