@@ -18,9 +18,15 @@
 (defclass audio-sound ()
   ((name    :initarg :name)
    (sources :initarg :sources :documentation "list of MP3-SOURCES")
+   (wait-p  :initarg :wait-p  :documentation "wheter wait until sound on sources stopped")
+   (end-p   :initarg :end-p   :documentation "no more things to play")
+   (playing :initarg :playing :documentation "MP3:SOURCE playing right now")
    (volume  :initarg :volume))
   (:default-initargs
    :sources '()
+   :wait-p nil
+   :end-p nil
+   :playing nil
    :name (gensym)
    :volume 1f0)
   (:documentation "pack of audio sources of the same type"))
@@ -60,13 +66,12 @@
 
 ;; Update position of sound attached to an actor in *actors*
 (defmethod update :after ((actor audio-sound) dt)
-  (with-slots (sources pos) actor
-    (map 'vector
-         (lambda (mp3)
-           (unless (harmony:paused-p mp3)
-             (setf (harmony:input-location mp3 *sfx*)
-                   pos)))
-         sources)))
+  (with-slots (pos playing) actor
+    (when playing
+      (if (harmony:paused-p playing)
+          (setf playing nil)
+          (setf (harmony:input-location playing *sfx*) pos)))))
+
 ;;--------------------------------------------------
 
 (defun %load-source (path mixer)
@@ -80,7 +85,6 @@
 (defun %init-source (source &rest initargs)
   "sets parameters to source that cannot be set on harmony:play directly"
   (declare (type harmony-mp3:mp3-source source))
-  ;;(when (harmony-simple:paused-p source))
   (destructuring-bind (&key volume fade-to fade-time) initargs
     (when volume
       (setf (harmony-simple:volume source) volume))
@@ -161,6 +165,8 @@
 ;; HACKS END HERE ... sorta
 
 (in-package :incandescent)
+
+;; NOTE: for some reason there are integers on sources for mixer
 (defmethod harmony:paused-p ((server fixnum)) T)
 
 (defun now-playing (&optional (mixer :music))
@@ -171,6 +177,15 @@
 
 ;;--------------------------------------------------
 
+(defun get-source (sources)
+  (let ((s (typecase sources
+             (harmony-mp3:mp3-source sources)
+             (list                   (alexandria:random-elt sources))
+             (cm::pattern            (cm:next sources)))))
+    (if (eq s :END-OF-DATA)
+        nil
+        s)))
+
 ;; Stop a sound by passing NIL to loop-p
 (defgeneric play-sound (name &key))
 (defmethod play-sound ((name harmony:source) &key loop-p pause-p)
@@ -179,16 +194,26 @@
       (harmony-simple:pause name)
       (harmony-simple:resume name)))
 (defmethod play-sound ((name audio-sound) &key loop-p pause-p seek-to)
-  (declare (type boolean loop-p pause-p) (type (or null fixnum) seek-to))
-  (with-slots (sources volume) name
-    (let ((s (alexandria:random-elt
-              (alexandria:ensure-list sources))))
-      (when seek-to (harmony:seek-to-sample s seek-to))
-      (setf (harmony-simple:looping-p s) loop-p)
-      (setf (harmony-simple:volume s) (- volume (random .02)))
-      (if pause-p
-          (harmony-simple:pause s)
-          (harmony-simple:resume s)))))
+  (declare (type boolean loop-p pause-p)
+           (type (or null fixnum) seek-to))
+  (with-slots (sources volume wait-p end-p playing) name
+    (when (or (and wait-p playing)
+              (not wait-p)
+              pause-p
+              (not end-p))
+      (alexandria:if-let ((s (get-source sources)))
+        (progn
+          (when seek-to (harmony:seek-to-sample s seek-to))
+          (setf (harmony-simple:looping-p s) loop-p)
+          (setf (harmony-simple:volume s) (- volume (random .02)))
+          (if pause-p
+              (progn
+                (setf playing nil)
+                (harmony-simple:pause s))
+              (progn
+                (setf playing s) ;; NOTE: Might overwrite one already playing...it's fine
+                (harmony-simple:resume s))))
+        (setf end-p t)))))
 (defmethod play-sound ((name symbol) &key loop-p pause-p)
   (declare (type symbol name) (type boolean loop-p))
   (assert (keywordp name))
