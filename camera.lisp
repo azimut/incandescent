@@ -8,12 +8,9 @@
    (far    :initarg :far   :accessor far)
    (shots  :initarg :shots :accessor shots
            :documentation "vector of shots, which are vectors of frames")
-   (n-shot :initarg :n-shot
-           :documentation "number of shots")
-   (atime  :initarg :atime
-           :documentation "current animation time")
-   (aspeed :initarg :aspeed
-           :documentation "animation speed")
+   (n-shot :initarg :n-shot :documentation "number of shots")
+   (atime  :initarg :atime  :documentation "current animation time")
+   (aspeed :initarg :aspeed :documentation "animation speed")
    (frame-size :initarg :frame-size
                :accessor frame-size))
   (:default-initargs
