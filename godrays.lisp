@@ -6,12 +6,14 @@
 ;; dimensions-v2
 (defvar *god-fbo* NIL)
 (defvar *god-sam* NIL)
+(defvar *dimensions-v2* NIL)
 
 (defun free-god ()
   (when *god-fbo*
     (free *god-fbo*)))
 
 (defun init-god ()
+  (setf *dimensions-v2* (v! *dimensions*))
   (free-god)
   (setf *god-fbo*
         (make-fbo `(0 :element-type :rgb16f
