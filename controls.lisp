@@ -21,36 +21,6 @@
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle *vec3-right* ang))))))
 
-(defun walk-sound (factor)
-  (declare (type fixnum factor))
-  (when (or (key-down-p key.w)
-            (key-down-p key.a)
-            (key-down-p key.s)
-            (key-down-p key.d))
-    (let ((campos (pos *camera*))
-          (s      (alexandria:random-elt
-                   (slot-value
-                    (gethash :footsteps *audio-sounds*)
-                    'sources)))) ;; FIXME!
-      ;; NOTE: negative Y on sound position workaround an audio glitch where
-      ;;       sound played on 1 channel at times
-      (ecase factor
-        (5  (and (funcall *crawl*)
-                 (setf (harmony:input-location s *sfx*)
-                       (v! (x campos) -10 (z campos)))
-                 (harmony-simple:resume s)))
-        (10  (and (funcall *walk*)
-                  (setf (harmony:input-location s *sfx*)
-                        (v! (x campos) -10 (z campos)))
-                  (harmony-simple:resume s)))
-        (20 (and (funcall *run*)
-                 (setf (harmony:input-location s *sfx*)
-                       (v! (x campos) -10 (z campos)))
-                 (harmony-simple:resume s)))
-        ;; (20 (and (funcall *crawl*)
-        ;;          (setf (harmony:input-location (play-sound :footsteps) *sfx*)
-        ;;                (pos *camera*))))
-        ))))
 
 (defun god-move (factor dt camera)
   "absolute movement"
@@ -87,7 +57,6 @@
     (v3:decf (pos camera)
              (v3:*s (q:rotate *vec3-up* (rot camera))
                     (* factor dt)))))
-
 
 (defun human-move (factor dt camera)
   "absolute movement"
@@ -129,37 +98,40 @@
              (v3:*s (q:rotate *vec3-up* (rot camera))
                     (* factor dt)))))
 
-(defmethod control ((camera camera) dt)
+(defgeneric control (camera dt factor))
+
+;; MODIFIERS
+(defmethod control :around ((camera camera) dt factor)
+  ;; - run
+  (when (keyboard-button (keyboard) key.lshift)
+    (setf factor 20))
+  ;; - stealth
+  (when (keyboard-button (keyboard) key.lctrl)
+    (setf factor 5))
+  (call-next-method camera dt factor))
+
+(defmethod control ((camera camera) dt factor)
   "free camera controls"
-  (let ((factor 10))
-    ;; MODIFIERS
-    ;; - run
-    (when (keyboard-button (keyboard) key.lshift)
-      (setf factor 20))
-    ;; - stealth
-    (when (keyboard-button (keyboard) key.lctrl)
-      (setf factor 5))
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;; MOVEMENT
+  (human-move factor dt camera)
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; MOVEMENT
-    ;;(human-move factor dt camera)
-    (human-move factor dt camera)
-    (walk-sound factor)
+  ;; SPIN
+  (when (key-down-p key.q)
+    (cam-spin (radians 1.8f0)))
+  (when (key-down-p key.e)
+    (cam-spin (radians -1.8f0)))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; SPIN
-    (when (key-down-p key.q)
-      (cam-spin (radians 1.8f0)))
-    (when (key-down-p key.e)
-      (cam-spin (radians -1.8f0)))
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    ;; PAN
-    (when (key-down-p key.left)
-      (cam-turn (radians 1.8f0)))
-    (when (key-down-p key.right)
-      (cam-turn (radians -1.8f0)))
-    (when (key-down-p key.up)
-      (cam-tilt (radians 1.8f0)))
-    (when (key-down-p key.down)
-      (cam-tilt (radians -1.8f0))))
+  ;; PAN
+  (when (key-down-p key.left)
+    (cam-turn (radians 1.8f0)))
+  (when (key-down-p key.right)
+    (cam-turn (radians -1.8f0)))
+  (when (key-down-p key.up)
+    (cam-tilt (radians 1.8f0)))
+  (when (key-down-p key.down)
+    (cam-tilt (radians -1.8f0)))
+  ;;
   (when (mouse-button (mouse) mouse.left)
     (let ((move (v2:*s (mouse-move (mouse))
                        0.03)))
