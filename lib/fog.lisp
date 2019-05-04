@@ -12,8 +12,8 @@
                      (end :float))
   (let* ((view-distance (length (- frag-pos cam-pos)))
          (fog-factor
-          (+ (* view-distance (/ -1 (- end start)))
-             (/ end (- end start)))))
+           (+ (* view-distance (/ -1 (- end start)))
+              (/ end (- end start)))))
     fog-factor))
 
 (defun-g fog-exp ((frag-pos :vec3)
@@ -27,9 +27,9 @@
                    (density :float))
   (let* ((view-distance (length (- frag-pos cam-pos)))
          (fog-density
-          (* (/ density (sqrt (log 2))) view-distance))
+           (* (/ density (sqrt (log 2))) view-distance))
          (fog-factor
-          (exp2 (- (* fog-density fog-density)))))
+           (exp2 (- (* fog-density fog-density)))))
     fog-factor))
 
 ;;--------------------------------------------------
@@ -138,24 +138,24 @@
   (let* ((cam-to-receiver (- frag-pos cam-pos))
          (line-integral (* (x fog-params) (length cam-to-receiver)))
          (line-integral
-          (if (> (abs (z cam-to-receiver)) .0001)
-              (* line-integral (/ (- 1 (exp2 (* (- (y fog-params)) (z cam-to-receiver))))
-                                  (* (y fog-params) (z cam-to-receiver))))
-              line-integral))
+           (if (> (abs (z cam-to-receiver)) .0001)
+               (* line-integral (/ (- 1 (exp2 (* (- (y fog-params)) (z cam-to-receiver))))
+                                   (* (y fog-params) (z cam-to-receiver))))
+               line-integral))
 	 ;; 1 in the direction of the light vector, -1 in the opposite direction
          (cos-light-angle (dot (normalize (- light-pos frag-pos))
                                (normalize cam-to-receiver)))
          (fog-color
-          (if (< cos-light-angle (z fog-params))
-              (mix (v! .5 .6 .7)
-                   (* .5 (+ (v! .5 .6 .7) (v! .1 .1 .1)))
-                   (vec3 (saturate (/ (1+ cos-light-angle)
-                                      (1+ (z fog-params))))))
-              (let ((alpha (saturate (/ (- cos-light-angle (z fog-params))
-                                        (- 1 (z fog-params))))))
-                (mix (* .5 (+ (v! .5 .6 .7) (v! .1 .1 .1)))
-                     (v! .1 .1 .1)
-                     (vec3 (* alpha alpha))))))
+           (if (< cos-light-angle (z fog-params))
+               (mix (v! .5 .6 .7)
+                    (* .5 (+ (v! .5 .6 .7) (v! .1 .1 .1)))
+                    (vec3 (saturate (/ (1+ cos-light-angle)
+                                       (1+ (z fog-params))))))
+               (let ((alpha (saturate (/ (- cos-light-angle (z fog-params))
+                                         (- 1 (z fog-params))))))
+                 (mix (* .5 (+ (v! .5 .6 .7) (v! .1 .1 .1)))
+                      (v! .1 .1 .1)
+                      (vec3 (* alpha alpha))))))
          (fog-factor (saturate (exp2 (- line-integral)))))
     (v! (* fog-color (- 1 fog-factor)) fog-factor)))
 
