@@ -127,8 +127,21 @@
   :serial t
   :depends-on (#:incandescent
                #:harmony-simple
-               #:harmony-pulse)
+               #:harmony-pulse
+               #:cm)
   :components ((:file "audio/harmony")))
+
+(asdf:defsystem #:incandescent/audio-openal
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               #:cl-openal
+               #:cl-alut
+               #:cm)
+  :components ((:file "audio/openal")))
 
 (asdf:defsystem #:incandescent/audio-sdl2mix
   :description "Describe incandescent here"
