@@ -1,17 +1,16 @@
 (in-package :incandescent)
 
-(defclass monster (assimp-thing-with-bones)
+(defclass monster (assimp-thing-with-bones audio-sound)
   ((lerp :initform 0f0)))
 
 (defun make-monster ()
-  (make-sound :wildsteps .2
-              "static/StepForest1.ogg.mp3"
-              "static/StepForest2.ogg.mp3"
-              "static/StepForest3.ogg.mp3")
   (mapcar
    (lambda (obj)
      (with-slots (buf albedo normals specular bones scene duration) obj
        (push (make-instance 'monster
+                            :sources `(,(load-sfx "static/StepForest1.ogg.mp3")
+                                       ,(load-sfx "static/StepForest2.ogg.mp3")
+                                       ,(load-sfx "static/StepForest3.ogg.mp3"))
                             :scene scene
                             :buf buf
                             :scale .4
@@ -31,11 +30,7 @@
     (with-slots (scene rot bones pos duration lerp) actor
       ;;
       (when (funcall step)
-        (setf (harmony:input-location
-               (play-sound (alexandria:random-elt
-                            (slot-value (gethash :wildsteps *audio-sounds*) 'sources)))
-               *sfx*)
-              pos))
+        (play-sound actor))
       ;;
       (if (> lerp 1)
           (setf *actors* (remove actor *actors*))

@@ -10,14 +10,15 @@
   (with-slots (buf albedo normals specular scene)
       (first
        (assimp-load-meshes "static/1025/scp1025.b3d"))
-    (let* ((source (load-sfx :book "static/1025/tarea201-mono.mp3"))
+    (let* ((source (load-sfx "static/1025/tarea201-mono.mp3"))
            (obj (make-instance 'book
                                :pos pos
                                :volume .5
                                :sources source
                                :buf buf :scene scene
                                :scale 1.5
-                               :albedo albedo :specular specular :normals normals)))
+                               :albedo albedo :specular specular
+                               :normals normals)))
       (setf (harmony:input-location source *sfx*)
             pos)
       (push obj *actors*)
@@ -32,8 +33,7 @@
         (when (funcall stepper) ;; controls rapid fire
           (setf floatingp (not floatingp))
           (if floatingp
-              (harmony:seek-to-sample (play-sound actor :loop-p t)
-                                      0)
+              (play-sound actor :loop-p t :seek-to 0)
               (play-sound actor :loop-p nil :pause-p t))))
       (if floatingp
           (setf (y pos) (+ 4 (* .1 (sin (mynow)))))
