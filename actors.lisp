@@ -26,10 +26,15 @@
    :color (v! 1 1 1)
    :scale 1f0))
 
+(defmethod free ((object actor)) t)
+(defun free-actors ()
+  (mapcar #'free *actors*)
+  (setf *actors* nil))
+
 (defun update-all-the-things (l dt)
   (declare (list l))
   (loop :for actor :in l :do
-       (update actor dt)))
+           (update actor dt)))
 
 (defun model->world (actor)
   (with-slots (pos rot) actor
@@ -69,11 +74,10 @@
    :metallic  .1))
 
 (defun make-pbr-simple (&optional (pos (v! 0 0 0)))
-  (let ((obj
-         (make-instance
-          'pbr-simple
-          :buf (sphere)
-          :pos pos)))
+  (let ((obj (make-instance
+              'pbr-simple
+              :buf (sphere)
+              :pos pos)))
     (push obj *actors*)
     obj))
 
@@ -100,15 +104,14 @@
 
 (defclass piso (pbr-simple) ())
 (defun make-piso (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0) (buf (lattice 100 100 2 2 t)) (uv-repeat (v! 1 1)))
-  (let ((obj
-         (make-instance
-          'pbr
-          :uv-speed 0f0
-          :uv-repeat uv-repeat
-          :buf buf
-          :pos pos
-          :scale scale
-          :rot rot)))
+  (let ((obj (make-instance
+              'pbr
+              :uv-speed 0f0
+              :uv-repeat uv-repeat
+              :buf buf
+              :pos pos
+              :scale scale
+              :rot rot)))
     (push obj *actors*)
     obj))
 
@@ -125,7 +128,7 @@
 (defclass box (actor)
   ((buf :initform (box 2 2 2))))
 (defun make-box (&key (pos (v! 0 0 0)) (rot (q:identity))
-                   (scale 1f0) (name (gensym)) (buf (box)))
+                      (scale 1f0) (name (gensym)) (buf (box)))
   (let ((obj (make-instance 'box
                             :buf buf
                             :name name
@@ -156,21 +159,8 @@
 ;;--------------------------------------------------
 (defgeneric update (actor dt))
 (defmethod update (actor dt))
-(defmethod update ((actor pbr) dt)
-  (with-slots (metallic) actor
-    (setf metallic .1f0)))
+(defmethod update ((actor pbr) dt))
 (defmethod update ((actor pbr-simple) dt))
-(defmethod update ((actor box) dt)
-  (with-slots (pos rot color name) actor
-    (unless (eq :piso name)
-      ;;(setf color (v! .1 .3 .9))
-      ;;(setf pos (v! 0 0 0))
-      (setf rot (q:* rot
-                     (q:from-axis-angle
-                      (v! 0 1 1)
-                      (radians (mod (* 20 dt) 360)))
-                     )))
-    )
-  )
+(defmethod update ((actor box) dt))
 
 
