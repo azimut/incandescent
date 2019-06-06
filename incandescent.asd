@@ -163,6 +163,17 @@
                #:cepl.fond)
   :components ((:file "text")))
 
+(asdf:defsystem #:incandescent/ode
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               #:bodge-ode
+               #:ode-blob)
+  :components ((:file "ode")))
+
 (asdf:defsystem #:incandescent/renderman
   :description "Describe incandescent here"
   :author "azimut <azimut.github@protonmail.com>"
