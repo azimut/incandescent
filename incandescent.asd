@@ -172,7 +172,11 @@
   :depends-on (#:incandescent
                #:bodge-ode
                #:ode-blob)
-  :components ((:file "ode")))
+  :components ((:file "ode/ode")
+               (:file "ode/physic")
+               (:file "ode/camera")
+               (:file "ode/cube")
+               (:file "ode/sphere")))
 
 (asdf:defsystem #:incandescent/renderman
   :description "Describe incandescent here"
