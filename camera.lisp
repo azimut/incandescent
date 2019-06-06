@@ -45,10 +45,10 @@
 (defun distance-to-camera (pos distance)
   (declare (type rtg-math.types:vec3 pos)
            (type number distance))
-  (< (v3:length (v3:- pos (pos *camera*)))
+  (< (v3:length (v3:- pos (pos *currentcamera*)))
      distance))
 
-(defun reset-camera (&optional (camera *camera*) (pos (v! 0 0 0)))
+(defun reset-camera (&key (camera *currentcamera*) (pos (v! 0 0 0)))
   (declare (type rtg-math.types:vec3)
            (type camera camera))
   (setf (pos camera) pos)
@@ -116,6 +116,12 @@
                       (v! top-right)
                       (v! bottom-right)
                       (v! bottom-left)))))
+
+(defmethod camera-to-camera ((src-camera camera) (dst-camera camera))
+  "copies rotation and position from SRC-CAMERA to DST-CAMERA"
+  (setf (pos dst-camera) (copy-seq (pos src-camera)))
+  (setf (rot dst-camera) (copy-seq (rot src-camera)))
+  dst-camera)
 
 ;;--------------------------------------------------
 ;; ANIMATION
