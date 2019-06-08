@@ -70,7 +70,7 @@
                        :view-clip   (projection  *shadow-camera*))))))
 
 ;;--------------------------------------------------
-;; THE helper
+;; PCF type of helpers
 
 ;; NO BIAS
 (defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
