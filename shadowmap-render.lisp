@@ -2,7 +2,7 @@
 
 ;; DO NOT LOAD THIS, this is just a scrapeyard to load the pipes I need
 ;; when i do...
-
+(defvar *chuesos* nil)
 (defmethod draw ((actor box) camera (time single-float))
   (with-slots (buf scale color) actor
     (map-g #'generic-shadow-pipe buf
@@ -16,9 +16,9 @@
            ;; Shadowmap
            :shadowmap *shadow-sam*
            :light-world (world->view *shadow-camera*)
-           :light-clip (projection *shadow-camera*)
+           :light-clip  (projection *shadow-camera*)
            ;; Directional light (for the most part)
-           :light-color *light-color*c
+           :light-color *light-color*
            :light-pos   *light-pos*)))
 
 ;;--------------------------------------------------
@@ -66,32 +66,22 @@
                                        light-pos
                                        frag-pos
                                        frag-norm
-                                       cam-pos .9 1f0
-                                       ))
-         ;; (final-color (+ (v3! .03)
-         ;;                 (* light-color
-         ;;                    (pbr-direct-lum light-pos
-         ;;                                    frag-pos
-         ;;                                    (normalize (- cam-pos frag-pos))
-         ;;                                    frag-norm
-         ;;                                    .1
-         ;;                                    (v3! .04)
-         ;;                                    .2
-         ;;                                    final-color
-         ;;                                    ))))
-         ;; (final-color (point-light-apply final-color
-         ;;                                 light-color
-         ;;                                 light-pos
-         ;;                                 frag-pos
-         ;;                                 frag-norm
-         ;;                                 1
-         ;;                                 .022
-         ;;                                 .0019))
-         )
-    (values (v! (* (shadow-factor shadowmap light-clip-pos)
-                   final-color)
-                1)
-            (v! 0 1 0 1))))
+                                       cam-pos .9 1f0)))
+    (values
+     ;;(v! (* (shadow-factor shadowmap light-clip-pos) final-color) 1)
+     ;; (v! (* (- 1 (shadow-factor shadowmap light-clip-pos))
+     ;;        final-color)
+     ;;     1)
+     (v! (* (- 1 (shadow-factor shadowmap light-clip-pos
+                                ;;(- light-pos frag-pos) frag-norm
+                                ))
+            final-color)
+         1)
+     ;;(v4! (shadow-factor shadowmap light-clip-pos))
+     ;;(v! (s~ light-clip-pos :xyz) 1)
+     ;;(v! final-color 1)
+     ;;(v! 0 1 0 1)
+     )))
 
 (defpipeline-g generic-shadow-pipe ()
   :vertex   (shadow-vert g-pnt)
@@ -103,35 +93,34 @@
   (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
     (clear *shadow-fbo*)
     (loop :for actor :in *actors*
-       :do (with-slots (buf scale) actor
-             (case (class-name-of actor)
-               (assimp-thing-with-bones
-                (map-g #'simplest-3d-pipe-bones buf
-                       :scale 1f0
-                       :offsets *chuesos*
-                       :model-world (model->world actor)
-                       :world-view  (world->view *shadow-camera*)
-                       :view-clip   (projection  *shadow-camera*)))
-               (piso
-                (map-g #'simplest-3d-pipe buf
-                       :scale 1f0
-                       :model-world (model->world actor)
-                       :world-view  (world->view *shadow-camera*)
-                       :view-clip   (projection  *shadow-camera*))))))))
+          :do (with-slots (buf scale) actor
+                (case (class-name-of actor)
+                  (assimp-thing-with-bones
+                   (map-g #'simplest-3d-pipe-bones buf
+                          :scale 1f0
+                          :offsets *chuesos*
+                          :model-world (model->world actor)
+                          :world-view  (world->view *shadow-camera*)
+                          :view-clip   (projection  *shadow-camera*)))
+                  (piso
+                   (map-g #'simplest-3d-pipe buf
+                          :scale 1f0
+                          :model-world (model->world actor)
+                          :world-view  (world->view *shadow-camera*)
+                          :view-clip   (projection  *shadow-camera*))))))))
 
 (defmethod draw ((actor piso) camera (time single-float))
-  (with-slots (buf
-               color
+  (with-slots (buf scale color
                albedo normal height roughness
-               uv-speed
-               scale ao uv-repeat metallic)
+               ;;uv-speed uv-repeat
+               ao metallic)
       actor
     (map-g #'shadow-pbr-pipe buf
-           :uv-repeat uv-repeat
-           :uv-speed uv-speed
            :scale scale
-           :time time
            :color color
+           :time time
+           :uv-repeat 1f0
+           :uv-speed 1f0
            :samd *samd*
            ;; Lighting
            :cam-pos (pos camera)
@@ -204,19 +193,19 @@
                                   (light-clip :mat4))
   (let* ((pos       (* scale (pos vert)))
          (norm      (norm vert))
-         (uv        (treat-uvs (tex vert)))
+         (uv        (tex vert))
          (norm      (* (m4:to-mat3 model-world) norm))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
+         (t0  (normalize
+               (s~ (* model-world (v! (tb-data-tangent tb) 0))
+                   :xyz)))
+         (n0  (normalize
+               (s~ (* model-world (v! norm 0))
+                   :xyz)))
+         (t0  (normalize (- t0 (* (dot t0 n0) n0))))
+         (b0  (cross n0 t0))
          (tbn (mat3 t0 b0 n0)))
     (values clip-pos
             (treat-uvs uv)
@@ -372,12 +361,13 @@
                                              r
                                              (* roughness 4f0))
                                 :xyz))
-         (env-brdf (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
-         (specular (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
-         (ambient (* (+ specular (* kd diffuse)) ao))
-         (final-color (+ ambient lo))
-         (final-color (* (shadow-factor shadowmap light-clip-pos)
-                         final-color))
+         (env-brdf    (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
+         (specular    (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
+         (ambient     (* (+ specular (* kd diffuse)) ao))
+         ;;(final-color (+ ambient lo))
+         ;;(final-color (+ ambient (* (shadow-factor shadowmap light-clip-pos) lo)))
+         (final-color (+ ambient (* (- 1 (shadow-factor shadowmap light-clip-pos)) lo)))
+         ;;(final-color (v3! (shadow-factor shadowmap light-clip-pos)))
          ;; Fog
          ;; (final-color
          ;;  (fog-exp2-apply final-color
@@ -386,6 +376,11 @@
          ;;                  frag-pos
          ;;                  cam-pos .03))
          )
+    ;;(v4! (- 1 (shadow-factor shadowmap light-clip-pos)))
+    ;; (v4! (- 1 (shadow-factor shadowmap
+    ;;                          light-clip-pos
+    ;;                          (- light-pos frag-pos)
+    ;;                          frag-norm)))
     (v! final-color 1)
     ;;(v! uv 0 1)
     ;;(v! color 1)
