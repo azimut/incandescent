@@ -1,60 +1,27 @@
 (in-package #:incandescent)
 
-;; DO NOT LOAD THIS, this is just a scrapeyard to load the pipes I need
-;; when i do...
-(defvar *chuesos* nil)
-(defmethod draw ((actor box) camera (time single-float))
-  (with-slots (buf scale color) actor
-    (map-g #'generic-shadow-pipe buf
-           :scale scale
-           :color color
-           :time  time
-           :cam-pos (pos camera)
-           :model-world (model->world actor)
-           :world-view  (world->view camera)
-           :view-clip   (projection  camera)
-           ;; Shadowmap
-           :shadowmap *shadow-sam*
-           :light-world (world->view *shadow-camera*)
-           :light-clip  (projection *shadow-camera*)
-           ;; Directional light (for the most part)
-           :light-color *light-color*
-           :light-pos   *light-pos*)))
-
 ;;--------------------------------------------------
 ;; 3d - Replacements for basic vert and frags
-(defun-g shadow-vert ((vert g-pnt)
-                      &uniform
-                      (model-world :mat4)
-                      (world-view :mat4)
-                      (view-clip :mat4)
+(defun-g shadow-vert ((vert g-pnt) &uniform
+                      (model-world :mat4) (world-view :mat4) (view-clip :mat4)
                       (scale :float)
-                      (time :float)
-                      (light-world :mat4)
-                      (light-clip :mat4))
-  ;;
+                      (light-world :mat4) (light-clip :mat4))
   (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
-         (tex        (tex vert))
          (world-norm (* (m4:to-mat3 model-world) norm))
          (world-pos  (* model-world (v! pos 1)))
          (view-pos   (* world-view  world-pos))
          (clip-pos   (* view-clip   view-pos)))
     (values clip-pos
-            tex
+            (tex vert)
             world-norm
             (s~ world-pos :xyz)
             (* light-clip light-world world-pos))))
 
-(defun-g shadow-frag ((uv :vec2)
-                      (frag-norm :vec3)
-                      (frag-pos :vec3)
-                      (light-clip-pos :vec4)
-                      &uniform
+(defun-g shadow-frag ((uv :vec2) (frag-norm :vec3) (frag-pos :vec3)
+                      (light-clip-pos :vec4) &uniform
                       ;; Shadowmap
                       (shadowmap :sampler-2d)
-                      ;;
-                      (time :float)
                       (color :vec3)
                       (cam-pos :vec3)
                       ;; Directional light (for the most part)
@@ -67,21 +34,11 @@
                                        frag-pos
                                        frag-norm
                                        cam-pos .9 1f0)))
-    (values
-     ;;(v! (* (shadow-factor shadowmap light-clip-pos) final-color) 1)
-     ;; (v! (* (- 1 (shadow-factor shadowmap light-clip-pos))
-     ;;        final-color)
-     ;;     1)
-     (v! (* (- 1 (shadow-factor shadowmap light-clip-pos
-                                ;;(- light-pos frag-pos) frag-norm
-                                ))
-            final-color)
-         1)
-     ;;(v4! (shadow-factor shadowmap light-clip-pos))
-     ;;(v! (s~ light-clip-pos :xyz) 1)
-     ;;(v! final-color 1)
-     ;;(v! 0 1 0 1)
-     )))
+    (v! (* (- 1 (shadow-factor shadowmap light-clip-pos
+                               ;;(- light-pos frag-pos) frag-norm
+                               ))
+           final-color)
+        1)))
 
 (defpipeline-g generic-shadow-pipe ()
   :vertex   (shadow-vert g-pnt)
@@ -89,69 +46,9 @@
 
 ;;--------------------------------------------------
 
-(defun draw-shadowmap ()
-  (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
-    (clear *shadow-fbo*)
-    (loop :for actor :in *actors*
-          :do (with-slots (buf scale) actor
-                (case (class-name-of actor)
-                  (assimp-thing-with-bones
-                   (map-g #'simplest-3d-pipe-bones buf
-                          :scale 1f0
-                          :offsets *chuesos*
-                          :model-world (model->world actor)
-                          :world-view  (world->view *shadow-camera*)
-                          :view-clip   (projection  *shadow-camera*)))
-                  (piso
-                   (map-g #'simplest-3d-pipe buf
-                          :scale 1f0
-                          :model-world (model->world actor)
-                          :world-view  (world->view *shadow-camera*)
-                          :view-clip   (projection  *shadow-camera*))))))))
-
-(defmethod draw ((actor piso) camera (time single-float))
-  (with-slots (buf scale color
-               albedo normal height roughness
-               ;;uv-speed uv-repeat
-               ao metallic)
-      actor
-    (map-g #'shadow-pbr-pipe buf
-           :scale scale
-           :color color
-           :time time
-           :uv-repeat 1f0
-           :uv-speed 1f0
-           :samd *samd*
-           ;; Lighting
-           :cam-pos (pos camera)
-           :light-pos *light-pos*
-           ;;
-           :model-world (model->world actor)
-           :world-view (world->view camera)
-           :view-clip  (projection camera)
-           ;; Shadowmap
-           :shadowmap *shadow-sam*
-           :light-world (world->view *shadow-camera*)
-           :light-clip (projection *shadow-camera*)
-           ;; PBR
-           :albedo albedo
-           :ao-map ao
-           :metallic metallic
-           :normal-map normal
-           :height-map height
-           :rough-map roughness
-           ;; IBL
-           :brdf-lut *s-brdf*
-           :prefilter-map *s-cubemap-prefilter*
-           :irradiance-map *s-cubemap-live*)))
-
-(defun-g vert-bones ((vert g-pnt)
-                     (tb tb-data)
-                     (bones assimp-bones)
+(defun-g vert-bones ((vert g-pnt) (tb tb-data) (bones assimp-bones)
                      &uniform
-                     (model-world :mat4)
-                     (world-view :mat4)
-                     (view-clip :mat4)
+                     (model-world :mat4) (world-view :mat4) (view-clip :mat4)
                      (offsets (:mat4 36))
                      (scale :float))
   ;;
