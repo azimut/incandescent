@@ -42,23 +42,15 @@
                             (coerce (y pos) 'double-float)
                             (coerce (z pos) 'double-float))))
 
-(defun get-solid-camera ()
-  (or *camera-solid*
-      (setf *camera-solid*
-            (make-instance 'physic-camera
-                           :pos (pos *currentcamera*)
-                           :rot (rot *currentcamera*)))))
-
 (defun toggle-solid-camera ()
-  (cond ((not *camera-solid*)
-         (setf (pos (get-solid-camera)) (copy-seq (pos *currentcamera*))
-               (rot (get-solid-camera)) (copy-seq (rot *currentcamera*))
-               *currentcamera* (get-solid-camera)))
-        ((equal *currentcamera* *camera-solid*)
-         (setf (pos *camera*) (copy-seq (pos *camera-solid*))
-               (rot *camera*) (copy-seq (rot *camera-solid*))
-               *currentcamera* *camera*))
-        ((not (equal *currentcamera* *camera-solid*))
-         (setf (pos (get-solid-camera)) (copy-seq (pos *currentcamera*))
-               (rot (get-solid-camera)) (copy-seq (rot *currentcamera*))
-               *currentcamera* (get-solid-camera)))))
+  (if (eq 'physic-camera (serapeum:class-name-of *currentcamera*))
+      (progn
+        (camera-to-camera *currentcamera* *camera*)
+        (setf *currentcamera* *camera*)
+        (free *camera-solid*)
+        (setf *camera-solid* nil))
+      (progn
+        (setf *camera-solid* (make-instance 'physic-camera))
+        (camera-to-camera *currentcamera* *camera-solid*)
+        (setf *currentcamera* *camera-solid*)))
+  *currentcamera*)
