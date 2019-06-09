@@ -34,9 +34,9 @@
                                        frag-pos
                                        frag-norm
                                        cam-pos .9 1f0)))
-    (v! (* (- 1 (shadow-factor shadowmap light-clip-pos
-                               ;;(- light-pos frag-pos) frag-norm
-                               ))
+    (v! (* (shadow-factor shadowmap light-clip-pos
+                          ;;(- light-pos frag-pos) frag-norm
+                          )
            final-color)
         1)))
 
@@ -75,6 +75,7 @@
   :vertex (vert-bones g-pnt tb-data assimp-bones)
   :fragment (simplest-3d-frag :vec2 :vec3 :vec3))
 
+;;--------------------------------------------------
 
 (defun-g shadow-vert-with-tbdata ((vert g-pnt)
                                   (tb tb-data)
@@ -262,8 +263,11 @@
          (specular    (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
          (ambient     (* (+ specular (* kd diffuse)) ao))
          ;;(final-color (+ ambient lo))
-         ;;(final-color (+ ambient (* (shadow-factor shadowmap light-clip-pos) lo)))
-         (final-color (+ ambient (* (- 1 (shadow-factor shadowmap light-clip-pos)) lo)))
+         (final-color (+ ambient (* (shadow-factor shadowmap light-clip-pos)
+                                    ;;lo
+                                    )))
+         ;; (final-color (+ ambient (* (- 1 (shadow-factor shadowmap light-clip-pos))
+         ;;                            lo)))
          ;;(final-color (v3! (shadow-factor shadowmap light-clip-pos)))
          ;; Fog
          ;; (final-color
@@ -273,7 +277,7 @@
          ;;                  frag-pos
          ;;                  cam-pos .03))
          )
-    ;;(v4! (- 1 (shadow-factor shadowmap light-clip-pos)))
+    ;;(v4! (shadow-factor shadowmap light-clip-pos))
     ;; (v4! (- 1 (shadow-factor shadowmap
     ;;                          light-clip-pos
     ;;                          (- light-pos frag-pos)

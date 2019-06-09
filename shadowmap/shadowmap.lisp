@@ -15,8 +15,9 @@
 
 (defvar *shadow-fbo* NIL)
 (defvar *shadow-sam* NIL)
+
+(defparameter *shadow-dimensions* '(2048 2048))
 (defparameter *shadow-dimensions* '(1024 1024))
-;;(defparameter *shadow-dimensions* '(2048 2048))
 
 (defparameter *shadow-camera*
   (let* ((lpos (v! 10 10 10))
@@ -33,11 +34,11 @@
     ;;(push *shadow-camera* *cameras*)
     cam))
 
+(defun free-shadowmap ()
+  (when *shadow-fbo* (free *shadow-fbo*)))
+
 (defun init-shadowmap ()
-  (setf *cameras* (remove :shadow-camera *cameras* :key #'camera-name))
-  (push *shadow-camera* *cameras*)
-  (when *shadow-fbo*
-    (free *shadow-fbo*))
+  (free-shadowmap)
   (setf *shadow-fbo* (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
   (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
                              :wrap           :clamp-to-border
@@ -45,9 +46,6 @@
                              :magnify-filter :nearest))
   (setf (cepl.samplers::border-color *shadow-sam*) (v! 1 1 1 1))
   t)
-
-(defun free-shadowmap ()
-  (when *shadow-fbo* (free *shadow-fbo*)))
 
 (defun-g simplest-3d-frag ((uv :vec2) (frag-norm :vec3) (frag-pos :vec3))
   (v! 0 0 1 0))
@@ -79,27 +77,23 @@
          (proj-coords   (+ .5 (* .5 proj-coords)))
          (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
          (current-depth (z proj-coords))
-         (shadow        (if (> current-depth closest-depth)
-                            1f0
-                            0f0)))
-    (if (> (z proj-coords) 1)
-        0f0
+         (shadow        (step current-depth closest-depth)))
+    (if (> current-depth 1)
+        1f0
         shadow)))
 
 ;; NO BIAS - PCF
 (defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
   (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
                          (w pos-in-light-space)))
-         (proj-coords  (+ (* proj-coords 0.5) (vec3 0.5)))
-         (our-depth    (z proj-coords))
-         (shadow        0f0)
-         (texel-size    (/ (vec2 1f0)
-                           (texture-size light-sampler 0)))
-         (uv            (s~ proj-coords :xy))
-         (num-samples   5f0
-                        )
-         (num-samples-start (/ (1- num-samples) 2)
-                            ))
+         (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
+         (our-depth   (z proj-coords))
+         (shadow      0f0)
+         (texel-size  (/ (vec2 1f0)
+                         (texture-size light-sampler 0)))
+         (uv          (s~ proj-coords :xy))
+         (num-samples 3f0)
+         (num-samples-start (/ (1- num-samples) 2)))
     ;;
     (if (> our-depth 1)
         (setf shadow 0f0)
@@ -108,24 +102,20 @@
                   (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
                          (pcf-depth (x (texture light-sampler
                                                 uv+offset))))
-                    (incf shadow (if (> our-depth pcf-depth)
-                                     1f0
-                                     0f0))))))
+                    (incf shadow (step pcf-depth our-depth))))))
     ;;
-    (/ shadow (* num-samples num-samples)
-       )))
+    (- 1 (/ shadow (* num-samples num-samples 2)
+            ))))
 
 ;; BIAS static
 (defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
-  (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
-                         (w  pos-in-light-space)))
-         (proj-coords (+ .5 (* .5 proj-coords)))
-         (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
+  (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz) (w  pos-in-light-space)))
+         (proj-coords   (+ .5 (* .5 proj-coords)))
+         (bias          .005 ;;#.(* 2f0 (/ 1024f0))
+                        )
          (current-depth (z proj-coords))
-         (bias .005)
-         (shadow (if (> (- current-depth bias) closest-depth)
-                     1f0
-                     0f0)))
+         (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
+         (shadow        (step (- current-depth bias) closest-depth)))
     (if (> current-depth 1)
         0f0
         shadow)))
@@ -151,20 +141,46 @@
                          (w pos-in-light-space)))
          (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
          (our-depth (z proj-coords))
+         (num-samples 3f0)
+         (num-samples-start (/ (1- num-samples) 2))
          (shadow 0f0)
-         (bias 0.005)
+         (bias .005 ;;#.(* 3f0 (/ 1024f0))
+               ) ;; 0.005
          (texel-size (/ (vec2 1f0)
                         (texture-size light-sampler 0)))
          (uv (s~ proj-coords :xy)))
     ;;
-    (for (x -1) (<= x 1) (++ x)
-         (for (y -1) (<= y 1) (++ y)
-              (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
-                     (pcf-depth (x (texture light-sampler
-                                            uv+offset))))
-                (incf shadow (if (> (- our-depth bias) pcf-depth)
-                                 1f0
-                                 0f0)))))
+    (if (> our-depth 1)
+        (setf shadow 0f0)
+        (for (x num-samples-start) (<= x num-samples) (++ x)
+             (for (y num-samples-start) (<= y num-samples) (++ y)
+                  (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
+                         (pcf-depth (x (texture light-sampler
+                                                uv+offset))))
+                    (incf shadow (if (> (- our-depth bias) pcf-depth)
+                                     1f0
+                                     0f0))))))
+    ;;
+    (- 1 (/ shadow (* num-samples num-samples)))))
+(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
+  (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
+                         (w pos-in-light-space)))
+         (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
+         (our-depth (z proj-coords))
+         (shadow 0f0)
+         (bias #.(* 1f0 (/ 1024f0))
+               ) ;; 0.005
+         (texel-size (/ (vec2 1f0) (texture-size light-sampler 0)))
+         (uv (s~ proj-coords :xy)))
+    ;;
+    (if (> our-depth 1)
+        (setf shadow 0f0)
+        (for (x -1) (<= x 1) (++ x)
+             (for (y -1) (<= y 1) (++ y)
+                  (let* ((uv+offset (+ uv (* (v! x y) texel-size)))
+                         (pcf-depth (x (texture light-sampler
+                                                uv+offset))))
+                    (incf shadow (step pcf-depth (- our-depth bias)))))))
     ;;
     (/ shadow 9f0)))
 
