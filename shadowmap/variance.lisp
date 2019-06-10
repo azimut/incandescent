@@ -3,26 +3,9 @@
 ;; Reference:
 ;; - "bennybox" tutorial https://www.youtube.com/watch?v=LGFDifcbsoQ
 ;; - http://codeflow.org/entries/2013/feb/15/soft-shadow-mapping/
-(defvar *shadow-fbo* NIL)
-(defvar *shadow-sam* NIL)
+
 (defvar *variance-fbo* NIL)
 (defvar *variance-sam* NIL)
-
-(defparameter *shadow-dimensions* '(2048 2048))
-(defparameter *shadow-dimensions* '(1024 1024))
-
-(defparameter *shadow-camera*
-  (let* ((lpos (v! 30 30 30))
-         (cam  (make-instance 'orth
-                              :name :shadow-camera
-                              :frame-size (v2! 20) ;; zoom
-                              :far 70f0
-                              :near 40f0
-                              :rot (q:point-at (v! 0 1 0) lpos
-                                               (v! 0 0 0))
-                              :pos lpos)))
-    (setf *light-pos* lpos)
-    cam))
 
 (defun free-variance ()
   (when *shadow-fbo*   (free *shadow-fbo*))

@@ -108,7 +108,11 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent)
-  :components ((:file "shadowmap")))
+  :components ((:file "shadowmap/shadowmap")
+               (:file "shadowmap/pcf")
+               (:file "shadowmap/variance")
+               (:file "shadowmap/render")
+               (:file "shadowmap/draw")))
 
 (asdf:defsystem #:incandescent/dof
   :description "Describe incandescent here"
