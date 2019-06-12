@@ -47,8 +47,7 @@
 
 ;;--------------------------------------------------
 
-(defmethod update ((actor text) dt)
-  (setf (pos actor) (v! -50 120)))
+(defmethod update ((actor text) dt))
 
 (defmethod draw ((actor text) camera time)
   (with-blending *font-blending*

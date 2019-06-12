@@ -1,5 +1,7 @@
 (in-package #:incandescent)
 
+;; Point Particles, GPU controlled by Transform Feedback
+
 (defvar *blend* (make-blending-params))
 (defvar *particle-systems* NIL
   "cache of particles creates with make- functions")
