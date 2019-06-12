@@ -20,19 +20,18 @@
 (defun make-bloom-fbo ()
   (flet ((f (d) (mapcar (lambda (x) (floor (/ x d))) *dimensions*)))
     (let ((obj (%make-bloom-fbo)))
-      (loop
-         :for div :in '(1 2 4 8 16)
-         :for width := (nth 0 (f div))
-         :for height := (nth 1 (f div))
-         :for i :from 0 :do
-           (let* ((fbo (make-fbo `(0 :dimensions ,(f div)
-                                     :element-type :rgba16f)))
-                  (sam (sample (attachment-tex fbo 0)
-                               :wrap :clamp-to-edge)))
-             (setf (aref (bloom-fbo-widths obj) i)   (coerce width 'single-float))
-             (setf (aref (bloom-fbo-heights obj) i)  (coerce height 'single-float))
-             (setf (aref (bloom-fbo-fbos obj) i)     fbo)
-             (setf (aref (bloom-fbo-samplers obj) i) sam)))
+      (loop :for div :in '(1 2 4 8 16)
+            :for width := (nth 0 (f div))
+            :for height := (nth 1 (f div))
+            :for i :from 0
+            :do (let* ((fbo (make-fbo `(0 :dimensions ,(f div)
+                                          :element-type :rgba16f)))
+                       (sam (sample (attachment-tex fbo 0)
+                                    :wrap :clamp-to-edge)))
+                  (setf (aref (bloom-fbo-widths obj) i)   (coerce width 'single-float))
+                  (setf (aref (bloom-fbo-heights obj) i)  (coerce height 'single-float))
+                  (setf (aref (bloom-fbo-fbos obj) i)     fbo)
+                  (setf (aref (bloom-fbo-samplers obj) i) sam)))
       obj)))
 
 (defun init-bloom ()
@@ -80,21 +79,7 @@
 ;;--------------------------------------------------
 ;; 2D - Blur
 
-(defun-g sample-box ((uv :vec2)
-                     (delta :float)
-                     (sam :sampler-2d)
-                     (x :float)
-                     (y :float))
-  (let* ((o (* (v! x y x y)
-               (v! (- delta) (- delta) delta delta)))
-         (s (+ (texture sam (+ uv (s~ o :xy)))
-               (texture sam (+ uv (s~ o :zy)))
-               (texture sam (+ uv (s~ o :xw)))
-               (texture sam (+ uv (s~ o :zw))))))
-    (* s .125)))
-
-(defun-g sample-box
-    ((uv :vec2) (delta :float) (sam :sampler-2d) (x :float) (y :float))
+(defun-g sample-box ((uv :vec2) (delta :float) (sam :sampler-2d) (x :float) (y :float))
   (let* ((o (* (v! x y x y) (v! (- delta) (- delta) delta delta)))
          (s (+ (texture sam (+ uv (s~ o :xy)))
                (texture sam (+ uv (s~ o :zy)))
@@ -110,8 +95,8 @@
                     (x :float)
                     (y :float))
   (let ((color (texture sam uv)
-          ;;(sample-box uv delta sam x y)
-          ))
+               ;;(sample-box uv delta sam x y)
+               ))
     color))
 
 (defpipeline-g blur-pipe (:points)
