@@ -1,13 +1,13 @@
 ;;;; package.lisp
 
 (uiop:define-package #:incandescent
-    (:use #:cl
-          #:cepl
-          #:rtg-math
-          #:vari
-          #:nineveh
-          #:cepl.skitter
-          #:livesupport)
+  (:use #:cl
+        #:cepl
+        #:rtg-math
+        #:vari
+        #:nineveh
+        #:cepl.skitter
+        #:livesupport)
   (:import-from #:temporal-functions
                 #:make-stepper
                 #:seconds)
@@ -25,6 +25,7 @@
   (:import-from #:serapeum
                 #:do-each
                 #:vect
+                #:random-in-range
                 #:class-name-of)
   (:import-from #:with-setf
                 #:with-setf

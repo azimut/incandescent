@@ -58,8 +58,7 @@
   "rotates current value on *CURRRENTCAMERA*
    for each on *CAMERAS*"
   (setf *cameras* (alexandria:rotate *cameras*))
-  (setf *currentcamera* (first-elt *cameras*))
-  (values))
+  (setf *currentcamera* (first-elt *cameras*)))
 
 (defun world->view (camera)
   (m4:* (q:to-mat4      (q:inverse (rot camera)))
@@ -122,6 +121,19 @@
   (setf (pos dst-camera) (copy-seq (pos src-camera)))
   (setf (rot dst-camera) (copy-seq (rot src-camera)))
   dst-camera)
+
+(let ((old-pos (v3! 0))
+      (old-rot (v3! 0)))
+  (defun switcharoo (&optional (camera *currentcamera*))
+    (let ((current-pos (copy-seq (pos camera)))
+          (current-rot (copy-seq (rot camera))))
+      (if (v3:0p old-pos)
+          (setf old-pos current-pos
+                old-rot current-rot
+                (pos camera) (v3! 0))
+          (setf (pos camera) old-pos
+                (rot camera) old-rot
+                old-pos (v3! 0))))))
 
 ;;--------------------------------------------------
 ;; ANIMATION
@@ -219,38 +231,14 @@
 ;; UPDATE
 ;;--------------------------------------------------
 (defgeneric update (camera dt))
-(defmethod update ((camera orth) dt)
-  (setf (slot-value camera 'frame-size) (v2! 3))
-  (setf (pos camera) (v! 0 0 10))
-  (setf (rot camera) (q:point-at *vec3-up* (pos camera) (v! 0 0 0))))
+(defmethod update ((camera orth) dt))
 (defmethod update ((camera pers) dt)
-  ;;(setf (slot-value camera 'aspeed) .6)
-  (with-slots (pos) camera
-    ;; no backwards
-    (setf (z pos) (min (z pos) 50f0))
-    (setf (x pos) (alexandria:clamp (x pos) -50f0 50f0)))
-  ;;(setf (pos camera) (v! -20 90 485))
-  ;;(setf (pos camera) (v! 120 30 50))
-  ;;(setf (pos camera) (v! -4 -4 0))
-  ;;(setf (pos camera) (v! 0 0 10))
-  ;; (setf (pos camera) (v! (* 10 (cos (mynow)))
-  ;;                        (* 10 (cos (mynow)))
-  ;;                        (* 10 (sin (mynow)))))
+  ;; (with-slots (pos) camera
+  ;;   ;; no backwards
+  ;;   (setf (z pos) (min (z pos) 50f0))
+  ;;   (setf (x pos) (alexandria:clamp (x pos) -50f0 50f0)))
   ;;--------------------------------------------------
-  (animate camera)
+  ;;(animate camera)
   ;;--------------------------------------------------
-  ;;(setf (rot camera) (q:identity))
-  ;;(setf (fov camera) 60f0)
-  ;; (setf (rot camera)
-  ;;       (q:from-axis-angle (v! 1 0 0)
-  ;;                          (radians (* 200 (sin (mynow))))))
-  ;; (setf (rot camera)
-  ;;       ;;(q:*)
-  ;;       ;;(q:identity)
-  ;;       (q:point-at (v! 0 1 0) (pos camera) (v! 0 0 0))
-  ;;       ;;(q:from-axis-angle (v! 0 0 1) (radians (* 20 (sin (* .1 (mynow))))))
-  ;;       )
   )
-;; shots?
-
 

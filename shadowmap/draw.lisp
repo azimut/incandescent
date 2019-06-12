@@ -56,6 +56,7 @@
 
 ;; NOTE: this one draws different things one the shadowmap whether has or not bones
 ;; needed for bone transforms happening on vertex shader.
+#+nil
 (defun draw-shadowmap ()
   (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
     (clear *shadow-fbo*)
