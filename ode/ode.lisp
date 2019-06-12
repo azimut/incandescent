@@ -71,10 +71,11 @@
   (claw:c-let ((ode-pos :double :ptr (%ode:geom-get-position geom)))
     (v! (ode-pos 0) (ode-pos 1) (ode-pos 2))))
 
-(defun ode-geom-get-quaternion (geom)
-  (declare (type sb-sys:system-area-pointer geom))
-  (claw:c-let ((ode-rot :double :ptr (%ode:geom-get-rotation geom)))
-    (q:from-mat3
-     (m! (ode-rot 0) (ode-rot 1) (ode-rot 2)
-         (ode-rot 4) (ode-rot 5) (ode-rot 6)
-         (ode-rot 8) (ode-rot 9) (ode-rot 10)))))
+(defun ode-geom-get-quaternion2 (orot geom)
+  (declare (type sb-sys:system-area-pointer orot geom))
+  (%ode:geom-get-quaternion geom orot)
+  (claw:c-let ((ode-rot :double :ptr orot))
+    (q! (coerce (ode-rot 0) 'single-float)
+        (coerce (ode-rot 1) 'single-float)
+        (coerce (ode-rot 2) 'single-float)
+        (coerce (ode-rot 3) 'single-float))))
