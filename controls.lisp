@@ -6,18 +6,18 @@
 (defparameter *walk*  (make-stepper (seconds .7) (seconds .7)))
 (defparameter *run*   (make-stepper (seconds .5) (seconds .5)))
 
-(defun cam-spin (ang)
-  (with-slots (rot) *camera*
+(defun cam-spin (camera ang)
+  (with-slots (rot) camera
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle *vec3-forward* ang))))))
 
-(defun cam-turn (ang)
-  (with-slots (rot) *camera*
+(defun cam-turn (camera ang)
+  (with-slots (rot) camera
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle *vec3-up* ang))))))
 
-(defun cam-tilt (ang)
-  (with-slots (rot) *camera*
+(defun cam-tilt (camera ang)
+  (with-slots (rot) camera
     (setf rot (q:normalize
                (q:* rot (q:from-axis-angle *vec3-right* ang))))))
 
@@ -108,29 +108,30 @@
   ;; - stealth
   (when (keyboard-button (keyboard) key.lctrl)
     (setf factor 5))
-  (call-next-method camera dt factor))
+  (call-next-method))
 
 (defmethod control ((camera camera) dt factor)
   "free camera controls"
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; MOVEMENT
-  (human-move factor dt camera)
-    ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+  ;;(human-move factor dt camera)
+  (god-move factor dt camera)
+  ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; SPIN
   (when (key-down-p key.q)
-    (cam-spin (radians 1.8f0)))
+    (cam-spin camera (radians 1.8f0)))
   (when (key-down-p key.e)
-    (cam-spin (radians -1.8f0)))
+    (cam-spin camera (radians -1.8f0)))
     ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; PAN
   (when (key-down-p key.left)
-    (cam-turn (radians 1.8f0)))
+    (cam-turn camera (radians 1.8f0)))
   (when (key-down-p key.right)
-    (cam-turn (radians -1.8f0)))
+    (cam-turn camera (radians -1.8f0)))
   (when (key-down-p key.up)
-    (cam-tilt (radians 1.8f0)))
+    (cam-tilt camera (radians 1.8f0)))
   (when (key-down-p key.down)
-    (cam-tilt (radians -1.8f0)))
+    (cam-tilt camera (radians -1.8f0)))
   ;;
   (when (mouse-button (mouse) mouse.left)
     (let ((move (v2:*s (mouse-move (mouse))
@@ -140,4 +141,5 @@
              (q:* (rot camera)
                   (q:normalize
                    (q:* (q:from-axis-angle *vec3-right* (- (y move)))
-                        (q:from-axis-angle *vec3-up*    (- (x move)))))))))))
+                        (q:from-axis-angle *vec3-up*    (- (x move))))))))))
+  (pos camera))
