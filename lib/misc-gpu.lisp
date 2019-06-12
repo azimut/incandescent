@@ -1,27 +1,5 @@
 (in-package #:incandescent)
 
-;; http://planetpixelemporium.com/tutorialpages/light.html
-;; Candle           1900 255  147   41   (v! 1.0 0.5764706 0.16078432)
-;; 40W Tungsten     2600 255  197  143   (v! 1.0 0.7725491 0.56078434)
-;; 100W Tungsten    2850 255  214  170   (v! 1.0 0.83921576 0.6666667)
-;; Halogen          3200 255  241  224   (v! 1.0 0.9450981 0.87843144)
-;; Carbon Arc       5200 255  250  244   (v! 1.0 0.9803922 0.9568628)
-;; High Noon Sun    5400 255  255  251   (v! 1.0 1.0 0.9843138)
-;; Direct Sunlight  6000 255  255  255   (v! 1.0 1.0 1.0)
-;; Overcast Sky     7000 201  226  255   (v! 0.78823537 0.8862746 1.0)
-;; Clear Blue Sky  20000  64  156  255   (v! 0.2509804 0.6117647 1.0)
-;;
-;; Warm Fluorescent          255 244 229 (v! 1.0 0.9568628 0.8980393)
-;; Standard Fluorescent      244 255 250 (v! 0.9568628 1.0 0.9803922)
-;; Cool White Fluorescent    212 235 255 (v! 0.8313726 0.9215687 1.0)
-;; Full Spectrum Fluorescent 255 244 242 (v! 1.0 0.9568628 0.9490197)
-;; Grow Light Fluorescent    255 239 247 (v! 1.0 0.93725497 0.9686275)
-;; Black Light Fluorescent   167 0 255   (v! 0.654902 0.0 1.0)
-;; Mercury Vapor             216 247 255 (v! 0.8470589 0.9686275 1.0)
-;; Sodium Vapor              255 209 178 (v! 1.0 0.8196079 0.69803923)
-;; Metal Halide              242 252 255 (v! 0.9490197 0.98823535 1.0)
-;; High Pressure Sodium      255 183 76  (v! 1.0 0.7176471 0.29803923)
-
 (defun-g spec-phong ((light-dir :vec3) (view-dir :vec3) (normal :vec3) (shininess :float))
   (let* ((reflect-dir (reflect (- light-dir) normal))
          (spec-angle  (max (dot view-dir reflect-dir) 0))
@@ -427,6 +405,10 @@
          (z (- (* depth 2.0) 1.0)))
     (/ (* 2.0 (* near far))
        (- (+ far near) (* z (- far near))))))
+(defun-g linearize-depth ((depth :float) (near :float) (far :float))
+  (let* ((z (- (* depth 2.0) 1.0)))
+    (/ (* 2.0 (* near far))
+       (- (+ far near) (* z (- far near))))))
 
 ;; Three.js - packaging.glsl.js
 (defun-g view-zto-orthographic-depth ((view-z :float)
@@ -453,8 +435,26 @@
 
 ;;--------------------------------------------------
 
+;; Code from cbaggers/daft
+(defun-g calc-uv-mod ((tile-count-x :int)
+                      (tile-count-y :int)
+                      (anim-frame   :int))
+  (let* ((uv-scale  (v! (/ 1f0 tile-count-x)
+                        (/ 1f0 tile-count-y)))
+         (uv-offset (v! (* (mod anim-frame tile-count-x)
+                           (x uv-scale))
+                        (* (floor (/ anim-frame tile-count-x))
+                           (y uv-scale)))))
+    (values uv-scale uv-offset)))
 
-
-
-
+(defun-g calc-uv-mod ((tile-count-x :float)
+                      (tile-count-y :float)
+                      (anim-frame   :float))
+  (let* ((uv-scale  (v! (/ 1f0 tile-count-x)
+                        (/ 1f0 tile-count-y)))
+         (uv-offset (v! (* (mod anim-frame tile-count-x)
+                           (x uv-scale))
+                        (* (floor (/ anim-frame tile-count-x))
+                           (y uv-scale)))))
+    (values uv-scale uv-offset)))
 
