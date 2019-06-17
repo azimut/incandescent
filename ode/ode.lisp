@@ -80,7 +80,31 @@
         (coerce (ode-rot 2) 'single-float)
         (coerce (ode-rot 3) 'single-float))))
 
+(defun physic-to-ode (physic)
+  (with-slots (buf
+               pos
+               ode-vertices ode-indices data geom
+               mass density immovablep
+               body)
+      physic
+    (multiple-value-bind (v i d g) (buffer-strem-to-ode buf)
+      (setf ode-vertices v
+            ode-indices  i
+            data         d
+            geom         g))
+    (unless immovablep
+      (%ode:geom-set-data geom data)
+      (%ode:mass-set-trimesh mass density geom)
+      ;; FIXME: is the correct value?
+      (%ode:mass-translate mass
+                           (coerce (x pos) 'double-float)
+                           (coerce (y pos) 'double-float)
+                           (coerce (z pos) 'double-float))
+      (%ode:body-set-mass body mass)
+      (%ode:geom-set-body geom body))))
+
 (defun buffer-stream-to-ode (buf)
+  "creates a new geometry on ODE from a cepl buffer stream"
   (destructuring-bind ((gv) gi) (buffer-stream-gpu-arrays buf)
     (let ((gvl (car (gpu-array-dimensions gv)))
           (gil (car (gpu-array-dimensions gi))))
@@ -111,7 +135,6 @@
                                               (indices &)
                                               gil
                                               (* 3 (claw:sizeof :unsigned-int)))
-        ;;(%ode:mass-set-trimesh (m &) density geom)
         ;;(%ode:body-set-mass body (m &))
         ;;(%ode:geom-set-body geom body)
         ;;(%ode:geom-tri-mesh-enable-tc geom %ode:+sphere-class+ 0)
