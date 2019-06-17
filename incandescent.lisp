@@ -36,3 +36,8 @@
                       (asdf:system-relative-pathname :incandescent path))))
     (assert (probe-file realpath))
     realpath))
+
+(defun dimensions= (&rest rest)
+  (when rest
+    (serapeum:seq= (mapcar (lambda (obj) (dimensions obj))
+                           rest))))
