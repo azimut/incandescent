@@ -4,8 +4,11 @@
   ((body :initarg :body :reader body :documentation "body pointer")
    (mass :initarg :mass :reader mass :documentation "mass pointer")
    (geom :initarg :geom :reader geom :documentation "geometry pointer")
+   (immovablep :initarg :immovablep
+               :documentation "ode immovable object, aka without body")
    (orot :initarg :orot))
   (:default-initargs
+   :immovablep nil
    :body (%ode:body-create *world*)
    :mass (claw:alloc '%ode:mass)
    :orot (claw:alloc '%ode:real 4)))
@@ -18,6 +21,8 @@
     (claw:free orot)))
 
 (defun ode-update-rot (physic q)
+  "Ideally only called once at initialization"
+  (declare (type rtg-math.types:quaternion q))
   (with-slots (geom orot) physic
     (claw:c-let ((quat %ode:real :ptr orot))
       (setf (quat 0) (coerce (x q) 'double-float))
@@ -27,6 +32,8 @@
     (%ode:geom-set-quaternion geom orot)))
 
 (defun ode-update-pos (physic v)
+  "Ideally only called once at initialization"
+  (declare (type rtg-math.types:vec3 v))
   (%ode:geom-set-position (slot-value physic 'geom)
                           (coerce (x v) 'double-float)
                           (coerce (y v) 'double-float)
