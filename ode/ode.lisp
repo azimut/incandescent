@@ -79,3 +79,44 @@
         (coerce (ode-rot 1) 'single-float)
         (coerce (ode-rot 2) 'single-float)
         (coerce (ode-rot 3) 'single-float))))
+
+(defun buffer-stream-to-ode (buf)
+  (destructuring-bind ((gv) gi) (buffer-stream-gpu-arrays buf)
+    (let ((gvl (car (gpu-array-dimensions gv)))
+          (gil (car (gpu-array-dimensions gi))))
+      (claw:c-let ((vertices :float :calloc t :count (* 3 gvl))
+                   (indices  :unsigned-int :calloc t :count gil)
+                   (mesh-data %ode::tri-mesh-data-id
+                              :ptr (%ode:geom-tri-mesh-data-create))
+                   ;;(m %ode:mass :from mass)
+                   )
+        ;;
+        (with-gpu-array-as-c-array (ci gi)
+          (loop :for i :below gil
+                :do (setf (indices i) (aref-c ci i))))
+        ;;
+        (with-gpu-array-as-c-array (cv gv)
+          (loop :for i :below gvl
+                :for ovx :by 3
+                :for ovy := (+ ovx 1)
+                :for ovz := (+ ovx 2)
+                :do (setf (vertices ovx) (x (pos (aref-c cv i))))
+                    (setf (vertices ovy) (y (pos (aref-c cv i))))
+                    (setf (vertices ovz) (z (pos (aref-c cv i))))))
+        ;;
+        (%ode:geom-tri-mesh-data-build-single (mesh-data &)
+                                              (vertices &)
+                                              (* 3 (claw:sizeof :float))
+                                              gvl
+                                              (indices &)
+                                              gil
+                                              (* 3 (claw:sizeof :unsigned-int)))
+        ;;(%ode:mass-set-trimesh (m &) density geom)
+        ;;(%ode:body-set-mass body (m &))
+        ;;(%ode:geom-set-body geom body)
+        ;;(%ode:geom-tri-mesh-enable-tc geom %ode:+sphere-class+ 0)
+        ;;(%ode:geom-tri-mesh-enable-tc geom %ode:+box-class+ 0)
+        (values (vertices &)
+                (indices &)
+                (mesh-data &)
+                (%ode:create-tri-mesh *space* (mesh-data &) 0 0 0))))))
