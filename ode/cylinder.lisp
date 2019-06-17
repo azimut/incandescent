@@ -15,7 +15,8 @@
   (with-slots (mass body geom density pos rot radius height) obj
     (setf geom (%ode:create-cylinder *space* radius height))
     (claw:c-let ((m %ode:mass :from mass))
-      (%ode:mass-set-cylinder (m &) density 3 radius height)
+      (%ode:mass-set-cylinder (m &) density 1 radius height)
+      ;;(%ode:mass-set-sphere (m &) density radius)
       (%ode:body-set-mass body (m &))
       (%ode:geom-set-body geom body))
     (ode-update-pos obj pos)
@@ -40,18 +41,18 @@
 
 (defmethod update ((actor physic-cylinder) dt)
   (when *world*
-    (with-slots (pos rot geom) actor
+    (with-slots (pos rot orot geom) actor
       (setf pos (ode-geom-get-position geom))
-      (setf rot (ode-geom-get-quaternion geom)))))
+      (setf rot (ode-geom-get-quaternion2 orot geom)))))
 
 (defmethod draw ((actor physic-cylinder) camera (time single-float))
   (with-slots (buf scale color) actor
-    (map-g #'generic-shadow-pipe buf
+    (map-g #'generic-pipe buf
            :scale scale
            :color color
-           :shadowmap *shadow-sam*
-           :light-world (world->view *shadow-camera*)
-           :light-clip  (projection *shadow-camera*)
+           ;; :shadowmap *shadow-sam*
+           ;; :light-world (world->view *shadow-camera*)
+           ;; :light-clip  (projection *shadow-camera*)
            :cam-pos (pos camera)
            :model-world (model->world actor)
            :world-view  (world->view camera)

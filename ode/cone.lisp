@@ -35,11 +35,7 @@
                ode-vertices ode-indices
                density radius height)
       obj
-    (multiple-value-bind (v i d g) (buffer-strem-to-ode buf)
-      (setf ode-vertices v
-            ode-indices  i
-            data         d
-            geom         g))
+    (physic-to-ode obj)
     (ode-update-pos obj pos)
     (ode-update-rot obj rot)))
 
@@ -47,11 +43,13 @@
                               (rot (q:identity))
                               (density 1d0)
                               (radius .5d0)
-                              (height 1d0))
+                              (height 1d0)
+                              immovablep)
   (declare (type double-float density radius height))
   (let ((obj (make-instance 'physic-cone
                             :pos pos
                             :rot rot
+                            :immovablep immovablep
                             :radius radius
                             :height height
                             :buf (cone (coerce radius 'single-float)
@@ -61,11 +59,11 @@
     obj))
 
 (defmethod update ((actor physic-cone) dt)
-  #+nil
   (when *world*
-    (with-slots (pos rot orot geom) actor
-      (setf pos (ode-geom-get-position geom))
-      (setf rot (ode-geom-get-quaternion2 orot geom)))))
+    (with-slots (pos rot orot geom immovablep) actor
+      (unless immovablep
+        (setf pos (ode-geom-get-position geom))
+        (setf rot (ode-geom-get-quaternion2 orot geom))))))
 
 (defmethod draw ((actor physic-cone) camera (time single-float))
   (with-slots (buf scale color) actor
