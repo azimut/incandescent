@@ -31,13 +31,26 @@
 (defun fmod (x y)
   (- x (* y (floor (/ x y)))))
 
-(defun resolve-path (path)
+(defun resolve-path (path &optional (assert-p t))
   (let ((realpath (or (uiop:absolute-pathname-p path)
                       (asdf:system-relative-pathname :incandescent path))))
-    (assert (probe-file realpath))
+    (when assert-p
+      (assert (probe-file realpath)))
     realpath))
 
 (defun dimensions= (&rest rest)
   (when rest
     (serapeum:seq= (mapcar (lambda (obj) (dimensions obj))
                            rest))))
+
+(defun map-range (a1 a2 b1 b2 s)
+  (+ b1
+     (/ (* (- s a1)
+	   (- b2 b1))
+	(- a2 a1))))
+
+(defun cpu-1-tone-map-reinhard (color1 exposure)
+  (declare (type single-float color1 exposure))
+  (let* ((col (* color1 exposure))
+         (r   (/ col (+ 1f0 col))))
+    (expt r #.(/ 2.2))))
