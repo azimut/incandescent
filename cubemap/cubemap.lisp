@@ -1,5 +1,16 @@
 (in-package #:incandescent)
 
+;; make-cubemap-tex
+;;
+;; make-scene-cubemap
+;; free-scene-cubemap
+;; init-render-cubemap
+;;
+;; scene-to-cubemap
+;; scene-to-cubemap-disk
+;; texture-to-disk
+;; screen-to-disk
+
 ;; THE CAMERA
 (defvar *camera-cubemap*
   (make-instance 'pers
@@ -7,37 +18,26 @@
                  :fov 90f0))
 
 ;;--------------------------------------------------
-;; Cubemap
-;;
-;; TODO:
-;; - Cache cubemaps?
 
-(defclass env-map (actor)
-  ((cubetex :initarg :cubetex)
-   (cubesam :initarg :cubesam)
-   (buf     :initform (box))))
+;; Reference: Cubemap generation mostly from
+;; https://learnopengl.com/PBR/IBL/Diffuse-irradiance
+(defparameter *cubemap-sides* '("right" "left"
+                                "top"   "bottom"
+                                "front" "back"))
+(defparameter *cubemap-rotations*
+  (list
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-right*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-left*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-down*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-up*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-forward*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-back*)))
 
-(defun make-env-map (tex sam)
-  (declare (type cepl:texture tex)
-           (type cepl:sampler sam))
-  (let ((obj (make-instance 'env-map :cubetex tex :cubesam sam)))
-    (push obj *actors*)
-    obj))
-
-(defmethod draw ((actor env-map) camera time)
-  (with-slots (buf cubesam) actor
-    (with-setf* ((cull-face) :front
-                 (depth-test-function) #'<=
-                 (depth-mask) nil)
-      (map-g #'cubemap-pipe buf
-             :tex cubesam
-             ;; Rotation without translation
-             :view (q:to-mat4
-                    (q:inverse (rot camera)))
-             :projection (projection camera)))))
+;;--------------------------------------------------
+;; Constructors
 
 (defun make-cubemap-tex (&rest paths)
-  "Returns a gpu texture from the provided images"
+  "Returns a gpu texture FROM the provided images"
   (assert (= 6 (length paths)))
   (with-c-arrays-freed
       (ca (mapcar
@@ -47,86 +47,30 @@
            paths))
     (make-texture ca :element-type :rgb8 :cubes t)))
 
-;; Souce Cubemap with clouds
-(defvar *t-cubemap* nil)
-(defvar *s-cubemap* nil)
-
-(defun free-cubes ()
-  (when *t-cubemap*
-    (free *t-cubemap*)
-    (setf *t-cubemap* NIL)))
-
-(defun init-cubemap ()
-  (unless *t-cubemap*
-    (setf *t-cubemap*
-          (make-cubemap-tex
-           "static/ThickCloudsWater/left.png"
-           "static/ThickCloudsWater/right.png"
-           "static/ThickCloudsWater/up.png"
-           "static/ThickCloudsWater/down.png"
-           "static/ThickCloudsWater/front.png"
-           "static/ThickCloudsWater/back.png"))
-    (setf *s-cubemap*
-          (sample *t-cubemap*
-                  :wrap :clamp-to-edge
-                  :magnify-filter :linear))))
-
 ;;--------------------------------------------------
 
-;; Reference: Cubemap generation mostly from
-;; https://learnopengl.com/PBR/IBL/Diffuse-irradiance
-(defparameter *cubemap-sides* '("left"   "right"
-                                "bottom" "top"
-                                "front"  "back"))
-(defparameter *cubemap-rotations*
-  (list
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-right*)
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-left*)
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-down*)
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-up*)
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-forward*)
-   (list (v! 0 -1 0) (v! 0 0 0) *vec3-back*)))
-
-;;--------------------------------------------------
-;; Cubemap
-;; Rendering order does not matter
-;; Use it with a 1x1x1 box AND-test-function #'<=
-(defun-g cubemap-vert ((g-pnt g-pnt)
-                       &uniform
-                       (view :mat4)
-                       (projection :mat4))
-  (let* ((pos3  (pos g-pnt))
-         (pos4  (v! pos3 1))
-         (cpos4 (* projection view pos4)))
-    (values (s~ cpos4 :xyww)
-            pos3)))
-
-(defun-g cubemap-frag ((tc :vec3)
-                       &uniform
-                       (tex :sampler-cube))
-  (let* ((color (s~ (texture tex tc) :xyz)))
-    (v! color 1)))
-
-(defpipeline-g cubemap-pipe ()
-  :vertex   (cubemap-vert g-pnt)
-  :fragment (cubemap-frag :vec3))
-
-;;--------------------------------------------------
 (defvar *cube-tex* NIL)
 (defvar *cube-sam* NIL)
 
-(defun make-render-cubemap (&key (camera *camera-cubemap*)
-                                 (pos (v! 0 0 0)))
-  (let ((dst-cubemap (make-texture NIL :dimensions '(2048 2048)
-                                       :cubes T
+(defun make-scene-cubemap (&key (camera *camera-cubemap*)
+                                (dimensions '(2048 2048))
+                                (pos (v! 0 0 0)))
+  "returns a NEW cubemap from the current scene"
+  (assert (apply #'= dimensions))
+  (let ((dst-cubemap (make-texture NIL :cubes T
+                                       :dimensions dimensions
                                        :element-type :rgb16f)))
     (scene-to-cubemap dst-cubemap :camera camera :pos pos)
     dst-cubemap))
 
-(defun init-render-cubemap ()
+(defun free-scene-cubemap ()
   (when *cube-tex* (free *cube-tex*))
+  (setf *cube-tex* NIL))
+
+(defun init-render-cubemap ()
+  (free-scene-cubemap)
   (setf *cube-tex* (make-render-cubemap))
-  (setf *cube-sam* (sample *cube-tex* :wrap           :clamp-to-edge
+  (setf *cube-sam* (sample *cube-tex* :wrap :clamp-to-edge
                                       :magnify-filter :linear)))
 
 ;;--------------------------------------------------
@@ -148,12 +92,12 @@
 (defun filename-to-save-function (filename &key)
   "returns a 2 arg function, which takes a tex and a filename"
   (alexandria:eswitch ((filename-extension filename) :test #'string=)
-    ("png" #'texture-to-png-disk)
+    ("png" #'texture-to-png)
     ("bmp" #'dirt:save-as-image)
     ("tga" #'dirt:save-as-image)
     ("dds" #'dirt:save-as-image)))
 
-(defun texture-to-png-disk (texture filename)
+(defun texture-to-png (texture filename)
   "NOTE: cl-png, builds a lisp array, so we can rely on cpu side tone/color/value mapping"
   (let* ((f          (range-function-for-texture texture))
          (dimensions (dimensions texture))
@@ -269,9 +213,11 @@
                                  side
                                  (pathname-type file-pathname)))))))
 
+(defun texture-to-disk (filename texture)
+  (declare (type cepl:texture texture))
+  (let ((f (filename-to-save-function filename)))
+    (funcall f texture filename)))
+
 (defun screen-to-disk (filename)
   "take what is already rendered on the main fbo and save it"
-  (let ((f (filename-to-save-function filename)))
-    (funcall f
-             (attachment-tex *fbo* 0)
-             filename)))
+  (texture-to-disk filename (attachment-tex *fbo* 0)))
