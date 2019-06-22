@@ -24,8 +24,8 @@
 
 (defun update-all-the-things (l dt)
   (declare (list l))
-  (loop :for actor :in l
-        :do (update actor dt)))
+  (dolist (actor l)
+    (update actor dt)))
 
 (defun model->world (actor)
   (with-slots (pos rot) actor
@@ -59,18 +59,22 @@
 
 (defclass pbr-simple (actor)
   ((roughness :initarg :roughness)
-   (metallic  :initarg :metallic))
+   (metallic  :initarg :metallic)
+   (specular  :initarg :specular))
   (:default-initargs
    :roughness .1
-   :metallic  .1))
+   :metallic  .1
+   :specular  .1))
 
-(defun make-pbr-simple (&optional (pos (v! 0 0 0)))
+(defun make-pbr-simple (&key (pos (v! 0 0 0)))
   (let ((obj (make-instance
               'pbr-simple
               :buf (sphere)
               :pos pos)))
     (push obj *actors*)
     obj))
+
+;;--------------------------------------------------
 
 (defclass pbr (actor)
   ((albedo    :initarg :albedo)
@@ -91,64 +95,27 @@
    :normal    (get-tex "static/32.Rock01-1k/rock01_normal.jpg"    NIL T :rgb8)
    :roughness (get-tex "static/32.Rock01-1k/rock01_roughness.jpg" NIL T :r8)))
 
-(defclass pbr-shadow (pbr) ())
-(defclass piso (pbr) ())
-
-(defun make-piso (&key (pos (v! 0 0 0)) (rot (q:identity)) (scale 1f0) (buf (lattice 100 100 2 2 t)) (uv-repeat (v! 1 1)))
+(defun make-pbr (&key (pos (v! 0 0 0)))
   (let ((obj (make-instance
-              'piso
-              :buf buf
-              :pos pos
-              :scale scale
-              :rot rot)))
+              'pbr
+              :buf (sphere 1 30 30 t)
+              :pos pos)))
     (push obj *actors*)
     obj))
-
-(defclass thing (pbr) ())
-(defun make-thing (&optional (pos (v! 0 0 0)) (rot (q:identity)))
-  (let ((obj (make-instance
-              'pbr-simple
-              :buf (sphere)
-              :pos pos
-              :rot rot)))
-    (push obj *actors*)
-    obj))
-
-(defclass box (actor) ())
-(defun make-box (&key (pos (v! 0 0 0)) (rot (q:identity))
-                      (x 2) (y 2) (z 2)
-                      (scale 1f0) (name (gensym)))
-  (let ((obj (make-instance 'box
-                            :buf (box x y z)
-                            :name name
-                            :pos pos
-                            :rot rot
-                            :scale scale)))
-    (push obj *actors*)
-    obj))
-(defun init-box (&optional (buf (box)) (range 8f0))
-  "helper to create a bunch of boxes at random pos/rot/scale"
-  (declare (type cepl:buffer-stream buf)
-           (type single-float range))
-  (let ((half (* .5 range)))
-    (dotimes (i 20)
-      (make-box :pos (v! (- (random range) half)
-                         (- (random range) half)
-                         (- (random range) half))
-                :buf buf
-                :scale (random 1f0)
-                :rot (q:from-axis-angle (v! (random 1f0)
-                                            (random 1f0)
-                                            (random 1f0))
-                                        (radians (random 360)))))))
 
 ;;--------------------------------------------------
 ;; UPDATE
 ;;--------------------------------------------------
 (defgeneric update (actor dt))
 (defmethod update (actor dt))
-(defmethod update ((actor pbr) dt))
-(defmethod update ((actor pbr-simple) dt))
-(defmethod update ((actor box) dt))
+(defmethod update ((actor pbr) dt)
+  (setf (slot-value actor 'metallic) .01))
+
+(defmethod update ((actor pbr-simple) dt)
+  (with-slots (metallic specular roughness) actor
+    (setf metallic  .1
+          specular  .1f0
+          roughness .9)))
+
 
 
