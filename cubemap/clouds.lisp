@@ -4,12 +4,12 @@
 (defvar *t-cubemap* nil)
 (defvar *s-cubemap* nil)
 
-(defun free-cubes ()
+(defun free-clouds ()
   (when *t-cubemap*
     (free *t-cubemap*)
     (setf *t-cubemap* NIL)))
 
-(defun init-cubemap ()
+(defun init-clouds ()
   (unless *t-cubemap*
     (setf *t-cubemap*
           (make-cubemap-tex
@@ -23,3 +23,8 @@
           (sample *t-cubemap*
                   :wrap :clamp-to-edge
                   :magnify-filter :linear))))
+
+(defun make-clouds ()
+  (unless *t-cubemap*
+    (init-clouds))
+  (make-env-map *t-cubemap* *s-cubemap*))

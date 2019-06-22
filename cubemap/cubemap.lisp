@@ -21,17 +21,17 @@
 
 ;; Reference: Cubemap generation mostly from
 ;; https://learnopengl.com/PBR/IBL/Diffuse-irradiance
-(defparameter *cubemap-sides* '("right" "left"
-                                "top"   "bottom"
-                                "front" "back"))
+(defparameter *cubemap-sides* '("left" "right"
+                                "top"  "bottom"
+                                "back" "front"))
 (defparameter *cubemap-rotations*
   (list
-   (list (v! 0 1 0) (v! 0 0 0) *vec3-right*)
    (list (v! 0 1 0) (v! 0 0 0) *vec3-left*)
-   (list (v! 0 1 0) (v! 0 0 0) *vec3-down*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-right*)
    (list (v! 0 1 0) (v! 0 0 0) *vec3-up*)
-   (list (v! 0 1 0) (v! 0 0 0) *vec3-forward*)
-   (list (v! 0 1 0) (v! 0 0 0) *vec3-back*)))
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-down*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-back*)
+   (list (v! 0 1 0) (v! 0 0 0) *vec3-forward*)))
 
 ;;--------------------------------------------------
 ;; Constructors
@@ -71,7 +71,8 @@
   (free-scene-cubemap)
   (setf *cube-tex* (make-render-cubemap))
   (setf *cube-sam* (sample *cube-tex* :wrap :clamp-to-edge
-                                      :magnify-filter :linear)))
+                                      :magnify-filter :linear))
+  t)
 
 ;;--------------------------------------------------
 
