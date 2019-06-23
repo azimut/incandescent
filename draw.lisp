@@ -2,7 +2,7 @@
 
 (defvar *pointlight-pos* (v! 0 0 0))
 
-(defparameter *light-pos* (v! 7.545997 2.553596 5.4780827))
+(defparameter *light-pos* (v! 17.545997 12.553596 115.4780827))
 (defparameter *light-color* (v! 0.78823537 0.8862746 1.0))
 
 (defparameter *parallax-scale* .01f0)
@@ -42,24 +42,6 @@
 (defgeneric draw (actor camera time))
 (defmethod draw (actor camera time))
 
-(defmethod draw ((actor box) camera (time single-float))
-  (with-slots (buf scale color) actor
-    (map-g #'generic-pipe buf
-           :scale scale
-           :color color
-           :time  time
-           :cam-pos (pos camera)
-           :model-world (model->world actor)
-           :world-view  (world->view camera)
-           :view-clip   (projection  camera)
-           ;; Directional light (for the most part)
-           :light-color *light-color*
-           :light-pos   *light-pos*
-           :brdf-luf *s-brdf*
-           :irradiance-map *s-cubemap-live*
-           :prefilter-map *s-cubemap-prefilter*
-           )))
-
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf
                color
@@ -76,7 +58,7 @@
            :samd *samd*
            ;; Lighting
            :cam-pos (pos camera)
-           :cam-dir (q:to-direction (rot *camera*)) ;; flashlight
+           :cam-dir (q:to-direction (rot camera)) ;; flashlight
            :light-pos *light-pos*
            ;;
            :model-world (model->world actor)
@@ -95,7 +77,7 @@
            :irradiance-map *s-cubemap-live*)))
 
 (defmethod draw ((actor pbr-simple) camera (time single-float))
-  (with-slots (buf scale color roughness metallic) actor
+  (with-slots (buf scale color roughness metallic specular) actor
     (map-g #'pbr-simple-pipe buf
            :scale scale
            :color color
@@ -108,32 +90,11 @@
            :world-view (world->view camera)
            :view-clip  (projection camera)
            ;; PBR
-           :roughness .1
-           :metallic .9
+           :roughness roughness
+           :metallic metallic
+           :specular specular
            ;; IBL
            :brdf-lut *s-brdf*
            :prefilter-map *s-cubemap-prefilter*
            :irradiance-map *s-cubemap-live*)))
 
-;;--------------------------------------------------
-
-(defmethod draw ((actor piso) camera (time single-float))
-  (with-slots (buf scale color roughness metallic) actor
-    (map-g #'pbr-simple-pipe buf
-           :scale scale
-           :color color
-           :time time
-           ;; Lighting
-           :cam-pos (pos camera)
-           :light-pos *light-pos*
-           ;;
-           :model-world (model->world actor)
-           :world-view (world->view camera)
-           :view-clip  (projection camera)
-           ;; PBR
-           :roughness .1
-           :metallic .9
-           ;; IBL
-           :brdf-lut *s-brdf*
-           :prefilter-map *s-cubemap-prefilter*
-           :irradiance-map *s-cubemap-live*)))
