@@ -60,31 +60,34 @@
           (sample *t-brdf*
                   :wrap :clamp-to-edge
                   :magnify-filter :linear
-                  :minify-filter  :linear))))
+                  :minify-filter  :linear)))
+  t)
 
 ;; Is kind of garbage that I need a source cubemap to begin with
 ;; instead of use the scene. But, It makes it easier so i can just
 ;; use a separate render pipeline just for the source cubemap.
-(defun update-ibl (&optional (src-tex *t-cubemap*) (src-sam *s-cubemap*))
+(defun update-ibl (&optional (src-tex *cube-tex*)
+                             (src-sam *cube-sam*))
   (declare (type cepl:texture src-tex)
            (type cepl:sampler src-sam))
   (assert (texture-cubes-p src-tex))
   ;; Diffuse
   (when *t-cubemap-prefilter*
-    (cubemap-render-to-prefilter-cubemap *camera-cubemap*
-                                         src-tex
-                                         src-sam
-                                         *t-cubemap-prefilter*))
+    (cubemap-render-to-prefilter-cubemap :camera *camera-cubemap*
+                                         :src-cubemap src-tex
+                                         :src-cubemap-sample src-sam
+                                         :dst-cubemap *t-cubemap-prefilter*))
   ;; IBL - Specular
   (setf (resolution (current-viewport)) (v! 512 512))
   (when *f-brdf*
     (map-g-into *f-brdf* #'brdf-pipe *bs*))
   ;;
   (when *t-cubemap-live*
-    (cubemap-render-to-irradiance-cubemap *camera-cubemap*
-                                          src-tex
-                                          src-sam
-                                          *t-cubemap-live*)))
+    (cubemap-render-to-irradiance-cubemap :camera *camera-cubemap*
+                                          :src-cubemap src-tex
+                                          :src-cubemap-sample src-sam
+                                          :dst-cubemap *t-cubemap-live*))
+  t)
 
 ;;--------------------------------------------------
 ;; Pipeline to create a BRDF 2d lut
@@ -216,10 +219,11 @@
 
 ;;--------------------------------------------------
 ;; GI - IBL - Irradiance light
-(defun cubemap-render-to-irradiance-cubemap (camera
-                                             src-cubemap
-                                             src-cubemap-sample
-                                             dst-cubemap)
+(defun cubemap-render-to-irradiance-cubemap (&key
+                                             (src-cubemap *cube-tex*)
+                                             (src-cubemap-sample *cube-sam*)
+                                             (dst-cubemap *t-cubemap-live*)
+                                             (camera *camera-cubemap*))
   "Adviced dimensions of DST-CUBEMAP of 32x32"
   (declare (type texture src-cubemap dst-cubemap))
   (let ((dst-dimensions (dimensions dst-cubemap))
@@ -235,14 +239,14 @@
            (list 0 :dimensions dst-dimensions :element-type :rgb16f)
            (list :d :dimensions dst-dimensions))))
       (loop
-         :for side :in *cubemap-sides*
-         :for rotation :in *cubemap-rotations*
-         :for face :from 0
-         :do
-         ;; Rotate camera
+        :for side :in *cubemap-sides*
+        :for rotation :in *cubemap-rotations*
+        :for face :from 0
+        :do
+        ;; Rotate camera
            (destructuring-bind (up from to) rotation
              (setf (rot camera) (q:look-at up from to)))
-         ;; Switch FBO texture for one of the cubemap
+           ;; Switch FBO texture for one of the cubemap
            (setf (attachment fbo 0)
                  (texref dst-cubemap :cube-face face))
            (with-setf* ((cull-face) :front
@@ -305,10 +309,11 @@
 ;;--------------------------------------------------
 ;; GI - IBL - Specular prefilter cubemap
 ;; https://learnopengl.com/PBR/IBL/Specular-IBL
-(defun cubemap-render-to-prefilter-cubemap (camera
-                                            src-cubemap
-                                            src-cubemap-sample
-                                            dst-cubemap)
+(defun cubemap-render-to-prefilter-cubemap (&key
+                                            (src-cubemap *cube-tex*)
+                                            (src-cubemap-sample *cube-sam*)
+                                            (dst-cubemap *t-cubemap-prefilter*)
+                                            (camera *camera-cubemap*))
   "Adviced DST-CUBEMAP dimensions 128x128"
   (let ((dst-dimensions (dimensions dst-cubemap))
         (src-dimensions (dimensions src-cubemap)))
@@ -330,14 +335,14 @@
                (list 0 :dimensions dimensions :element-type :rgb16f)
                (list :d :dimensions dimensions))))
           (loop
-             :for side :in *cubemap-sides*
-             :for rotation :in *cubemap-rotations*
-             :for face :from 0
-             :do
-             ;; Rotate camera
+            :for side :in *cubemap-sides*
+            :for rotation :in *cubemap-rotations*
+            :for face :from 0
+            :do
+            ;; Rotate camera
                (destructuring-bind (up from to) rotation
                  (setf (rot camera) (q:look-at up from to)))
-             ;; Switch FBO texture for one of the cubemap
+               ;; Switch FBO texture for one of the cubemap
                (setf (attachment fbo 0)
                      (texref dst-cubemap :cube-face face :mipmap-level mip))
                (with-setf* ((cull-face) :front
