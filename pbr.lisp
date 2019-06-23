@@ -118,21 +118,30 @@
                       (color :vec3)
                       (ao :float))
   (let* ((r (reflect (- v) n))
+         (prefiltered-color (s~ (texture-lod prefilter-map
+                                             r
+                                             (* roughness 4f0))
+                                :xyz))
          (f (fresnel-schlick-roughness (max (dot n v) 0)
                                        f0
                                        roughness))
+         (env-brdf (s~ (texture brdf-lut
+                                (v! (max (dot n v) 0)
+                                    roughness))
+                       :xy))
+         (specular (* prefiltered-color
+                      (+ (* f (x env-brdf))
+                         (y env-brdf))))
+         ;;
          (ks f)
-         (kd (* (- 1 ks) (- 1 metallic)))
-         (irradiance (s~ (texture irradiance-map n) :xyz))
+         (kd         (* (- 1 ks)
+                        (- 1 metallic)))
+         (irradiance (s~ (texture irradiance-map n)
+                         :xyz))
          (diffuse    (* irradiance color))
-         (prefiltered-color
-          (s~ (texture-lod prefilter-map r (* roughness 4f0))
-              :xyz))
-         (env-brdf
-          (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
-         (specular
-          (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
-         (ambient (* (+ specular (* kd diffuse)) ao)))
+         ;;
+         (ambient (* (+ specular (* kd diffuse))
+                     ao)))
     ambient))
 
 ;;--------------------------------------------------
