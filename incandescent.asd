@@ -22,16 +22,20 @@
   :components ((:file "package")
                (:file "incandescent")
                (:file "lib/assets")   ;; lisp
-               (:file "pbr")
-               (:file "lib/misc-gpu")
+               (:file "pbr")          ;; gpu
+               (:file "lib/misc-gpu") ;; gpu
                (:file "actors")       ;; lisp
                (:file "camera")       ;; lisp
                (:file "controls")     ;; lisp
                (:file "postprocess")  ;; gpu
                (:file "draw")         ;; lisp
                (:file "render")       ;; gpu - main pipelines
-               (:file "cubemap")
+               (:file "cubemap/render")
+               (:file "cubemap/cubemap")
+               (:file "cubemap/env-map")
+               (:file "cubemap/clouds")
                (:file "ibl")
+               (:file "things/box")
                (:file "main")))
 
 (asdf:defsystem #:incandescent/assimp
