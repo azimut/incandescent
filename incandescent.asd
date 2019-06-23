@@ -36,6 +36,8 @@
                (:file "cubemap/clouds")
                (:file "ibl")
                (:file "things/box")
+               (:file "things/pbr-simple")
+               (:file "things/pbr")
                (:file "main")))
 
 (asdf:defsystem #:incandescent/assimp
