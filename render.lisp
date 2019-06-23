@@ -12,13 +12,11 @@
 ;;--------------------------------------------------
 ;; 3D - g-pnt mesh without tangents
 
-(defun-g vert ((vert g-pnt)
-               &uniform
+(defun-g vert ((vert g-pnt) &uniform
                (model-world :mat4)
-               (world-view :mat4)
-               (view-clip :mat4)
-               (scale :float)
-               (time :float))
+               (world-view  :mat4)
+               (view-clip   :mat4)
+               (scale       :float))
   (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
          (tex        (tex vert))
@@ -39,24 +37,23 @@
                (color :vec3)
                (cam-pos :vec3)
                ;; Directional light (for the most part)
-               (light-color :vec3)
-               (light-pos   :vec3)
-               (brdf-luf :sampler-2d)
+               (light-color    :vec3)
+               (light-pos      :vec3)
+               (brdf-luf       :sampler-2d)
                (irradiance-map :sampler-cube)
-               (prefilter-map :sampler-cube))
+               (prefilter-map  :sampler-cube))
   (let* ((roughness .7)
          (metallic .01)
          (ambient (v! .03 .03 .03))
          (f0 (v3! .04))
          (f0 (mix f0 color metallic))
          (final-color color)
-         ;; (final-color (dir-light-apply final-color
-         ;;                               light-color
-         ;;                               light-pos
-         ;;                               frag-pos
-         ;;                               frag-norm
-         ;;                               cam-pos 32 1
-         ;;                               ))
+         (final-color (dir-light-apply final-color
+                                       light-color
+                                       light-pos
+                                       frag-pos
+                                       frag-norm
+                                       cam-pos 32 1))
          ;; (ambient (ambient-ibl (normalize (- cam-pos frag-pos))
          ;;                       frag-norm
          ;;                       f0
@@ -67,7 +64,7 @@
          ;;                       metallic
          ;;                       color
          ;;                       1f0))
-         (final-color (- 1f0 (nineveh.noise:cellular-noise-fast (* 20 uv))))
+         ;;(final-color (- 1f0 (nineveh.noise:cellular-noise-fast (* 20 uv))))
          ;; (final-color (* light-color
          ;;                 (pbr-direct-lum light-pos
          ;;                                 frag-pos
@@ -122,8 +119,7 @@
                    (light-pos :vec3)
                    (cam-pos :vec3)
                    (albedo :sampler-2d))
-  (let* (
-         (color4 (texture albedo uv))
+  (let* ((color4 (texture albedo uv))
          (color3 (expt (s~ color4 :xyz)
                        (vec3 2.2))))
     (v! color3 (w color4))))
@@ -156,11 +152,11 @@
          (t0 (normalize
               (s~ (* model-world (v! (tb-data-tangent tb) 0))
                   :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
+         (n0  (normalize
+               (s~ (* model-world (v! norm 0))
+                   :xyz)))
+         (t0  (normalize (- t0 (* (dot t0 n0) n0))))
+         (b0  (cross n0 t0))
          (tbn (mat3 t0 b0 n0)))
     (values clip-pos
             (treat-uvs uv)
@@ -171,49 +167,54 @@
             (* tbn cam-pos)
             (* tbn (s~ world-pos :xyz)))))
 
-(defun-g pbr-frag ((uv :vec2)
-                   (frag-norm :vec3)
-                   (frag-pos :vec3)
-                   (tbn :mat3)
+(defun-g pbr-frag ((uv            :vec2)
+                   (frag-norm     :vec3)
+                   (frag-pos      :vec3)
+                   (tbn           :mat3)
                    (tan-light-pos :vec3)
-                   (tan-cam-pos :vec3)
-                   (tan-frag-pos :vec3)
+                   (tan-cam-pos   :vec3)
+                   (tan-frag-pos  :vec3)
                    &uniform
-                   (samd :sampler-2d)
-                   (uv-repeat :vec2)
-                   (uv-speed :float)
-                   (time :float)
-                   (color :vec3)
+                   (samd       :sampler-2d)
+                   (uv-repeat  :vec2)
+                   (uv-speed   :float)
+                   (time       :float)
+                   (color      :vec3)
                    ;; Lighting
-                   (light-pos :vec3)
-                   (cam-pos :vec3)
-                   (cam-dir :vec3) ;; flashlight
-                   (shape :sampler-2d) ;; flashlight
+                   (light-pos  :vec3)
+                   (cam-pos    :vec3)
+                   (cam-dir    :vec3) ;; flashlight
+                   (shape      :sampler-2d) ;; flashlight
                    ;; PBR
-                   (metallic :float)
-                   (albedo :sampler-2d)
-                   (ao-map :sampler-2d)
+                   (metallic   :float)
+                   (albedo     :sampler-2d)
+                   (ao-map     :sampler-2d)
                    (height-map :sampler-2d)
                    (normal-map :sampler-2d)
-                   (rough-map :sampler-2d)
+                   (rough-map  :sampler-2d)
                    ;; IBL
-                   (brdf-lut :sampler-2d)
-                   (prefilter-map :sampler-cube)
+                   (brdf-lut       :sampler-2d)
+                   (prefilter-map  :sampler-cube)
                    (irradiance-map :sampler-cube))
   (let* (;; First change UV, then parallax!
          ;; (uv (+ (* uv uv-repeat)
          ;;        (v! 0 (* uv-speed time))))
-         (uv (v! (* (x uv-repeat) (x uv))
-                 (* (y uv-repeat) (y uv))))
-         (uv (parallax-mapping-offset-flipped
+         ;; (uv (v! (* (x uv-repeat) (x uv))
+         ;;         (* (y uv-repeat) (y uv))))
+         ;;(uv (treat-uvs uv))
+         (uv (parallax-mapping-offset
               uv
               (normalize (- tan-cam-pos tan-frag-pos))
               height-map
               .03))
+         ;;(frag-pos  tan-frag-pos)
+         ;;(cam-pos   tan-cam-pos)
+         ;;(light-pos tan-light-pos)
+         ;;
          (roughness (+ .5 (x (texture rough-map uv))))
          (ao        (x (texture ao-map uv)))
-         (color (* color (expt (s~ (texture albedo uv) :xyz)
-                               (vec3 2.2))))
+         (color     (* color (expt (s~ (texture albedo uv) :xyz)
+                                   (vec3 2.2))))
          ;; Normal Mapping
          ;;(normal (normalize frag-norm))
          (normal (norm-from-map normal-map uv))
@@ -224,10 +225,11 @@
          (n normal)
          (v (normalize (- cam-pos frag-pos)))
          (metallic .1)
-         ;;(f0 (vec3 .04))
-         (f0 color)
+         ;;(roughness .9)
+         (f0 (vec3 .04))
+         ;;(f0 color)
          (f0 (mix f0 color metallic))
-         (f0 (v3! 0))
+         ;;(f0 (v3! 0))
          ;; pbr - reflectance equation
          (lo (vec3 0f0))
          ;; lights START
@@ -238,74 +240,48 @@
                                    roughness
                                    f0
                                    metallic
-                                   color)))
-         ;; (lo (+ lo (pbr-point-lum light-pos
-         ;;                          frag-pos
-         ;;                          v
-         ;;                          n
-         ;;                          roughness
-         ;;                          f0
-         ;;                          metallic
-         ;;                          color)))
-         ;; ---------- END
-         ;;(ambient (* color ao (vec3 .03)))
-         ;; (ambient (pbr-ambient-map-r irradiance-map
-         ;;                             color
-         ;;                             ao n v f0
-         ;;                             roughness))
-         (r (reflect (- v) n))
-         (f (fresnel-schlick-roughness (max (dot n v) 0)
-                                       f0
-                                       roughness))
-         (ks f)
-         (kd (* (- 1 ks) (- 1 metallic)))
-         (irradiance (s~ (texture irradiance-map n) :xyz))
-         (diffuse (* irradiance color))
-         (prefiltered-color (s~ (texture-lod prefilter-map
-                                             r
-                                             (* roughness 4f0))
-                                :xyz))
-         (env-brdf (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
-         (specular (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
-         (ambient (* (+ specular (* kd diffuse)) ao))
-         (final-color (+ ambient lo))
-         ;; (final-color (flash-light-apply final-color
-         ;;                                 (* 4 (v! 1 1 1))
-         ;;                                 cam-pos
-         ;;                                 frag-pos
-         ;;                                 normal
-         ;;                                 cam-dir
-         ;;                                 1 .14 .07
-         ;;                                 (cos (radians 12.5))
-         ;;                                 (cos (radians 30f0))
-         ;;                                 time))
-         )
+                                   color
+                                   .1)))
+         (ambient (ambient-ibl v n f0
+                               brdf-lut
+                               prefilter-map
+                               irradiance-map
+                               roughness
+                               metallic
+                               color
+                               ao))
+         (final-color (+ ambient lo)))
     (v! final-color 1)
+    ;;ambient
+    ;;normal
+    ;;lo
+    ;;(v3! ao)
     ;;(v! uv 0 1)
     ;;(v! color 1)
     ))
 
 (defpipeline-g pbr-pipe ()
-  :vertex (vert-with-tbdata g-pnt tb-data)
+  :vertex   (vert-with-tbdata g-pnt tb-data)
   :fragment (pbr-frag :vec2 :vec3 :vec3
-                      :mat3 :vec3 :vec3 :vec3))
+                            :mat3 :vec3 :vec3 :vec3))
 
 ;;--------------------------------------------------
 
-(defun-g pbr-simple-frag ((uv :vec2)
+(defun-g pbr-simple-frag ((uv        :vec2)
                           (frag-norm :vec3)
-                          (frag-pos :vec3)
+                          (frag-pos  :vec3)
                           &uniform
                           (light-pos :vec3)
-                          (time :float)
+                          (time      :float)
                           (roughness :float)
-                          (metallic :float)
-                          (color :vec3)
-                          (cam-pos :vec3)
+                          (metallic  :float)
+                          (specular  :float)
+                          (color     :vec3)
+                          (cam-pos   :vec3)
                           ;; IBL
                           (irradiance-map :sampler-cube)
-                          (prefilter-map :sampler-cube)
-                          (brdf-lut :sampler-2d))
+                          (prefilter-map  :sampler-cube)
+                          (brdf-lut       :sampler-2d))
   (let* (;; First change UV, then parallax!
          (uv (treat-uvs uv))
          (normal (normalize frag-norm))
@@ -313,13 +289,12 @@
          (color color)
          ;;----------------------------------------
          ;; PBR
-         (ambient (v3! .03))
          ;; metallic
          (f0 (vec3 .04))
          ;;(f0 color)
          (f0 (mix f0 color metallic))
          ;; pbr - reflectance equation
-         (n normal)
+         (n  normal)
          (v  (normalize (- cam-pos frag-pos)))
          (lo (vec3 0f0))
          ;; lights START
@@ -331,7 +306,7 @@
                                    f0
                                    metallic
                                    color
-                                   .01)))
+                                   specular)))
          ;; ---------- END
          ;; (r (reflect (- v) n))
          ;; (f (fresnel-schlick-roughness (max (dot n v) 0)
@@ -348,23 +323,26 @@
          ;; (env-brdf (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
          ;; (specular (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
          ;; (ambient (* (+ specular (* kd diffuse)) ao))
-         ;; (ambient (ambient-ibl v n f0
-         ;;                       brdf-lut
-         ;;                       prefilter-map
-         ;;                       irradiance-map
-         ;;                       .9
-         ;;                       .01
-         ;;                       (v! .5 .5 .5)
-         ;;                       ao))
+         ;;(ambient (v3! .03))
+         (ambient (ambient-ibl v n f0
+                               brdf-lut
+                               prefilter-map
+                               irradiance-map
+                               roughness
+                               metallic
+                               color
+                               ao))
          ;;(ambient (* color ao (vec3 .3)))
          (final-color (+ ambient lo))
          )
-    (v! final-color 1)))
+    (v! final-color 1)
+    ;;lo
+    ))
 
 ;;----------------------------------------
 ;; Functions to apply the Irradiance Map ONLY
 (defpipeline-g pbr-simple-pipe ()
-  :vertex (vert g-pnt)
+  :vertex   (vert g-pnt)
   :fragment (pbr-simple-frag :vec2 :vec3 :vec3))
 
 
