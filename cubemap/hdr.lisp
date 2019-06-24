@@ -5,6 +5,7 @@
 ;; "From Equirectangular to Cubemap"
 ;; https://learnopengl.com/PBR/IBL/Diffuse-irradiance
 
+;; (reset-camera)
 ;; (make-hdr "asdasd.hdr")
 ;; (init-scene-cubemap)
 ;; (free-actors)
@@ -15,8 +16,9 @@
 (defvar *s-hdr* nil)
 
 (defun free-hdr ()
-  (when *t-hdr*
-    (free *t-hdr*)))
+  (when *t-hdr* (free *t-hdr*))
+  (setf *t-hdr* nil
+        *s-hdr* nil))
 
 (defun init-hdr (file)
   (let ((filename (namestring (resolve-path file))))
