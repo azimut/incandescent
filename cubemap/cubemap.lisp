@@ -67,9 +67,9 @@
   (when *cube-tex* (free *cube-tex*))
   (setf *cube-tex* NIL))
 
-(defun init-render-cubemap ()
+(defun init-scene-cubemap ()
   (free-scene-cubemap)
-  (setf *cube-tex* (make-render-cubemap))
+  (setf *cube-tex* (make-scene-cubemap))
   (setf *cube-sam* (sample *cube-tex* :wrap :clamp-to-edge
                                       :magnify-filter :linear))
   t)
