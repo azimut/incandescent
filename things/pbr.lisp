@@ -1,3 +1,5 @@
+(in-package #:incandescent)
+
 (defclass pbr (actor)
   ((albedo    :initarg :albedo)
    (ao        :initarg :ao)
@@ -6,11 +8,13 @@
    (roughness :initarg :roughness)
    (uv-repeat :initarg :uv-repeat)
    (uv-speed  :initarg :uv-speed)
-   (metallic  :initarg :metallic))
+   (metallic  :initarg :metallic)
+   (parallax  :initarg :parallax))
   (:default-initargs
    :uv-repeat (v! 1 1)
    :uv-speed  .1
    :metallic  .1
+   :parallax  .03
    :albedo    (get-tex "static/32.Rock01-1k/rock01_albedo.jpg"    NIL T :rgb8)
    :ao        (get-tex "static/32.Rock01-1k/rock01_ao.jpg"        NIL T :r8)
    :height    (get-tex "static/32.Rock01-1k/rock01_height.jpg"    NIL T :r8)
@@ -31,6 +35,7 @@
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf
                color
+               parallax
                albedo normal height roughness
                uv-speed
                scale ao uv-repeat metallic)
@@ -49,6 +54,8 @@
            :model-world (model->world actor)
            :world-view  (world->view camera)
            :view-clip   (projection camera)
+           ;;
+           :parallax   parallax
            ;; PBR
            :albedo     albedo
            :ao-map     ao
@@ -78,6 +85,8 @@
                    (cam-pos    :vec3)
                    (cam-dir    :vec3) ;; flashlight
                    (shape      :sampler-2d) ;; flashlight
+                   ;;
+                   (parallax   :float)
                    ;; PBR
                    (metallic   :float)
                    (albedo     :sampler-2d)
@@ -99,7 +108,7 @@
               uv
               (normalize (- tan-cam-pos tan-frag-pos))
               height-map
-              .03))
+              parallax))
          ;; (frag-pos  tan-frag-pos)
          ;; (cam-pos   tan-cam-pos)
          ;;(light-pos tan-light-pos)
