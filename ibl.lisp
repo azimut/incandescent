@@ -1,5 +1,9 @@
 (in-package #:incandescent)
 
+;; (make-clouds)
+;; (init-ibl)
+;; (update-ibl *t-cubemap* *s-cubemap*)
+
 ;; IBL - Needed for specular
 (defvar *brdf* NIL)
 (defvar *f-brdf* NIL)
@@ -78,8 +82,8 @@
                                          :src-cubemap-sample src-sam
                                          :dst-cubemap *t-cubemap-prefilter*))
   ;; IBL - Specular
-  (setf (resolution (current-viewport)) (v! 512 512))
   (when *f-brdf*
+    (setf (resolution (current-viewport)) (v! 512 512))
     (map-g-into *f-brdf* #'brdf-pipe *bs*))
   ;;
   (when *t-cubemap-live*
