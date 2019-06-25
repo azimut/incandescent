@@ -8,7 +8,8 @@
    (rot   :initarg :rot   :accessor rot)
    (buf   :initarg :buf)
    (color :initarg :color)
-   (scale :initarg :scale))
+   (scale :initarg :scale)
+   (seed  :initarg :seed :initform (random 1f0)))
   (:default-initargs
    :name  (gensym)
    :pos   (v! 0 0 0)
@@ -54,10 +55,6 @@
 
 (defmethod sync (x) (+ .5 (* .5 (sin x))))
 (defmethod cync (x) (+ .5 (* .5 (cos x))))
-
-;;--------------------------------------------------
-
-
 
 ;;--------------------------------------------------
 ;; UPDATE
