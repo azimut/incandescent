@@ -23,6 +23,7 @@
                 #:mappend
                 #:length=)
   (:import-from #:serapeum
+                #:op
                 #:do-each
                 #:vect
                 #:random-in-range
