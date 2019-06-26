@@ -1,5 +1,7 @@
 (in-package :incandescent)
 
+;; Uses the depth information from the POV of the directional light.
+
 (defun free-shadowmap ()
   (when *shadow-fbo* (free *shadow-fbo*)))
 

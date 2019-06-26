@@ -26,9 +26,9 @@
   (let* ((lpos (v! 50 50 50))
          (cam  (make-instance 'orth
                               :name :shadow-camera
-                              :frame-size (v2! 20) ;; zoom
+                              :frame-size (v2! 30) ;; zoom
                               :far 120f0
-                              :near 75f0
+                              :near 70f0
                               :rot (q:point-at (v! 0 1 0) lpos
                                                (v! 0 0 0))
                               :pos lpos)))

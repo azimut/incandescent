@@ -185,6 +185,7 @@
   (maphash-values (lambda (s) (free (sampler-texture s)))
                   *samplers*)
   (clrhash *samplers*))
+
 (defun get-tex (path &optional (force nil) (mipmap t) (image-format :rgba8))
   (when force
     (let ((s (gethash path *samplers*)))
@@ -202,6 +203,7 @@
                 image-format
                 mipmap
                 t))))))
+
 ;;--------------------------------------------------
 
 (defvar *c-samplers* (make-hash-table :test #'equal)

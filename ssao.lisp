@@ -2,7 +2,7 @@
 
 ;; Requirements:
 ;; INPUTS
-;; - Sampler of depth from a fbo
+;; - Sampler of depth   from a fbo
 ;; - Sampler of normals from a fbo output
 ;; - *dimensions*
 ;; OUTPUTS

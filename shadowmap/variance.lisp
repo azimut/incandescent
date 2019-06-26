@@ -1,5 +1,7 @@
 (in-package :incandescent)
 
+;; Uses both the depth and the depth^2 to compute the shadow. Plus some blur.
+;;
 ;; Reference:
 ;; - "bennybox" tutorial https://www.youtube.com/watch?v=LGFDifcbsoQ
 ;; - http://codeflow.org/entries/2013/feb/15/soft-shadow-mapping/
@@ -47,6 +49,8 @@
   :vertex   (vert g-pnt)
   :fragment (variance-3d-frag :vec2 :vec3 :vec3))
 
+;;
+
 (defun-g variant-blur-frag ((uv :vec2) &uniform
                             (sam :sampler-2d)
                             (blur-scale :vec2))
@@ -60,7 +64,9 @@
 
 (defpipeline-g variance-blur-pipe (:points)
   :fragment (variant-blur-frag :vec2))
-;;
+
+;;--------------------------------------------------
+
 (defun draw-variance (&optional (br 1f0))
   "draws the scene in *ACTORS* from the point of view of *variance-CAMERA* into *variance-FBO* using a simple shader pipe"
   (declare (type single-float br))

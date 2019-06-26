@@ -11,12 +11,12 @@
   "sets the resolution of the bokeh effect
    Default: 4f0
    Range:   1f0 - 10f0")
-(defparameter *coc-distance* 1f0
+(defparameter *coc-distance* .4f0
   "distance between the camera and the focus plane
    where everything is perfectly sharp
    Default: 10f0
    Range: .1 - 100")
-(defparameter *coc-range* 4f0
+(defparameter *coc-range* 5f0
   "Default: 3f0
    Range: .1 - 10")
 

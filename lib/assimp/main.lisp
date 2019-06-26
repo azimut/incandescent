@@ -91,12 +91,14 @@
 ;;--------------------------------------------------
 
 (defmethod free ((actor assimp-thing))
+  #+nil
   (with-slots (buf) actor
     (free buf)
     (free (alexandria:lastcar (buffer-stream-gpu-arrays buf)))
     (free (car (car (buffer-stream-gpu-arrays buf))))))
 
 (defmethod free ((actor assimp-thing-with-bones))
+  #+nil
   (with-slots (buf) actor
     (free buf)
     (free (alexandria:lastcar (buffer-stream-gpu-arrays buf)))
