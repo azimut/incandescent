@@ -1,21 +1,5 @@
 (in-package :incandescent)
 
-;; Big on screen text helpers
-
-(defvar *font* nil "cepl.fond:fond-font struct
-                    - font
-                    - cepl sampler")
-(defvar *text* nil "cepl.fond:fond-text struct:
-                    - varr   (cepl gpu array)
-                    - iarr   (cepl gpu array)
-                    - stream (cepl buffer stream)
-                    - font   (cepl.fond:fond-font - font, cepl sampler)")
-
-(defparameter *font-blending*
-  (make-blending-params)
-  ;;(make-blending-params :source-alpha :one-minus-src-alpha)
-  )
-
 (defclass text ()
   ((pos  :initarg :pos  :accessor pos :documentation "2D screen position")
    (text :initarg :text :accessor text))

@@ -172,8 +172,12 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent
+               ;;#:cepl.sdl2-ttf crashes
                #:cepl.fond)
-  :components ((:file "text")))
+  :components ((:file "text/text")
+               (:file "text/render")
+               (:file "text/screen")
+               (:file "text/billboard")))
 
 (asdf:defsystem #:incandescent/ode
   :description "Describe incandescent here"
