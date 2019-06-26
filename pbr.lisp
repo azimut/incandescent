@@ -193,6 +193,7 @@
                          (specular-strength :float))
   (let* ((l (normalize (- light-pos frag-pos)))
          (h (normalize (+ v l)))
+         ;;
          (distance (length (- light-pos frag-pos)))
          (radiance (v! 5 5 5))
          ;; pbr - cook-torrance brdf
@@ -209,8 +210,8 @@
                          (* (max (dot n v) 0)
                             (max (dot n l) 0)
                             4)))
-         (specular (* specular-strength
-                      (/ numerator denominator)))
+         (specular    (* specular-strength
+                         (/ numerator denominator)))
          ;; add to outgoing radiance lo
          (n-dot-l (max (dot n l) 0))
          (lo (* (+ specular (/ (* kd albedo) +PI+))
@@ -218,41 +219,95 @@
                 n-dot-l)))
     lo))
 
-(defun-g pbr-point-lum ((light-pos :vec3)
-                        (frag-pos :vec3)
-                        (v :vec3)
-                        (n :vec3)
-                        (roughness :float)
-                        (f0 :vec3)
-                        (metallic :float)
-                        (albedo :vec3))
-  (let* ((l (normalize (- light-pos frag-pos)))
-         (h (normalize (+ v l)))
-         (distance (length (- light-pos frag-pos)))
-         (constant 1f0)
-         (linear .7)
-         (quadratic 1.8)
+;; POINT
+(defun-g pbr-point-lum ((light-pos         :vec3)
+                        (frag-pos          :vec3)
+                        (v                 :vec3)
+                        (n                 :vec3)
+                        (roughness         :float)
+                        (f0                :vec3)
+                        (metallic          :float)
+                        (albedo            :vec3))
+  (let* ((l         (normalize (- light-pos frag-pos)))
+         (h         (normalize (+ v l)))
+         (distance  (length    (- light-pos frag-pos)))
+         ;;
+         (constant  1f0)
+         (linear    .022)
+         (quadratic .0019)
+         ;;
          (attenuation (/ 1f0 (+ constant
                                 (* linear distance)
                                 (* quadratic distance distance))))
-         (light-color (v! .9 .9 .9))
-         (radiance light-color attenuation)
+         (light-color (v! 5 5 5))
+         (radiance (* light-color attenuation))
          ;; pbr - cook-torrance brdf
          (ndf (distribution-ggx n h roughness))
-         (g (geometry-smith n v l roughness))
-         (f (fresnel-schlick (max (dot h v) 0) f0))
+         (g   (geometry-smith n v l roughness))
+         (f   (fresnel-schlick (max (dot h v) 0) f0))
          ;;
-         (ks f)
-         (kd (* (- (vec3 1) ks)
-                (- 1 metallic)))
+         (ks  f)
+         (kd  (- 1 ks))
+         (kd  (* kd (- 1 metallic)))
          ;;
-         (numerator (* ndf g f))
+         (numerator   (* ndf g f))
          (denominator (* (max (dot n v) 0)
                          (max (dot n l) 0)
                          4))
-         (specular (/ numerator (max denominator .001)))
+         (specular    (/ numerator (max denominator .001)))
          ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0)))
-    (* (+ specular (/ (* kd albedo) +PI+))
-       radiance
-       n-dot-l)))
+         (n-dot-l     (max (dot n l) 0))
+         (lo          (* (+ specular (/ (* kd albedo) +PI+))
+                         radiance
+                         n-dot-l)))
+    lo
+    ;;attenuation
+    ))
+
+
+;; POINT + SPECULAR
+(defun-g pbr-point-lum ((light-pos         :vec3)
+                        (frag-pos          :vec3)
+                        (v                 :vec3)
+                        (n                 :vec3)
+                        (roughness         :float)
+                        (f0                :vec3)
+                        (metallic          :float)
+                        (albedo            :vec3)
+                        (specular-strength :float))
+  (let* ((l         (normalize (- light-pos frag-pos)))
+         (h         (normalize (+ v l)))
+         (distance  (length    (- light-pos frag-pos)))
+         ;;
+         (constant  1f0)
+         (linear    .022)
+         (quadratic .0019)
+         ;;
+         (attenuation (/ 1f0 (+ constant
+                                (* linear distance)
+                                (* quadratic distance distance))))
+         (light-color (v! 5 5 5))
+         (radiance (* light-color attenuation))
+         ;; pbr - cook-torrance brdf
+         (ndf (distribution-ggx n h roughness))
+         (g   (geometry-smith n v l roughness))
+         (f   (fresnel-schlick (max (dot h v) 0) f0))
+         ;;
+         (ks  f)
+         (kd  (- 1 ks))
+         (kd  (* kd (- 1 metallic)))
+         ;;
+         (numerator   (* ndf g f))
+         (denominator (* (max (dot n v) 0)
+                         (max (dot n l) 0)
+                         4))
+         (specular    (* specular-strength
+                         (/ numerator (max denominator .001))))
+         ;; add to outgoing radiance lo
+         (n-dot-l (max (dot n l) 0))
+         (lo      (* (+ specular (/ (* kd albedo) +PI+))
+                     radiance
+                     n-dot-l)))
+    lo
+    ;;attenuation
+    ))

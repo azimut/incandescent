@@ -139,12 +139,14 @@
                            (world-view  :mat4)
                            (view-clip   :mat4)
                            (scale       :float)
+                           ;;
+                           (uv-repeat   :vec2)
                            ;; Parallax vars
                            (light-pos   :vec3)
                            (cam-pos     :vec3))
   (let* ((pos       (* scale (pos vert)))
          (norm      (norm vert))
-         (uv        (tex vert))
+         (uv        (* uv-repeat (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
