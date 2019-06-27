@@ -52,9 +52,9 @@
 (defvar *cube-tex* NIL)
 (defvar *cube-sam* NIL)
 
-(defun make-scene-cubemap (&key (camera *camera-cubemap*)
-                                (dimensions '(2048 2048))
-                                (pos (v! 0 0 0)))
+(defun %make-scene-cubemap (&key (camera *camera-cubemap*)
+                                 (dimensions '(2048 2048))
+                                 (pos (v! 0 0 0)))
   "returns a NEW cubemap from the current scene"
   (assert (apply #'= dimensions))
   (let ((dst-cubemap (make-texture NIL :cubes T
@@ -67,9 +67,9 @@
   (when *cube-tex* (free *cube-tex*))
   (setf *cube-tex* NIL))
 
-(defun init-scene-cubemap ()
+(defun init-scene-cubemap (&key (pos (v! 0 0 0)))
   (free-scene-cubemap)
-  (setf *cube-tex* (make-scene-cubemap))
+  (setf *cube-tex* (%make-scene-cubemap :pos pos))
   (setf *cube-sam* (sample *cube-tex* :wrap :clamp-to-edge
                                       :magnify-filter :linear))
   t)
