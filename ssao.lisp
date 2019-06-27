@@ -35,35 +35,39 @@
 (defun generate-sample-kernel ()
   "runs once, goes to an UBO, 64x3"
   (loop :for i :below 64 :collect
-       (let* ((sample (v! (1- (* 2 (random 1f0)))
-                          (1- (* 2 (random 1f0)))
-                          (random 1f0)))
-              (sample (v3:normalize sample))
-              (sample (v3:*s sample (random 1f0)))
-              (scale (/ i 64f0))
-              (scale (lerp .1 1f0 (* scale scale))))
-         (v3:*s sample scale))))
+           (let* ((sample (v! (1- (* 2 (random 1f0)))
+                              (1- (* 2 (random 1f0)))
+                              (random 1f0)))
+                  (sample (v3:normalize sample))
+                  (sample (v3:*s sample (random 1f0)))
+                  (scale (/ i 64f0))
+                  (scale (lerp .1 1f0 (* scale scale))))
+             (v3:*s sample scale))))
 
 ;;--------------------------------------------------
 
+(defun free-ssao ()
+  (when *noise-tex*  (free *noise-tex*))
+  (when *ubo-kernel* (free *noise-tex*))
+  (when *fbo-ssbo*   (free *fbo-ssbo*)))
+
 (defun init-ssao ()
+  (free-ssao)
   ;; SSAO - Random kernel rotations - generate noise texture
-  (unless *noise-tex*
-    (setf *noise-tex*
-          (make-texture (generate-rotation-kernel)
-                        :element-type :rgb32f))
-    (setf *noise-sam*
-          (sample *noise-tex*
-                  :minify-filter  :nearest
-                  :magnify-filter :nearest)))
+  (setf *noise-tex*
+        (make-texture (generate-rotation-kernel)
+                      :element-type :rgb32f))
+  (setf *noise-sam*
+        (sample *noise-tex*
+                :minify-filter  :nearest
+                :magnify-filter :nearest))
   ;; SSAO - samples
-  (unless *ubo-kernel*
-    (setf *ubo-kernel*
-          (make-ubo (list (generate-sample-kernel))
-                    'random-kernel)))
+  (setf *ubo-kernel*
+        (make-ubo (list (generate-sample-kernel))
+                  'random-kernel))
   ;; OUTPUTS
-  (when *fbo-ssbo* (free *fbo-ssbo*))
-  (setf *fbo-ssbo* (make-fbo (list 0 :dimensions *dimensions*))
+  (setf *fbo-ssbo* (make-fbo (list 0 :element-type :r8
+                                     :dimensions *dimensions*))
         *sam-ssbo* (sample (attachment-tex *fbo-ssbo* 0)
                            :wrap :clamp-to-edge))
   NIL)
@@ -97,15 +101,15 @@
                     (view-clip :mat4))
   (let* ((pos-view (get-view-pos uv g-depth view-clip))
          (normal-view
-          (normalize
-           (1- (* 2 (s~ (texture g-normal uv) :xyz)))))
+           (normalize
+            (1- (* 2 (s~ (texture g-normal uv) :xyz)))))
          (random-vector
-          (normalize
-           (1- (* 2 (s~ (texture tex-noise (* (/ res 4) uv)) :xyz)))))
+           (normalize
+            (1- (* 2 (s~ (texture tex-noise (* (/ res 4) uv)) :xyz)))))
          (tangent-view
-          (normalize
-           (- random-vector (* (dot random-vector normal-view)
-                               normal-view))))
+           (normalize
+            (- random-vector (* (dot random-vector normal-view)
+                                normal-view))))
          (bitangent-view (cross normal-view tangent-view))
          (kernel-matrix  (mat3 tangent-view bitangent-view normal-view))
          (oclussion 0f0))
@@ -122,8 +126,10 @@
           (if (and (> delta .0001)
                    (< delta .005))
               (incf oclussion 1f0)))))
+    #+nil
     (v! (vec3 (- 1 (/ oclussion (1- (* kernel-effect kernel)))))
-        1)))
+        1)
+    (- 1 (/ oclussion (1- (* kernel-effect kernel))))))
 
 (defpipeline-g ssao-pipe (:points)
   :fragment (ssao-frag :vec2))
@@ -133,17 +139,18 @@
 (defun draw-ssao (&key (n-kernels 10) (radius .1) (kernel-effect 1f0))
   (declare (type single-float radius kernel-effect)
            (type positive-fixnum n-kernels))
-  (with-setf* ((depth-mask) nil
-               (cull-face) nil
-               (clear-color) (v! 0 0 0 1)
-               (depth-test-function) #'always)
-    (map-g #'ssao-pipe *bs*
-           :g-normal *sam1*
-           :g-depth  *samd*
-           :kernel n-kernels
-           :kernel-effect kernel-effect
-           :radius radius
-           :tex-noise *noise-sam*
-           :random-kernel *ubo-kernel*
-           :res (v! *dimensions*)
-           :view-clip (projection *currentcamera*))))
+  (with-fbo-bound (*fbo-ssbo*)
+    (with-setf* ((depth-mask) nil
+                 (cull-face) nil
+                 (clear-color) (v! 0 0 0 1)
+                 (depth-test-function) #'always)
+      (map-g #'ssao-pipe *bs*
+             :g-normal *sam1*
+             :g-depth  *samd*
+             :kernel n-kernels
+             :kernel-effect kernel-effect
+             :radius radius
+             :tex-noise *noise-sam*
+             :random-kernel *ubo-kernel*
+             :res (v! *dimensions*)
+             :view-clip (projection *currentcamera*)))))
