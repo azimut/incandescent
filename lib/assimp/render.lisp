@@ -10,29 +10,31 @@
                            (bones assimp-bones)
                            &uniform
                            (model-world :mat4)
-                           (world-view :mat4)
-                           (view-clip :mat4)
-                           (scale :float)
-                           (offsets (:mat4 36))
+                           (world-view  :mat4)
+                           (view-clip   :mat4)
+                           (scale       :float)
+                           (offsets    (:mat4 36))
                            ;; Parallax vars
-                           (light-pos :vec3)
-                           (cam-pos :vec3))
-  (let* ((pos       (* scale (pos vert)))
-         (norm      (norm vert))
-         (uv        (treat-uvs (tex vert)))
-         (norm      (* (m4:to-mat3 model-world) norm))
-         ;;(world-pos (* model-world world-pos))
+                           (light-pos   :vec3)
+                           (cam-pos     :vec3))
+  (let* ((pos       (* scale       (pos vert)))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
-         (n0 (normalize
-              (s~ (* model-world (v! norm 0))
-                  :xyz)))
-         (t0 (normalize (- t0 (* (dot t0 n0) n0))))
-         (b0 (cross n0 t0))
+         ;;
+         (uv        (tex vert))
+         ;;
+         (norm      (norm vert))
+         (norm      (* (m4:to-mat3 model-world) norm));;?? FIXME: again
+         ;;(world-pos (* model-world world-pos))
+         (t0  (normalize
+               (s~ (* model-world (v! (tb-data-tangent tb) 0))
+                   :xyz)))
+         (n0  (normalize
+               (s~ (* model-world (v! (norm vert) 0))
+                   :xyz)))
+         (t0  (normalize (- t0 (* (dot t0 n0) n0))))
+         (b0  (cross n0 t0))
          (tbn (mat3 t0 b0 n0)))
     (values clip-pos
             (treat-uvs uv)
@@ -105,6 +107,10 @@
                        (tan-cam-pos :vec3)
                        (tan-frag-pos :vec3)
                        &uniform
+                       ;;
+                       (light-pos   :vec3)
+                       (light-color :vec3)
+                       ;;
                        (cam-pos :vec3)
                        (time :float)
                        (albedo :sampler-2d)
@@ -114,16 +120,12 @@
                       (vec3 2.2)))
          (normal (norm-from-map normals uv))
          (normal (normalize (* tbn normal)))
-         (color (dir-light-apply color
-                                 (v! 1 1 1)
-                                 (v! 100 1000 100)
-                                 frag-pos
-                                 normal)))
-    (values
-     (v! color 1)
-     ;;(v! 1 .2 1 0)
-     ;;frag-pos
-     (normalize frag-norm))))
+         (color  (dir-light-apply color
+                                  light-color
+                                  tan-light-pos
+                                  tan-frag-pos
+                                  normal)))
+    (v! color 1)))
 
 ;; parallax
 ;; (defun-g frag-tex-tbn ((uv :vec2)
@@ -167,7 +169,7 @@
                           :vec3 :vec3 :vec3))
 
 (defpipeline-g assimp-tex-pipe-simple ()
-  :vertex (vert-with-tbdata g-pnt tb-data assimp-bones)
+  :vertex (vert-with-tbdata g-pnt tb-data)
   :fragment (frag-tex-tbn :vec2 :vec3 :vec3 :mat3
                           ;; Parallax
                           :vec3 :vec3 :vec3))
