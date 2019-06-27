@@ -9,12 +9,14 @@
    (uv-repeat :initarg :uv-repeat)
    (uv-speed  :initarg :uv-speed)
    (metallic  :initarg :metallic)
-   (parallax  :initarg :parallax))
+   (parallax  :initarg :parallax)
+   (specular  :initarg :specular))
   (:default-initargs
    :uv-repeat (v! 1 1)
    :uv-speed  .1
    :metallic  .1
    :parallax  .03
+   :specular  .1
    :albedo    (get-tex "static/32.Rock01-1k/rock01_albedo.jpg"    NIL T :rgb8)
    :ao        (get-tex "static/32.Rock01-1k/rock01_ao.jpg"        NIL T :r8)
    :height    (get-tex "static/32.Rock01-1k/rock01_height.jpg"    NIL T :r8)
@@ -30,12 +32,16 @@
     obj))
 
 (defmethod update ((actor pbr) dt)
-  (setf (slot-value actor 'metallic) .01))
+  #+nil
+  (with-slots (metallic parallax specular) actor
+    (setf metallic .1)
+    (setf specular  .1f0)
+    (setf parallax .05)))
 
 (defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf
                color
-               parallax
+               parallax specular
                albedo normal height roughness
                uv-speed
                scale ao uv-repeat metallic)
@@ -55,6 +61,7 @@
            :world-view  (world->view camera)
            :view-clip   (projection camera)
            ;;
+           :specular   specular
            :parallax   parallax
            ;; PBR
            :albedo     albedo
@@ -86,6 +93,7 @@
                    (cam-dir    :vec3) ;; flashlight
                    (shape      :sampler-2d) ;; flashlight
                    ;;
+                   (specular   :float)
                    (parallax   :float)
                    ;; PBR
                    (metallic   :float)
@@ -143,7 +151,7 @@
                                    f0
                                    metallic
                                    color
-                                   .1)))
+                                   specular)))
          (ambient (ambient-ibl v n f0
                                brdf-lut
                                prefilter-map
