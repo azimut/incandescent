@@ -126,17 +126,17 @@
 ;; Spotlight
 ;;
 ;; NOTE: cut-off and outer-cut-off are the result of: (cos (radians ANGLE))
-(defun-g spot-light-apply ((color :vec3)
-                           (light-color :vec3)
-                           (light-pos :vec3)
-                           (frag-pos :vec3)
-                           (normal :vec3)
+(defun-g spot-light-apply ((color         :vec3)
+                           (light-color   :vec3)
+                           (light-pos     :vec3)
+                           (frag-pos      :vec3)
+                           (normal        :vec3)
                            ;;
-                           (constant :float)
-                           (linear :float)
-                           (quadratic :float)
+                           (constant      :float)
+                           (linear        :float)
+                           (quadratic     :float)
                            ;;
-                           (cut-off :float)
+                           (cut-off       :float)
                            (outer-cut-off :float))
   (let* ((light-dir   (normalize (- light-pos frag-pos)))
          (diff        (saturate  (dot normal light-dir)))
@@ -146,8 +146,8 @@
                               (* linear distance)
                               (* quadratic distance distance))))
          ;;
-         (theta (dot light-dir (normalize (- (v! 0 -1 0)))))
-         (epsilon (- cut-off outer-cut-off))
+         (theta     (dot light-dir (normalize (- (v! 0 -1 0)))))
+         (epsilon   (- cut-off outer-cut-off))
          (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1))
          ;;
          (ambient (* light-color .1))
@@ -327,6 +327,24 @@
     (v! (x normal)
         (- (y normal))
         (z normal))))
+
+;; https://github.com/JoeyDeVries/LearnOpenGL/blob/master/src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
+;; To get the tangent normal to world-space IN the fragment shader
+(defun-g norm-from-map ((normal-map :sampler-2d)
+                        (uv :vec2)
+                        (world-pos :vec3)
+                        (normal :vec3))
+  (let* ((tangent-normal (+ -1 (* 2 (s~ (texture normal-map uv) :xyz))))
+         (q1  (d-fdx world-pos))
+         (q2  (d-fdy world-pos))
+         (st1 (d-fdx uv))
+         (st2 (d-fdy uv))
+         (n0  (normalize normal))
+         (t0  (normalize (- (* q1 (y st2))
+                            (* q1 (y st1)))))
+         (b0  (- (normalize (cross n0 t0))))
+         (tbn (mat3 t0 b0 n0)))
+    (normalize (* tbn tangent-normal))))
 
 ;; ?
 ;; From "pushing pixels" don't remember why it's needed
