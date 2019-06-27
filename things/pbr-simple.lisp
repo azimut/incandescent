@@ -9,9 +9,12 @@
    :metallic  .1
    :specular  .1))
 
-(defun make-pbr-simple (&key (pos (v! 0 0 0)))
+(defun make-pbr-simple (&key (pos (v! 0 0 0))
+                             (color (v! 1 1 1)))
+  (declare (type rtg-math.types:vec3 pos color))
   (let ((obj (make-instance
               'pbr-simple
+              :color color
               :buf (sphere)
               :pos pos)))
     (push obj *actors*)
@@ -20,10 +23,16 @@
 ;;--------------------------------------------------
 
 (defmethod update ((actor pbr-simple) dt)
+  #+n
   (with-slots (metallic specular roughness) actor
-    (setf metallic  .4
-          specular  .1f0
-          roughness .1)))
+    (setf metallic  .2
+          specular  .0
+          roughness .4))
+  (with-slots (pos seed) actor
+    (let ((time (* 2 (mynow))))
+      (setf (y pos) (* 25 seed (sin (* seed .5 time))))
+      (setf (x pos) (* 10 (+ seed .3) (sin (* (+ seed .03) .7 time))))
+      (setf (z pos) (* 5 (+ seed .4) (cos (* (+ seed .02) .5 time)))))))
 
 ;;--------------------------------------------------
 
@@ -79,14 +88,27 @@
          (v  (normalize (- cam-pos frag-pos)))
          (lo (vec3 0f0))
          ;; lights START
-         (lo (+ lo (pbr-direct-lum light-pos frag-pos
-                                   v
-                                   n
-                                   roughness
-                                   f0
-                                   metallic
-                                   color
-                                   specular)))
+         (lo (+ lo
+                #+nil
+                (pbr-direct-lum light-pos frag-pos
+                                v
+                                n
+                                roughness
+                                f0
+                                metallic
+                                color
+                                specular)
+                (* 5 (pbr-point-lum (v! 0
+                                        -2
+                                        0)
+                                    frag-pos
+                                    v n
+                                    roughness
+                                    f0
+                                    metallic
+                                    color
+                                    specular
+                                    .35 .44))))
          ;;(ambient (v3! .03))
          (ambient (ambient-ibl v
                                n

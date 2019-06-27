@@ -16,16 +16,14 @@
     (push obj *actors*)
     obj))
 
-(defun init-box (&optional (buf (box)) (range 8f0))
+(defun init-box (&optional (range 8f0))
   "helper to create a bunch of boxes at random pos/rot/scale"
-  (declare (type cepl:buffer-stream buf)
-           (type single-float range))
+  (declare (type single-float range))
   (let ((half (* .5 range)))
     (dotimes (i 20)
       (make-box :pos (v! (- (random range) half)
                          (- (random range) half)
                          (- (random range) half))
-                :buf buf
                 :scale (random 1f0)
                 :rot (q:from-axis-angle (v! (random 1f0)
                                             (random 1f0)

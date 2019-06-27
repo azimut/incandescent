@@ -144,19 +144,22 @@
                            ;; Parallax vars
                            (light-pos   :vec3)
                            (cam-pos     :vec3))
-  (let* ((pos       (* scale (pos vert)))
-         (norm      (norm vert))
-         (uv        (* uv-repeat (tex vert)))
-         (norm      (* (m4:to-mat3 model-world) norm))
+  (let* ((pos       (* scale       (pos vert)))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
-         (t0 (normalize
-              (s~ (* model-world (v! (tb-data-tangent tb) 0))
-                  :xyz)))
+         ;;
+         (uv        (* uv-repeat (tex vert)))
+         ;;
+         (normal-m3 (transpose (inverse (m4:to-mat3 model-world))))
+         (norm      (norm vert))
+         (norm      (* (m4:to-mat3 model-world)
+                       norm))
+         ;;
+         (t0  (normalize
+               (* normal-m3 (tb-data-tangent tb))))
          (n0  (normalize
-               (s~ (* model-world (v! norm 0))
-                   :xyz)))
+               (* normal-m3 (norm vert))))
          (t0  (normalize (- t0 (* (dot t0 n0) n0))))
          (b0  (cross n0 t0))
          (tbn (mat3 t0 b0 n0)))

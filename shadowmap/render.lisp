@@ -80,6 +80,9 @@
 (defun-g shadow-vert-with-tbdata ((vert g-pnt)
                                   (tb tb-data)
                                   &uniform
+                                  ;;
+                                  (uv-repeat :vec2)
+                                  ;;
                                   (model-world :mat4)
                                   (world-view :mat4)
                                   (view-clip :mat4)
@@ -90,12 +93,14 @@
                                   (light-world :mat4)
                                   (light-clip :mat4))
   (let* ((pos       (* scale (pos vert)))
-         (norm      (norm vert))
-         (uv        (tex vert))
-         (norm      (* (m4:to-mat3 model-world) norm))
          (world-pos (* model-world (v! pos 1)))
          (view-pos  (* world-view  world-pos))
          (clip-pos  (* view-clip   view-pos))
+         ;;
+         (uv        (* uv-repeat (tex vert)))
+         ;;
+         (norm      (norm vert))
+         (norm      (* (m4:to-mat3 model-world) norm))
          (t0  (normalize
                (s~ (* model-world (v! (tb-data-tangent tb) 0))
                    :xyz)))

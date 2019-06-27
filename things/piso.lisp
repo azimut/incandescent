@@ -27,8 +27,8 @@
            :world-view (world->view camera)
            :view-clip  (projection camera)
            ;; PBR
-           :roughness .1
-           :metallic .9
+           :roughness .2
+           :metallic metallic
            ;; IBL
            :brdf-lut *s-brdf*
            :prefilter-map *s-cubemap-prefilter*
