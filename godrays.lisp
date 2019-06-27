@@ -1,33 +1,32 @@
 (in-package #:incandescent)
-
+;; TODO: per object location?
+;;
 ;; INPUT
 ;; - *light-pos* v3 light-position
-;; - sam1 sampler with only the bright light
+;; - sam1 rgb16f? sampler with only the bright light
 ;; dimensions-v2
 (defvar *god-fbo* NIL)
 (defvar *god-sam* NIL)
 (defvar *dimensions-v2* NIL)
 
 (defun free-god ()
-  (when *god-fbo*
-    (free *god-fbo*)))
+  (when *god-fbo* (free *god-fbo*)))
 
 (defun init-god ()
-  (setf *dimensions-v2* (v! *dimensions*))
   (free-god)
-  (setf *god-fbo*
-        (make-fbo `(0 :element-type :rgb16f
-                      :dimensions ,*dimensions*)))
-  (setf *god-sam* (sample (attachment-tex *god-fbo* 0)
-                          :wrap :clamp-to-edge)))
+  (setf *dimensions-v2* (v! *dimensions*))
+  (setf *god-fbo* (make-fbo `(0 :element-type :rgb16f :dimensions ,*dimensions*)))
+  (setf *god-sam* (sample (attachment-tex *god-fbo* 0) :wrap :clamp-to-edge)))
 
 (defun draw-god (sam1 time)
+  (declare (type single-float time))
   (with-fbo-bound (*god-fbo*)
     (map-g #'god-rays-pipe *bs*
            :res *dimensions-v2*
            :time time
            :sam sam1
-           :sun-pos (screen-coord *dimensions-v2* *light-pos*))))
+           :sun-pos (screen-coord *dimensions-v2*
+                                  *light-pos*))))
 
 (defun-g fbm-hash ((p :vec2))
   (fract
@@ -45,25 +44,26 @@
          ;;                     (resolution (current-viewport)))
          ;;               2f0)
          ;;   -1f0)
-         (uv uv)
-         (samples   10)
-         (decay    .974)
-         (exposure .24)
-         (density  .93)
-         (weight   .36)
-         (color (s~ (texture sam uv) :xyz))
-         (occ (x color))
-         (obj (y color))
-         (dtc (* (- uv sun-pos)
-                 (/ 1f0 samples)))
+         (uv         uv)
+         (samples    10)
+         (decay      .974)
+         (exposure   .24)
+         (density    .93)
+         (weight     .36)
+         (color      (s~ (texture sam uv)
+                         :xyz))
+         (occ        (x color))
+         (obj        (y color))
+         (dtc        (* (- uv sun-pos)
+                        (/ 1f0 samples)))
          (illumdecay .4f0)
-         (dither (fbm-hash (+ uv (fract time)))))
+         (dither     (fbm-hash (+ uv (fract time)))))
     (dotimes (i samples)
       (decf uv dtc)
       (let ((s (x (texture sam (+ (* dither dtc)
                                   uv)))))
         (multf s (* illumdecay weight))
-        (incf occ s)
+        (incf  occ s)
         (multf illumdecay decay)))
     (v! (+ (v! 0 0 0)
            (* occ exposure))
