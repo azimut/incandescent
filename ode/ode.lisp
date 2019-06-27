@@ -39,17 +39,16 @@
                                               (o2 %ode:geom-id))
          (declare (ignore data))
          (claw:c-with ((contact %ode:contact :calloc t :count 10))
-           (let ((b1   (%ode:geom-get-body o1))
-                 (b2   (%ode:geom-get-body o2)))
-             (when (and b1 b2
-                        (zerop (%ode:are-connected-excluding b1 b2 %ode:+joint-type-contact+)))
-               (setf (contact :surface :mode) (logior
-                                               %ode:+contact-bounce+
-                                               ;; %ode:+contact-slip1+
-                                               ;; %ode:+contact-slip2+
-                                               ;;%ode:+contact-approx1+
-                                               ;;                        %ode:+contact-soft-erp+
-                                               %ode:+contact-soft-cfm+)
+           (let* ((b1 (%ode:geom-get-body o1))
+                  (b2 (%ode:geom-get-body o2))
+                  (sj (%ode:are-connected-excluding b1 b2 %ode:+joint-type-contact+)))
+             (when (not (and b1 b2 (plusp sj)))
+               (setf (contact :surface :mode) (logior %ode:+contact-bounce+
+                                                      ;; %ode:+contact-slip1+
+                                                      ;; %ode:+contact-slip2+
+                                                      ;; %ode:+contact-approx1+
+                                                      ;; %ode:+contact-soft-erp+
+                                                      %ode:+contact-soft-cfm+)
                      ;; (contact :surface :slip1) .7d0
                      ;; (contact :surface :slip2) .7d0
                      ;;(contact :surface :soft-erp) .96d0
@@ -91,29 +90,6 @@
         (coerce (ode-rot 2) 'single-float)
         (coerce (ode-rot 3) 'single-float))))
 
-(defun physic-to-ode (physic)
-  (with-slots (buf
-               pos
-               ode-vertices ode-indices data geom
-               mass density immovablep
-               body)
-      physic
-    (multiple-value-bind (v i d g) (buffer-strem-to-ode buf)
-      (setf ode-vertices v
-            ode-indices  i
-            data         d
-            geom         g))
-    (unless immovablep
-      (%ode:geom-set-data geom data)
-      (%ode:mass-set-trimesh mass density geom)
-      ;; FIXME: is the correct value?
-      (%ode:mass-translate mass
-                           (coerce (x pos) 'double-float)
-                           (coerce (y pos) 'double-float)
-                           (coerce (z pos) 'double-float))
-      (%ode:body-set-mass body mass)
-      (%ode:geom-set-body geom body))))
-
 (defun buffer-stream-to-ode (buf)
   "creates a new geometry on ODE from a cepl buffer stream"
   (destructuring-bind ((gv) gi) (buffer-stream-gpu-arrays buf)
@@ -122,9 +98,7 @@
       (claw:c-let ((vertices :float :calloc t :count (* 3 gvl))
                    (indices  :unsigned-int :calloc t :count gil)
                    (mesh-data %ode::tri-mesh-data-id
-                              :ptr (%ode:geom-tri-mesh-data-create))
-                   ;;(m %ode:mass :from mass)
-                   )
+                              :ptr (%ode:geom-tri-mesh-data-create)))
         ;;
         (with-gpu-array-as-c-array (ci gi)
           (loop :for i :below gil
@@ -146,11 +120,30 @@
                                               (indices &)
                                               gil
                                               (* 3 (claw:sizeof :unsigned-int)))
-        ;;(%ode:body-set-mass body (m &))
-        ;;(%ode:geom-set-body geom body)
-        ;;(%ode:geom-tri-mesh-enable-tc geom %ode:+sphere-class+ 0)
-        ;;(%ode:geom-tri-mesh-enable-tc geom %ode:+box-class+ 0)
         (values (vertices &)
                 (indices &)
                 (mesh-data &)
                 (%ode:create-tri-mesh *space* (mesh-data &) 0 0 0))))))
+
+(defun physic-to-ode (physic)
+  (with-slots (buf
+               pos
+               ode-vertices ode-indices data geom
+               mass density immovablep
+               body)
+      physic
+    (multiple-value-bind (v i d g) (buffer-stream-to-ode buf)
+      (setf ode-vertices v
+            ode-indices  i
+            data         d
+            geom         g))
+    (unless immovablep
+      (%ode:geom-set-data geom data)
+      (%ode:mass-set-trimesh mass density geom)
+      ;; FIXME: is the correct value?
+      (%ode:mass-translate mass
+                           (coerce (x pos) 'double-float)
+                           (coerce (y pos) 'double-float)
+                           (coerce (z pos) 'double-float))
+      (%ode:body-set-mass body mass)
+      (%ode:geom-set-body geom body))))
