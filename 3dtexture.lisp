@@ -27,9 +27,9 @@
   (when *quad-3d* (free *quad-3d*)))
 
 (defun init-volumetric ()
-  (free-raymarching)
-  (setf *vol-fbo* (make-fbo `(0 :dimensions ,*dimensions*
-                                :element-type :rgba16f))
+  (free-volumetric)
+  (setf (make-texture nil :dimensions '(32 32 32) :element-type :vec4))
+  (setf *vol-fbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgba16f))
         *vol-sam* (sample (attachment-tex *ray-fbo* 0)
                           :wrap :clamp-to-edge))
   (setf *frustum*
@@ -48,7 +48,8 @@
                (buf   (make-buffer-stream verts
                                           :index-array indi
                                           :primitive :triangle-strip)))
-          buf)))
+          buf))
+  )
 
 (defun draw-volumetric (sam samd time)
   (declare (type single-float time)
@@ -62,13 +63,9 @@
              :samd samd
              :sam  sam
              :time time
-             ;; :brdf-lut *s-brdf*
-             ;; :irradiance-map *s-cubemap-prefilter*
-             ;; :diffuse-map *s-cubemap-live*
              :cam-pos (pos *currentcamera*)
              :frustum-corners *frustum*
              :light-pos *light-pos*
-             ;;:sam3 *32sam*
              :world-view
              (m4:*
               ;; (rtg-math.projection:orthographic-v2
@@ -118,12 +115,24 @@
                             (v! 3 3)))
          (density 1f0)
          (uv
-          (fract (+ (* wpos (x noise-data))
-                    (v! (* (x noise-velocity) time)
-                        0
-                        (* (y noise-velocity) time)))))
+           (fract (+ (* wpos (x noise-data))
+                     (v! (* (x noise-velocity) time)
+                         0
+                         (* (y noise-velocity) time)))))
          (noise (x (texture tex3 uv)))
          (noise (* (saturate (- noise (z noise-data)))
                    (y noise-data)))
          (density (saturate noise)))
     density))
+
+(defun load-into-3d (dst r g b)
+  (declare (type cepl:c-array dst r g b))
+  (assert (dimensions= r g b))
+  (dotimes (x 32)
+    (dotimes (y 32)
+      (dotimes (z 32)
+        (setf (aref-c dst x y z)
+              ;; Source Textures have only 1 color
+              (v! (x (aref-c r (mod x 32)))
+                  (x (aref-c g (mod y 32)))
+                  (x (aref-c b (mod z 32)))))))))
