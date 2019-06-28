@@ -106,8 +106,7 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent)
-  :components ((:file "3d-sdf")
-               (:file "raymarching")))
+  :components ((:file "raymarching/3d-sdf")))
 
 (asdf:defsystem #:incandescent/shadowmap
   :description "Describe incandescent here"
