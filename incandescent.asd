@@ -191,7 +191,9 @@
                (:file "ode/physic")
                (:file "ode/camera")
                (:file "ode/cube")
-               (:file "ode/sphere")))
+               (:file "ode/sphere")
+               (:file "ode/cone")
+               (:file "ode/newcyl")))
 
 (asdf:defsystem #:incandescent/renderman
   :description "Describe incandescent here"

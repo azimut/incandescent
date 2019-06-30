@@ -73,15 +73,17 @@
            "updates the objets within the physics engine"
            (when (and *world* (funcall stepper))
              (%ode:space-collide *space* nil (claw:callback 'near-callback))
-             (%ode:world-quick-step *world* 0.005d0)
+             (%ode:world-quick-step *world* 0.004d0)
              (%ode:joint-group-empty *contactgroup*)))))
 
+;; FIME: leaking? c-with would free it...
 (defun ode-geom-get-position (geom)
   (declare (type sb-sys:system-area-pointer geom))
   (claw:c-let ((ode-pos :double :ptr (%ode:geom-get-position geom)))
     (v! (ode-pos 0) (ode-pos 1) (ode-pos 2))))
 
 (defun ode-geom-get-quaternion2 (orot geom)
+  "returns a new rtg-math quaternion from the current rotation in the ODE geometry. Using the already C allocated OROT quaternion passed"
   (declare (type sb-sys:system-area-pointer orot geom))
   (%ode:geom-get-quaternion geom orot)
   (claw:c-let ((ode-rot :double :ptr orot))
@@ -91,7 +93,7 @@
         (coerce (ode-rot 3) 'single-float))))
 
 (defun buffer-stream-to-ode (buf)
-  "creates a new geometry on ODE from a cepl buffer stream"
+  "creates a new trimesh geometry on ODE from a cepl buffer stream"
   (destructuring-bind ((gv) gi) (buffer-stream-gpu-arrays buf)
     (let ((gvl (car (gpu-array-dimensions gv)))
           (gil (car (gpu-array-dimensions gi))))
@@ -138,12 +140,11 @@
             data         d
             geom         g))
     (unless immovablep
-      (%ode:geom-set-data geom data)
-      (%ode:mass-set-trimesh mass density geom)
-      ;; FIXME: is the correct value?
-      (%ode:mass-translate mass
-                           (coerce (x pos) 'double-float)
-                           (coerce (y pos) 'double-float)
-                           (coerce (z pos) 'double-float))
-      (%ode:body-set-mass body mass)
-      (%ode:geom-set-body geom body))))
+      (claw:c-let ((m %ode:mass :ptr mass))
+        (%ode:geom-set-data     geom data)
+        (%ode:mass-set-trimesh  mass density geom)
+        (%ode:geom-set-position geom (- (m :c 0)) (- (m :c 1)) (- (m :c 2)))
+        (%ode:mass-translate    mass (- (m :c 0)) (- (m :c 1)) (- (m :c 2)))
+        ;;
+        (%ode:geom-set-body geom body)
+        (%ode:body-set-mass body mass)))))

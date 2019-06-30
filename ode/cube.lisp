@@ -2,9 +2,9 @@
 
 (defclass physic-box (physic)
   ((density :initform 1d0 :initarg :density)
-   (x :initform 1d0 :initarg :x)
-   (y :initform 1d0 :initarg :y)
-   (z :initform 1d0 :initarg :z)))
+   (x       :initform 1d0 :initarg :x)
+   (y       :initform 1d0 :initarg :y)
+   (z       :initform 1d0 :initarg :z)))
 
 (defmethod initialize-instance :after ((obj physic-box) &key)
   (with-slots (mass body geom density immovablep x y z pos rot) obj

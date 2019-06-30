@@ -1,6 +1,6 @@
 (in-package :incandescent)
 
-;; Note: static cone
+;; Note: trimesh cone
 
 (defclass physic-cone (physic)
   ((density      :initarg :density)

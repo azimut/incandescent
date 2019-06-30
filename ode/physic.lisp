@@ -3,17 +3,17 @@
 (defclass physic (actor)
   ((body :initarg :body :reader body :documentation "body pointer")
    (mass :initarg :mass :reader mass :documentation "mass pointer")
-   (geom :initarg :geom :reader geom :documentation "geometry pointer")
+   (geom :initarg :geom :reader geom :documentation "geometry pointer") ;; RM?
+   (orot :initarg :orot)
    (immovablep :initarg :immovablep
-               :documentation "ode immovable object, aka without body")
-   (orot :initarg :orot))
+               :documentation "ode immovable object (aka without body or mass) but that still interacts with other objects"))
   (:default-initargs
-   :immovablep nil
    :body (%ode:body-create *world*)
    :mass (claw:alloc '%ode:mass)
-   :orot (claw:alloc '%ode:real 4)))
+   :orot (claw:alloc '%ode:real 4)
+   :immovablep nil))
 
-;; FIXME: mass is leaking
+;; FIXME: mass is leaking?
 (defmethod free ((object physic))
   (with-slots (body geom orot) object
     (%ode:body-destroy body)
