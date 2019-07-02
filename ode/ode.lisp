@@ -35,7 +35,7 @@
         *contactgroup* nil))
 
 (progn
-  (block nn
+  (block gg
     (claw:defcallback near-callback :void ((data :pointer)
                                            (o1 %ode:geom-id)
                                            (o2 %ode:geom-id))
@@ -43,9 +43,9 @@
       (let ((b1 (%ode:geom-get-body o1))
             (b2 (%ode:geom-get-body o2)))
         (when (and b1 b2 (plusp (%ode:are-connected-excluding b1 b2 %ode:+joint-type-contact+)))
-          (return-from nn))
-        (claw:c-with ((contact %ode:contact :calloc t :count 6))
-          (dotimes (i 5)
+          (return-from gg))
+        (claw:c-with ((contact %ode:contact :calloc t :count 10))
+          (dotimes (i 10)
             (setf (contact i :surface :mode) (logior %ode:+contact-bounce+
                                                      ;; %ode:+contact-slip1+
                                                      ;; %ode:+contact-slip2+
@@ -64,13 +64,15 @@
                   (contact i :surface :bounce-vel) .1d0
                   ;; constraint force mixing parameter
                   (contact i :surface :soft-cfm) .01d0))
-          (dotimes (i (%ode:collide o1 o2 6
+          (let ((numc (%ode:collide o1 o2 5
                                     (contact :geom &)
-                                    (claw:sizeof '%ode:contact)))
-            (%ode:joint-attach (%ode:joint-create-contact *world*
-                                                          *contactgroup*
-                                                          (contact i))
-                               b1 b2))))))
+                                    (claw:sizeof '%ode:contact))))
+            (when (plusp numc)
+              (dotimes (i numc)
+                (%ode:joint-attach (%ode:joint-create-contact *world*
+                                                              *contactgroup*
+                                                              (contact i))
+                                   b1 b2))))))))
   (let ((stepper (make-stepper (seconds .01) (seconds .01))))
     (defun ode-update ()
       "updates the objets within the physics engine"
@@ -82,18 +84,46 @@
 ;; FIME: leaking? c-with would free it...
 (defun ode-geom-get-position (geom)
   (declare (type sb-sys:system-area-pointer geom))
-  (claw:c-let ((ode-pos :double :ptr (%ode:geom-get-position geom)))
+  (claw:c-let ((ode-pos %ode:real :ptr (%ode:geom-get-position geom)))
     (v! (ode-pos 0) (ode-pos 1) (ode-pos 2))))
 
 (defun ode-geom-get-quaternion2 (orot geom)
   "returns a new rtg-math quaternion from the current rotation in the ODE geometry. Using the already C allocated OROT quaternion passed"
   (declare (type sb-sys:system-area-pointer orot geom))
   (%ode:geom-get-quaternion geom orot)
-  (claw:c-let ((ode-rot :double :ptr orot))
+  (claw:c-let ((ode-rot %ode:real :ptr orot))
     (q! (coerce (ode-rot 0) 'single-float)
         (coerce (ode-rot 1) 'single-float)
         (coerce (ode-rot 2) 'single-float)
         (coerce (ode-rot 3) 'single-float))))
+
+#+nil
+(defun ode-geom-get-quaternion-from-mat3 (geom)
+  (claw:c-let ((mrot %ode:matrix3 :ptr (%ode:geom-get-rotation geom)))
+    #+nil
+    (q:from-mat3 (m3:make (coerce (mrot 0) 'single-float)
+                          (coerce (mrot 3) 'single-float)
+                          (coerce (mrot 6) 'single-float)
+                          ;;
+                          (coerce (mrot 1) 'single-float)
+                          (coerce (mrot 4) 'single-float)
+                          (coerce (mrot 7) 'single-float)
+                          ;;
+                          (coerce (mrot 2) 'single-float)
+                          (coerce (mrot 5) 'single-float)
+                          (coerce (mrot 8) 'single-float)))
+    ;;#+nil
+    (q:from-mat3 (m3:make (coerce (mrot 0) 'single-float)
+                          (coerce (mrot 1) 'single-float)
+                          (coerce (mrot 2) 'single-float)
+                          ;;
+                          (coerce (mrot 3) 'single-float)
+                          (coerce (mrot 4) 'single-float)
+                          (coerce (mrot 5) 'single-float)
+                          ;;
+                          (coerce (mrot 6) 'single-float)
+                          (coerce (mrot 7) 'single-float)
+                          (coerce (mrot 8) 'single-float)))))
 
 (defun buffer-stream-to-ode (buf)
   "creates a new trimesh geometry on ODE from a cepl buffer stream"
