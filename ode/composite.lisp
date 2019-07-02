@@ -109,7 +109,8 @@
                       (v! (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0))))))
-         (poss  (vect (v! 0 0 0) (v! 0 0 0)))
+         ;;(poss  (vect (v! 0 0 0) (v! 0 0 0)))
+         (poss  (vect (v! .25 0 0) (v! 0 0 0)))
          ;;#+nil
          (rots  (vect (q:from-axis-angle
                        (v! (random 1f0) (random 1f0) (random 1f0))
@@ -118,12 +119,15 @@
                        (v! (random 1f0) (random 1f0) (random 1f0))
                        (radians (random 360)))))
          ;;(rots  (vect (q:identity) (q:identity)))
+         #+nil
          (sides (vect (v! (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0))))
                       (v! (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0))))))
+         (sides (vect (v! .5 4 2)
+                      (v! 2 2 2)))
          (bufs  (vect (box (x (aref sides 0))
                            (y (aref sides 0))
                            (z (aref sides 0)))
@@ -171,10 +175,10 @@
         (vector-push-extend (claw:alloc '%ode:matrix3) ode-rots)
         (vector-push-extend (claw:alloc '%ode:real 4)  ode-qrots)
         ;; rots
-        ;;(update-ode-rot (aref ode-qrots k) (aref rots k))
-        ;;(%ode:rfrom-q (aref ode-rots  k) (aref ode-qrots k))
+        (update-ode-rot (aref ode-qrots k) (aref rots k))
+        (%ode:rfrom-q (aref ode-rots  k) (aref ode-qrots k))
         ;;(update-ode-mrot (aref ode-rots k) (aref rots k))
-        (%ode:r-set-identity (aref ode-rots k))
+        ;;(%ode:r-set-identity (aref ode-rots k))
         (%ode:mass-rotate (m2 &) (aref ode-rots k))
         ;;#+nil
         (%ode:mass-translate (m2 &)
