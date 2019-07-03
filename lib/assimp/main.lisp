@@ -533,7 +533,7 @@ for value and node name for the key")
 
 ;;--------------------------------------------------
 ;; FIXME: see below mess
-(defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)) (instantiate-p t))
+(defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)))
   "returns a list of actor classes, instances ready to be render"
   (declare (type single-float scale))
   (let* ((path   (resolve-path file))
@@ -547,38 +547,25 @@ for value and node name for the key")
           ;; NOTE: We delay the type check because there could be meshes
           ;; without bones and meshes with on the same scene.
              (let ((type (assimp-get-type mesh)))
-               (multiple-value-bind (buf albedo normals specular)
-                   (assimp-mesh-to-stream mesh scene path type)
-                 (if instantiate-p
-                     (ecase type
-                       (:textured (make-instance 'assimp-thing
-                                                 :scene scene
-                                                 :buf buf :albedo albedo :normals normals
-                                                 :specular specular
-                                                 :scale scale
-                                                 :pos pos :rot rot))
-                       (:bones
-                        (make-instance 'assimp-thing-with-bones
-                                       :duration (if (not (emptyp (ai:animations scene)))
-                                                     (coerce
-                                                      (ai:duration
-                                                       (aref (ai:animations scene) 0))
-                                                      'single-float)
-                                                     0f0)
-                                       :bones (make-c-array
-                                               (coerce
-                                                ;; NOTE: init using the first transform in the animation, for those that only have 1
-                                                ;; frame of "animation"
-                                                (get-bones-tranforms scene :frame 0)
-                                                'list) :element-type :mat4)
-                                       :scene scene
-                                       :buf buf :albedo albedo :normals normals
-                                       :specular specular
-                                       :scale scale
-                                       :pos pos :rot rot)))
-                     (list buf
-                           albedo
-                           normals
-                           specular
-                           scene)))))))
-
+               (multiple-value-bind (buf albedo normals specular) (assimp-mesh-to-stream mesh scene path type)
+                 (list :scene scene
+                       :buf buf
+                       :albedo albedo
+                       :normals normals
+                       :specular specular
+                       :scale scale
+                       :pos pos :rot rot
+                       :bones (when (eq type :bones)
+                                (make-c-array
+                                 (coerce
+                                  ;; NOTE: init using the first transform in the animation, for those that only have 1
+                                  ;; frame of "animation"
+                                  (get-bones-tranforms scene :frame 0)
+                                  'list) :element-type :mat4))
+                       :duration (when (eq type :bones)
+                                   (if (not (emptyp (ai:animations scene)))
+                                       (coerce
+                                        (ai:duration
+                                         (aref (ai:animations scene) 0))
+                                        'single-float)
+                                       0f0))))))))
