@@ -1,5 +1,7 @@
 (in-package #:incandescent)
 
+;; 3D - facing the camera
+
 (defvar *font-fbo* nil)
 (defparameter *font-dimensions* '(256 20)
   "Default: '(512 64)")
@@ -49,10 +51,13 @@
     obj))
 
 (defmethod update ((actor text-billboard) dt)
-  (with-slots (tex scale color pos) actor
+  (with-slots (tex scale seed color pos) actor
     ;;(setf scale .5)
     ;;(setf color (v! .1 2 .1))
-    (write-msg-on-tex (format nil "(~f ~f ~f)" (x pos) (y pos) (z pos))
+    (setf pos (v! (+ -20 (mod (* seed 4 (mynow)) 40))
+                  (* seed 10)
+                  (* seed 4)))
+    (write-msg-on-tex (format nil "(~$)" (x pos))
                       tex)))
 
 (defmethod draw ((actor text-billboard) camera time)

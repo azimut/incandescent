@@ -9,10 +9,11 @@
 ;;--------------------------------------------------
 
 (defun init-text (&key (charset *default-charset*)
-                       (font    *default-font*))
+                       (font    *default-font*)
+                       force)
   (declare (type string   charset)
            (type pathname font))
-  (unless *font*
+  (when (or force (not *font*))
     (setf *font* (cepl.fond:make-fond-font font charset))
     (setf *text* (cepl.fond:make-fond-text *font* "...")))
   t)
