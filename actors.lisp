@@ -3,13 +3,14 @@
 (defvar *actors* nil)
 
 (defclass actor ()
-  ((name  :initarg :name  :reader   actor-name)
-   (pos   :initarg :pos   :accessor pos)
-   (rot   :initarg :rot   :accessor rot)
-   (buf   :initarg :buf)
-   (color :initarg :color)
-   (scale :initarg :scale)
-   (seed  :initarg :seed :initform (random 1f0)))
+  ((name   :initarg :name   :reader   actor-name)
+   (pos    :initarg :pos    :accessor pos)
+   (rot    :initarg :rot    :accessor rot)
+   (buf    :initarg :buf)
+   (color  :initarg :color)
+   (scale  :initarg :scale)
+   (seed   :initarg :seed   :initform (random 1f0))
+   (draw-p :initarg :draw-p :initform t))
   (:default-initargs
    :name  (gensym)
    :pos   (v! 0 0 0)
@@ -46,12 +47,19 @@
   NIL)
 
 (defun delete-actor-class (class-name)
-  (declare (string class-name))
-  (setf *actors*
-        (delete-if
-         (lambda (x) (string= class-name (class-name (class-of x))))
-         *actors*))
+  (declare (type string class-name))
+  (let ((obj (find-if (lambda (x) (string-equal class-name (serapeum:class-name-of x)))
+                      *actors*)))
+    (setf *actors* (delete obj *actors*))
+    (when obj (free obj)))
   NIL)
+
+(defun get-an-actor-class (class-name)
+  "returns an random actor of CLASS-NAME on *ACTORS*"
+  (declare (type string class-name))
+  (when-let ((actors (serapeum:filter (lambda (x) (string-equal class-name (serapeum:class-name-of x)))
+                                      *actors*)))
+    (alexandria:random-elt actors)))
 
 (defmethod sync (x) (+ .5 (* .5 (sin x))))
 (defmethod cync (x) (+ .5 (* .5 (cos x))))
