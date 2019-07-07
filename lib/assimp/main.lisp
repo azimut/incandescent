@@ -308,6 +308,7 @@ for value and node name for the key")
          (node-type        (if (emptyp (ai:animations scene))
                                :static
                                :animated))
+         #+nil
          (valid            (assert (or (eq :static node-type)
                                        (or frame-p time-p))))
          ;;(nodes-transforms (get-nodes-transforms scene :static))
@@ -317,8 +318,8 @@ for value and node name for the key")
                                (get-nodes-transforms scene node-type
                                                      :time time))))
     (loop
-       :for bone :in unique-bones
-       :for bone-id :from 0 :do
+      :for bone :in unique-bones
+      :for bone-id :from 0 :do
          (with-slots ((name   ai:name)
                       (offset ai:offset-matrix))
              bone
@@ -351,52 +352,71 @@ for value and node name for the key")
                       (aref-c c-arr (+ i 2)) (aref indices 2)))
       i-array)))
 
-(defun make-gpu-vertex-array (vertices normals tangents bitangents uvs &optional bones)
+;; TODO: in the classimp version, it won't generate tangents if there are no uvs?
+(defun make-gpu-vertex-array (vertices normals tangents bitangents &optional uvs bones)
   "returns a CEPL:GPU-ARRAY, built from the provided mesh information"
-  (if bones
-      (let* ((n-vertex (length vertices))
-             (v-arr    (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-with-bones)))
-        (with-gpu-array-as-c-array (c-arr v-arr)
-          (loop :for v  :across vertices
-                :for n  :across normals
-                :for ta :across tangents
-                :for bt :across bitangents
-                :for tc :across uvs
-                :for bv :across bones ;; per vertex
-                :for i  :from 0
-                :for a  := (aref-c c-arr i)
-                :do
-                   (setf (assimp-mesh-pos a) v
-                         (assimp-mesh-normal a) n
-                         (assimp-mesh-tangent a) ta
-                         (assimp-mesh-bitangent a) bt
-                         (assimp-mesh-uv a) (v! (x tc) (y tc)))
+  (let* ((n-vertex  (length vertices))
+         (has-bones (not (emptyp bones)))
+         (has-uvs   (not (emptyp uvs)))
+         (uvs       (or uvs ;; NOTE: we fill with fake uvs to respect g-pnt layout
+                        (coerce (loop :repeat n-vertex
+                                      :collect (v! 0 0))
+                                'vector))))
+    (cond (has-bones
+           (let ((v-arr (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-with-bones)))
+             (with-gpu-array-as-c-array (c-arr v-arr)
+               (loop :for v  :across vertices
+                     :for n  :across normals
+                     :for ta :across tangents
+                     :for bt :across bitangents
+                     :for tc :across uvs
+                     :for bv :across bones ;; per vertex
+                     :for i  :from 0
+                     :for a  := (aref-c c-arr i)
+                     :do
+                        (setf (assimp-mesh-pos a) v
+                              (assimp-mesh-normal a) n
+                              (assimp-mesh-tangent a) ta
+                              (assimp-mesh-bitangent a) bt
+                              (assimp-mesh-uv a) (v! (x tc) (y tc)))
 
-                   (setf (ids a)
-                         (v! (serapeum:pad-end
-                              (map 'vector #'car bv) *max-bones-per-vertex* 0)))
-                   (setf (weights a)
-                         (v! (serapeum:pad-end
-                              (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))
-          v-arr))
-      (let* ((n-vertex (length vertices))
-             (v-arr    (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-mesh)))
-        (with-gpu-array-as-c-array (c-arr v-arr)
-          (loop :for v  :across vertices
-                :for n  :across normals
-                :for ta :across tangents
-                :for bt :across bitangents
-                :for tc :across uvs
-                :for i  :from 0
-                :for a  := (aref-c c-arr i)
-                :do (setf (assimp-mesh-pos a) v
-                          (assimp-mesh-normal a) n
-                          (assimp-mesh-tangent a) ta
-                          (assimp-mesh-bitangent a) bt
-                          (assimp-mesh-uv a) (v! (x tc) (y tc))))
-          v-arr))))
+                        (setf (ids a)
+                              (v! (serapeum:pad-end
+                                   (map 'vector #'car bv) *max-bones-per-vertex* 0)))
+                        (setf (weights a)
+                              (v! (serapeum:pad-end
+                                   (map 'vector #'cdr bv) *max-bones-per-vertex*  0))))
+               v-arr)))
+          (has-uvs
+           (let ((v-arr (make-gpu-array NIL :dimensions n-vertex :element-type 'assimp-mesh)))
+             (with-gpu-array-as-c-array (c-arr v-arr)
+               (loop :for v  :across vertices
+                     :for n  :across normals
+                     :for ta :across tangents
+                     :for bt :across bitangents
+                     :for tc :across uvs
+                     :for i  :from 0
+                     :for a  := (aref-c c-arr i)
+                     :do (setf (assimp-mesh-pos a) v
+                               (assimp-mesh-normal a) n
+                               (assimp-mesh-tangent a) ta
+                               (assimp-mesh-bitangent a) bt
+                               (assimp-mesh-uv a) (v! (x tc) (y tc))))
+               v-arr)))
+          (t
+           (let ((v-arr (make-gpu-array NIL :dimensions n-vertex :element-type 'g-pnt)))
+             (with-gpu-array-as-c-array (c-arr v-arr)
+               (loop :for v  :across vertices
+                     :for n  :across normals
+                     :for tc :across uvs
+                     :for i  :from 0
+                     :for a  := (aref-c c-arr i)
+                     :do (setf (assimp-mesh-pos a) v
+                               (assimp-mesh-normal a) n
+                               (assimp-mesh-uv a) (v! (x tc) (y tc))))
+               v-arr))))))
 
-(defun make-buffer-stream-cached (file mesh-index vertices faces normals tangents bitangents uvs &optional bones)
+(defun make-buffer-stream-cached (file mesh-index vertices faces normals tangents bitangents &optional uvs bones)
   "returns a CEPL:BUFFER-STREAM"
   (declare (type fixnum mesh-index))
   (let ((key (cons file mesh-index)))
@@ -421,6 +441,21 @@ for value and node name for the key")
 ;;--------------------------------------------------
 
 (defgeneric assimp-mesh-to-stream (mesh scene file type))
+
+(defmethod assimp-mesh-to-stream (mesh scene file (type (eql :untextured)))
+  "only textured assimp thing"
+  (declare (ai:mesh mesh)
+           (ai:scene scene))
+  (with-slots ((vertices       ai:vertices)
+               (faces          ai:faces)
+               (normals        ai:normals))
+      mesh
+    (let ((mesh-index (position mesh (ai:meshes scene))))
+      (assert (length= normals vertices))
+      (list :buf (make-buffer-stream-cached file mesh-index
+                                            vertices faces
+                                            normals nil nil)))))
+
 (defmethod assimp-mesh-to-stream (mesh scene file (type (eql :textured)))
   "only textured assimp thing"
   (declare (ai:mesh mesh)
@@ -454,12 +489,12 @@ for value and node name for the key")
                        normals
                        vertices
                        uvs))
-      (values (make-buffer-stream-cached file mesh-index
-                                         vertices faces
-                                         normals tangents bitangents uvs)
-              albedo
-              normal-map
-              specular))))
+      (list :buf (make-buffer-stream-cached file mesh-index
+                                            vertices faces
+                                            normals tangents bitangents uvs)
+            :albedo albedo
+            :normals normal-map
+            :specular specular))))
 
 (defmethod assimp-mesh-to-stream (mesh scene file (type (eql :bones)))
   "returns an assimp actor object"
@@ -474,9 +509,8 @@ for value and node name for the key")
                (mat-index      ai:material-index)
                (bones          ai:bones))
       mesh
-    (let* ((lenv (length vertices))
-           (mesh-index (position mesh (ai:meshes scene)))
-           (texture-coords (elt texture-coords 0))
+    (let* ((mesh-index (position mesh (ai:meshes scene)))
+           (uvs        (elt texture-coords 0))
            (material   (aref (slot-value scene 'ai:materials) mat-index))
            (tex-file   (get-texture-path material :ai-texture-type-diffuse))
            (norm-file  (get-texture-path material :ai-texture-type-height))
@@ -492,20 +526,20 @@ for value and node name for the key")
                            (get-tex (merge-pathnames spec-file file-path))
                            (get-tex *default-specular* nil t :r8)))
            ;; I need context for this...hackidy hack
-           (bones-per-vertex (get-bones-per-vertex scene bones lenv)))
+           (bones-per-vertex (get-bones-per-vertex scene bones (length vertices))))
       (assert (length= bitangents
                        tangents
                        normals
                        vertices
-                       texture-coords))
+                       uvs))
       (let ((buffer (make-buffer-stream-cached file mesh-index
                                                vertices faces normals
-                                               tangents bitangents texture-coords
+                                               tangents bitangents uvs
                                                bones-per-vertex)))
-        (values buffer
-                albedo
-                normal-map
-                specular)))))
+        (list :buf buffer
+              :albedo albedo
+              :normals normal-map
+              :specular specular)))))
 
 (defun assimp-safe-import-into-lisp (file)
   "wrapper around ai:import-into-lisp that ensures the proper thing is loaded"
@@ -513,11 +547,13 @@ for value and node name for the key")
                     (error "cannot simple load the file")))
          ;; add normals if missing
          (processing-flags
-          (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
-              (cons :ai-process-gen-smooth-normals *processing-flags*)
-              *processing-flags*))
+           (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
+               (cons :ai-process-gen-smooth-normals *processing-flags*)
+               *processing-flags*))
          (scene (ai:import-into-lisp file :processing-flags processing-flags)))
+    ;; TODO: error instead if there is an untextured among textured
     ;; Error if all texture coords are missing :(
+    #+nil
     (assert (notevery #'zerop
                       (map 'vector (lambda (mesh) (length (ai:texture-coords mesh)))
                            (ai:meshes scene))))
@@ -527,9 +563,13 @@ for value and node name for the key")
 (defmethod assimp-get-type ((obj ai:scene))
   (let ((bones (list-bones obj)))
     (if (emptyp bones) :textured :bones)))
+;; TODO: support untextured with bones
 (defmethod assimp-get-type ((obj ai:mesh))
-  (let ((bones (ai:bones obj)))
-    (if (emptyp bones) :textured :bones)))
+  (let ((bones (ai:bones obj))
+        (n-uvs (ai:texture-coords obj)))
+    (cond ((not (emptyp n-uvs)) :textured)
+          ((not (emptyp bones)) :bones)
+          (t                    :untextured))))
 
 ;;--------------------------------------------------
 ;; FIXME: see below mess
@@ -542,12 +582,13 @@ for value and node name for the key")
     (loop :for mesh :across meshes
           ;; NOTE: Drop meshes with not UVs, afaik they are placeholders
           ;;       and can ruin the load or rendering
-          :when (not (emptyp (ai:texture-coords mesh)))
+          ;;:when (not (emptyp (ai:texture-coords mesh)))
           :collect
           ;; NOTE: We delay the type check because there could be meshes
-          ;; without bones and meshes with on the same scene.
+          ;; with and without bones on the same scene.
              (let ((type (assimp-get-type mesh)))
-               (multiple-value-bind (buf albedo normals specular) (assimp-mesh-to-stream mesh scene path type)
+               (destructuring-bind (&key buf albedo normals specular)
+                   (assimp-mesh-to-stream mesh scene path type)
                  (list :scene scene
                        :buf buf
                        :albedo albedo
