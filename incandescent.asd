@@ -118,7 +118,7 @@
   :components ((:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
                (:file "shadowmap/variance")
-               ;;(:file "shadowmap/render")
+               (:file "shadowmap/render")
                (:file "shadowmap/draw")))
 
 (asdf:defsystem #:incandescent/dof
