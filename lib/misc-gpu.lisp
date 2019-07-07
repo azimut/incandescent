@@ -343,8 +343,30 @@
          (t0  (normalize (- (* q1 (y st2))
                             (* q1 (y st1)))))
          (b0  (- (normalize (cross n0 t0))))
-         (tbn (mat3 t0 b0 n0)))
-    (normalize (* tbn tangent-normal))))
+         (tbn (mat3 t0 b0 n0))
+         (result (normalize (* tbn tangent-normal))))
+    result))
+
+(defun-g norm-from-map-flipped ((normal-map :sampler-2d)
+                                (uv :vec2)
+                                (world-pos :vec3)
+                                (normal :vec3))
+  (let* ((tangent-normal (+ -1 (* 2 (s~ (texture normal-map uv) :xyz))))
+         (q1  (d-fdx world-pos))
+         (q2  (d-fdy world-pos))
+         (st1 (d-fdx uv))
+         (st2 (d-fdy uv))
+         (n0  (normalize normal))
+         (t0  (normalize (- (* q1 (y st2))
+                            (* q1 (y st1)))))
+         (b0  (- (normalize (cross n0 t0))))
+         (tbn (mat3 t0 b0 n0))
+         (result (normalize (* tbn tangent-normal))))
+    (v! (x result)
+        (- (y result))
+        (z normal))))
+
+
 
 ;; ?
 ;; From "pushing pixels" don't remember why it's needed
