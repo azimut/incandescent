@@ -25,6 +25,5 @@
                   :magnify-filter :linear))))
 
 (defun make-clouds ()
-  (unless *t-cubemap*
-    (init-clouds))
+  (init-clouds)
   (make-env-map *t-cubemap* *s-cubemap*))

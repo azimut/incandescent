@@ -6,7 +6,8 @@
 ;; https://learnopengl.com/PBR/IBL/Diffuse-irradiance
 
 ;; (reset-camera)
-;; (make-hdr "asdasd.hdr")
+;; (init-hdr "asdasd.hdr")
+;; (make-hdr)
 ;; (init-scene-cubemap)
 ;; (free-actors)
 ;; (make-env-map *cube-tex* *cube-sam*)

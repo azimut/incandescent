@@ -8,7 +8,7 @@
 (defun make-env-map (tex sam)
   (declare (type cepl:texture tex)
            (type cepl:sampler sam))
-  (let ((obj (make-instance 'env-map :cubetex tex :cubesam sam)))
+  (let ((obj (make-instance 'env-map :cubetex tex :cubesam sam :draw-p nil)))
     (push obj *actors*)
     obj))
 
