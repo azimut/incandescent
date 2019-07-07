@@ -1,11 +1,9 @@
 (in-package :incandescent)
 
 (defclass physic-sphere (physic)
-  ((radius  :initarg :radius  :documentation "double, for mass and geometry")
-   (density :initarg :density :documentation "double, for mass"))
+  ((radius  :initarg :radius  :documentation "double, for mass and geometry"))
   (:default-initargs
-   :radius .5d0
-   :density 1d0))
+   :radius .5d0))
 
 (defmethod initialize-instance :after ((obj physic-sphere) &key)
   (with-slots (mass body geom density radius pos rot immovablep) obj
@@ -18,7 +16,9 @@
     (ode-update-pos obj pos)
     (ode-update-rot obj rot)))
 
-(defun make-physic-sphere (&key (pos (v! 0 0 0)) (rot (q:identity))
+(defun make-physic-sphere (&key (pos (v! 0 0 0))
+                                (rot (q:identity))
+                                (color (v! 1 1 1))
                                 (density 1d0)
                                 (radius .5d0)
                                 immovablep)
@@ -27,6 +27,7 @@
   (let ((obj (make-instance 'physic-sphere
                             :pos pos
                             :rot rot
+                            :color color
                             :immovablep immovablep
                             :buf (sphere (coerce radius 'single-float))
                             :radius radius :density density)))
@@ -36,7 +37,7 @@
 (defmethod update ((actor physic-sphere) dt)
   "updates visual representation from ODE value"
   (when *world*
-    (with-slots (pos orot rot geom immovablep) actor
+    (with-slots (pos orot rot geom body immovablep) actor
       (unless immovablep
         (setf pos (ode-geom-get-position    geom))
         (setf rot (ode-geom-get-quaternion2 orot geom))))))
