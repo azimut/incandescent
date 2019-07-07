@@ -73,12 +73,13 @@
   (with-fbo-bound (*shadow-fbo*)
     (clear *shadow-fbo*)
     (loop :for actor :in *actors*
-          :do (with-slots (buf scale) actor
-                (map-g #'variance-3d-pipe buf
-                       :scale scale
-                       :model-world (model->world actor)
-                       :world-view  (world->view *shadow-camera*)
-                       :view-clip   (projection  *shadow-camera*)))))
+          :do (with-slots (draw-p buf scale) actor
+                (when draw-p
+                  (map-g #'variance-3d-pipe buf
+                         :scale scale
+                         :model-world (model->world actor)
+                         :world-view  (world->view *shadow-camera*)
+                         :view-clip   (projection  *shadow-camera*))))))
   (with-fbo-bound (*variance-fbo*)
     (clear *variance-fbo*)
     (map-g #'variance-blur-pipe *bs*

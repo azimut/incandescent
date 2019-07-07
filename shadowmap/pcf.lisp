@@ -25,15 +25,16 @@
 (defun draw-shadowmap ()
   "draws the scene in *ACTORS* from the point of view of *SHADOW-CAMERA* into *SHADOW-FBO* using a simple shader pipe"
   (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
-    (clear *shadow-fbo*)
+    (clear-fbo *shadow-fbo*)
     (with-setf (cull-face) :front)
     (loop :for actor :in *actors*
-          :do (with-slots (buf scale) actor
-                (map-g #'simplest-3d-pipe buf
-                       :scale scale
-                       :model-world (model->world actor)
-                       :world-view  (world->view *shadow-camera*)
-                       :view-clip   (projection  *shadow-camera*))))))
+          :do (with-slots (buf scale draw-p) actor
+                (when draw-p
+                  (map-g #'simplest-3d-pipe buf
+                         :scale scale
+                         :model-world (model->world actor)
+                         :world-view  (world->view *shadow-camera*)
+                         :view-clip   (projection  *shadow-camera*)))))))
 
 ;;--------------------------------------------------
 ;; PCF type of helpers
@@ -150,7 +151,7 @@
                                                 uv+offset))))
                     (incf shadow (step pcf-depth (- our-depth bias)))))))
     ;;
-    (/ shadow 9f0)))
+    (- 1 (/ shadow 9f0))))
 
 ;; BIAS dynamic - PCF
 (defun-g shadow-factor ((light-sampler :sampler-2d)
