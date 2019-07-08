@@ -98,6 +98,8 @@
     (free (car (car (buffer-stream-gpu-arrays buf))))))
 
 (defmethod free ((actor assimp-thing-with-bones))
+  (with-slots (bones) actor
+    (free bones))
   #+nil
   (with-slots (buf) actor
     (free buf)
@@ -132,7 +134,7 @@
     bones))
 
 (defun get-bones-per-vertex (scene mesh-bones n-vertices)
-  "Returns an array of lists of tuples/cons pairs.
+  "Returns an array OF lists OF conses.
    Run once at mesh LOAD time.
    ex: #(((1 . .9) (2 . .1)) ((10 . .2) (20 . .8)))"
   (declare (type ai:scene scene)
@@ -567,18 +569,24 @@ for value and node name for the key")
 (defmethod assimp-get-type ((obj ai:mesh))
   (let ((bones (ai:bones obj))
         (n-uvs (ai:texture-coords obj)))
-    (cond ((not (emptyp n-uvs)) :textured)
+    (cond ((and (not (emptyp n-uvs))
+                (emptyp bones)) :textured)
           ((not (emptyp bones)) :bones)
           (t                    :untextured))))
 
 ;;--------------------------------------------------
-;; FIXME: see below mess
-(defun assimp-load-meshes (file &key (scale 1f0) (pos (v! 0 0 0)) (rot (q:identity)))
-  "returns a list of actor classes, instances ready to be render"
-  (declare (type single-float scale))
+
+(defun remove-nil-plist (plist)
+  (loop :for (p v) :on plist :by #'cddr
+        :when v
+        :append (list p v)))
+
+(defun assimp-load-meshes (file)
+  "returns a list of meshes, each one being a plist. Everything should
+   be cached."
   (let* ((path   (resolve-path file))
          (scene  (assimp-safe-import-into-lisp path))
-         (meshes (slot-value scene 'ai:meshes)))
+         (meshes (ai:meshes scene)))
     (loop :for mesh :across meshes
           ;; NOTE: Drop meshes with not UVs, afaik they are placeholders
           ;;       and can ruin the load or rendering
@@ -589,24 +597,23 @@ for value and node name for the key")
              (let ((type (assimp-get-type mesh)))
                (destructuring-bind (&key buf albedo normals specular)
                    (assimp-mesh-to-stream mesh scene path type)
-                 (list :scene scene
-                       :buf buf
-                       :albedo albedo
-                       :normals normals
-                       :specular specular
-                       :scale scale
-                       :pos pos :rot rot
-                       :bones (when (eq type :bones)
-                                (make-c-array
-                                 (coerce
-                                  ;; NOTE: init using the first transform in the animation, for those that only have 1
-                                  ;; frame of "animation"
-                                  (get-bones-tranforms scene :frame 0)
-                                  'list) :element-type :mat4))
-                       :duration (when (eq type :bones)
-                                   (if (not (emptyp (ai:animations scene)))
-                                       (coerce
-                                        (ai:duration
-                                         (aref (ai:animations scene) 0))
-                                        'single-float)
-                                       0f0))))))))
+                 (remove-nil-plist
+                  (list :scene scene
+                        :buf buf
+                        :albedo albedo
+                        :normals normals
+                        :specular specular
+                        :bones (when (eq type :bones)
+                                 (make-c-array ;; TODO: leaking
+                                  (coerce
+                                   ;; NOTE: init using the first transform in the animation, for those that only have 1
+                                   ;; frame of "animation"
+                                   (get-bones-tranforms scene :frame 0)
+                                   'list) :element-type :mat4))
+                        :duration (when (eq type :bones)
+                                    (if (not (emptyp (ai:animations scene)))
+                                        (coerce
+                                         (ai:duration
+                                          (aref (ai:animations scene) 0))
+                                         'single-float)
+                                        0f0)))))))))
