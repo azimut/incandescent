@@ -19,6 +19,7 @@
                 #:emptyp
                 #:when-let
                 #:when-let*
+                #:if-let
                 #:first-elt
                 #:mappend
                 #:length=)

@@ -29,6 +29,9 @@
            :model-world (model->world actor)
            :world-view (world->view camera)
            :view-clip (projection camera)
+           ;;
+           :light-pos *light-pos*
+           :light-color *light-color*
            ;; PBR
            :albedo albedo
            :normals normals)))

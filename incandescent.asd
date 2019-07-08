@@ -50,7 +50,8 @@
   :serial t
   :depends-on (#:incandescent
                #:classimp)
-  :components ((:file "lib/assimp/main")
+  :components ((:file "lib/assimp/bones-helpers")
+               (:file "lib/assimp/main")
                (:file "lib/assimp/render")
                (:file "lib/assimp/draw")))
 
