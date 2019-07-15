@@ -13,8 +13,8 @@
 ;; - http://ogldev.atspace.co.uk/www/tutorial46/tutorial46.html
 ;; - https://learnopengl.com/Advanced-Lighting/SSAO
 
-(defvar *fbo-ssbo* NIL)
-(defvar *sam-ssbo* NIL)
+(defvar *fbo-ssao* NIL)
+(defvar *sam-ssao* NIL)
 
 (defvar *noise-tex*  NIL)
 (defvar *noise-sam*  NIL)
@@ -49,7 +49,7 @@
 (defun free-ssao ()
   (when *noise-tex*  (free *noise-tex*))
   (when *ubo-kernel* (free *noise-tex*))
-  (when *fbo-ssbo*   (free *fbo-ssbo*)))
+  (when *fbo-ssao*   (free *fbo-ssao*)))
 
 (defun init-ssao ()
   (free-ssao)
@@ -66,9 +66,9 @@
         (make-ubo (list (generate-sample-kernel))
                   'random-kernel))
   ;; OUTPUTS
-  (setf *fbo-ssbo* (make-fbo (list 0 :element-type :r8
+  (setf *fbo-ssao* (make-fbo (list 0 :element-type :r8
                                      :dimensions *dimensions*))
-        *sam-ssbo* (sample (attachment-tex *fbo-ssbo* 0)
+        *sam-ssao* (sample (attachment-tex *fbo-ssao* 0)
                            :wrap :clamp-to-edge))
   NIL)
 
@@ -139,7 +139,7 @@
 (defun draw-ssao (&key (n-kernels 10) (radius .1) (kernel-effect 1f0))
   (declare (type single-float radius kernel-effect)
            (type positive-fixnum n-kernels))
-  (with-fbo-bound (*fbo-ssbo*)
+  (with-fbo-bound (*fbo-ssao*)
     (with-setf* ((depth-mask) nil
                  (cull-face) nil
                  (clear-color) (v! 0 0 0 1)
