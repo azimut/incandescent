@@ -7,24 +7,23 @@
 ;; TODO: postprocess pass to do a tent-filter on the halfed fbo
 ;;       looks good enough for me in the low res i work
 
-(defparameter *bokeh-radius* 1f0
+(defparameter *bokeh-radius* 4f0
   "sets the resolution of the bokeh effect
    Default: 4f0
    Range:   1f0 - 10f0")
-(defparameter *coc-distance* .4f0
-  "distance between the camera and the focus plane
+(defparameter *coc-distance* 18f0
+  "FOCUS distance between the camera and the focus plane
    where everything is perfectly sharp
    Default: 10f0
    Range: .1 - 100")
-(defparameter *coc-range* 5f0
-  "Default: 3f0
+(defparameter *coc-range* 3f0
+  "FOCUS range
+   Default: 3f0
    Range: .1 - 10")
 
 (defvar *dof-combine-fbo* NIL)
 (defvar *dof-combine-sam* NIL)
 
-(defvar *bokeh-fbo*       NIL)
-(defvar *bokeh-sam*       NIL)
 (defvar *bokeh-h-fbo*     NIL)
 (defvar *bokeh-h-sam*     NIL)
 
@@ -85,8 +84,6 @@
     ;;
     (setf *coc-h-fbo*       (make-fbo `(0 :element-type :rgba16f :dimensions ,half-dimensions)))
     (setf *coc-h-sam*       (sample    (attachment-tex *coc-h-fbo* 0) :wrap :clamp-to-edge))
-    (setf *bokeh-fbo*       (make-fbo `(0 :element-type :rgba16f :dimensions ,half-dimensions)))
-    (setf *bokeh-sam*       (sample    (attachment-tex *bokeh-fbo* 0) :wrap :clamp-to-edge))
     (setf *bokeh-h-fbo*     (make-fbo `(0 :element-type :rgba16f :dimensions ,half-dimensions)))
     (setf *bokeh-h-sam*     (sample    (attachment-tex *bokeh-h-fbo* 0) :wrap :clamp-to-edge))
     ;;
@@ -97,45 +94,38 @@
 ;;--------------------------------------------------
 (defun draw-dof (&optional (sam *sam*) (samd *samd*))
   (declare (type cepl:sampler sam samd))
-  (with-setf* ((cull-face) nil
-               (depth-mask) nil
+  (with-setf* ((cull-face)           nil
+               (depth-mask)          nil
                (depth-test-function) #'always)
-    (with-fbo-bound (*coc-fbo*)
-      (clear *coc-fbo*)
-      (map-g #'coc-pipe *bs*
-             :samd samd
-             :bokeh-radius *bokeh-radius*
-             :focus-distance *coc-distance*
-             :focus-range *coc-range*))
-    (with-fbo-bound (*coc-h-fbo*)
-      (clear-fbo *coc-h-fbo*)
-      (map-g #'coc-prefilter-pipe *bs*
-             :sam sam
-             :coc-sam *coc-sam*
-             :texel-size *texel-size*))
-    (with-fbo-bound (*bokeh-h-fbo*)
-      (clear *bokeh-h-fbo*)
-      (map-g #'bokeh-pipe *bs*
-             :scene *coc-h-sam*
-             :bokeh-radius *bokeh-radius*
-             :dof-kernel   *dof-kernel*
-             :texel-size   *half-texel-size*))
-    (with-fbo-bound (*bokeh-fbo*)
-      (clear *bokeh-fbo*)
-      (map-g #'bokeh-postfilter-pipe *bs*
-             :sam *bokeh-h-sam*
-             :texel-size *half-texel-size*))
-    (with-fbo-bound (*dof-combine-fbo*)
-      (clear *dof-combine-fbo*)
-      (map-g #'dof-combine-pipe *bs*
-             :sam sam
-             :coc-sam *coc-sam*
-             :coc-h-sam *coc-h-sam*))))
+    ;;
+    (map-g-into *coc-fbo*       #'coc-pipe *bs*
+                :samd           samd
+                :bokeh-radius   *bokeh-radius*
+                :focus-distance *coc-distance*
+                :focus-range    *coc-range*)
+    (map-g-into *coc-h-fbo*     #'coc-prefilter-pipe *bs*
+                :sam            sam
+                :coc-sam        *coc-sam*
+                :texel-size     *texel-size*)
+    (map-g-into *bokeh-h-fbo*   #'bokeh-pipe *bs*
+                :scene          *coc-h-sam*
+                :dof-kernel     *dof-kernel*
+                :texel-size     *half-texel-size*
+                :bokeh-radius   *bokeh-radius*)
+    (map-g-into *coc-h-fbo* #'bokeh-postfilter-pipe *bs*
+                :sam            *bokeh-h-sam*
+                :texel-size     *half-texel-size*)
+    (map-g-into *dof-combine-fbo* #'dof-combine-pipe *bs*
+                :sam            sam
+                :coc-sam        *coc-sam*
+                :coc-h-sam      *coc-h-sam*)))
 ;;--------------------------------------------------
 ;; Circle of confusion - CoC
 ;; "determines the strength of the bokeh effect per point"
 
-(defun-g coc-frag ((uv :vec2) &uniform (samd :sampler-2d)
+(defun-g coc-frag ((uv :vec2)
+                   &uniform
+                   (samd           :sampler-2d)
                    (bokeh-radius   :float)
                    (focus-distance :float)
                    (focus-range    :float))
@@ -185,7 +175,9 @@
          (coc     (if (>= coc-max (- coc-min))
                       coc-max
                       coc-min)))
-    (v! color coc)))
+    (v! color coc)
+    ;;(v4! coc)
+    ))
 
 (defpipeline-g coc-prefilter-pipe (:points)
   :fragment (coc-prefilter-frag :vec2))
@@ -193,15 +185,17 @@
 ;;--------------------------------------------------
 ;; Bokeh - DOF
 ;; TODO: precompute the radius per sample on the kernel
+
 (defun-g bokeh-weight ((coc :float) (radius :float))
-  (saturate (/ (+ 2 (- coc radius)) 2)))
+  (saturate (/ (+ 2f0 (- coc radius)) 2f0)))
+
 (defun-g bokeh-frag ((uv :vec2)
                      &uniform
-                     (dof-kernel (:vec2 16))
+                     (dof-kernel   (:vec2 16))
                      (bokeh-radius :float)
-                     (scene :sampler-2d)
-                     (texel-size :vec2))
-  (let ((coc (w (texture scene uv)))
+                     (scene        :sampler-2d)
+                     (texel-size   :vec2))
+  (let ((coc      (w (texture scene uv)))
         (bg-color (v! 0 0 0))
         (fg-color (v! 0 0 0))
         (bg-weight 0f0)
@@ -213,14 +207,14 @@
              (o (* o texel-size))
              (s (texture scene (+ uv o)))
              (bgw (bokeh-weight (max 0 (min (w s) coc)) radius))
-             (fgw (bokeh-weight (- (w s)) radius)))
-        (incf bg-color (* (s~ s :xyz) bgw))
+             (fgw (bokeh-weight (- (w s))               radius)))
+        (incf bg-color  (* (s~ s :xyz) bgw))
         (incf bg-weight bgw)
-        (incf fg-color (* (s~ s :xyz) fgw))
+        (incf fg-color  (* (s~ s :xyz) fgw))
         (incf fg-weight fgw)))
-    (setf bg-color (* bg-color (/ 1f0 bg-weight)))
-    (setf fg-color (* fg-color (/ 1f0 fg-weight)))
-    (let* ((bgfg  (min 1 (/ (* fg-weight +pi+) 16)))
+    (setf bg-color (* bg-color (/ 1f0 (if (= bg-weight 0) 1f0 bg-weight))))
+    (setf fg-color (* fg-color (/ 1f0 (if (= fg-weight 0) 1f0 fg-weight))))
+    (let* ((bgfg  (min 1 (/ (* fg-weight "3.14159265359") 16)))
            (color (mix bg-color fg-color bgfg)))
       (v! color bgfg))))
 
@@ -245,19 +239,19 @@
   :fragment (bokeh-postfilter-frag :vec2))
 
 ;;--------------------------------------------------
-(defun-g dof-combine-frag ((uv :vec2)
+(defun-g dof-combine-frag ((uv        :vec2)
                            &uniform
-                           (sam :sampler-2d)
-                           (coc-sam :sampler-2d)
+                           (sam       :sampler-2d)
+                           (coc-sam   :sampler-2d)
                            (coc-h-sam :sampler-2d)) ;; dof-sam
   (let* ((source (texture sam uv))
          (coc    (x (texture coc-sam uv)))
          (dof    (texture coc-h-sam uv))
          (dof-strength (smoothstep .1 1 (abs coc)))
-         (color (mix (s~ source :xyz)
-                     (s~ dof    :xyz)
-                     (- (+ dof-strength (w dof))
-                        (* dof-strength (w dof))))))
+         (color  (mix (s~ source :xyz)
+                      (s~ dof    :xyz)
+                      (- (+ dof-strength (w dof))
+                         (* dof-strength (w dof))))))
     (v! color (w source))))
 
 (defpipeline-g dof-combine-pipe (:points)
