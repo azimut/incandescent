@@ -3,6 +3,10 @@
 ;; INPUTS:
 ;; - *dimensions*
 ;; - sampler of only the scene brigther stuff
+;;
+;; Reference:
+;; https://learnopengl.com/Advanced-Lighting/Bloom
+;; https://catlikecoding.com/unity/tutorials/advanced-rendering/bloom/
 (defvar *bloom-fbo* NIL)
 (defvar *bloom-blend*
   (make-blending-params :source-rgb :one :destination-rgb :one))
@@ -50,11 +54,12 @@
                  (cull-face)  NIL
                  (clear-color) (v! 0 0 0 1)
                  (depth-test-function) #'always)
+      ;;
       (with-fbo-bound ((aref fbos 1))
         (clear (aref fbos 1))
         (map-g #'blur-pipe *bs*
                :sam sam
-               :x (aref widths 0)
+               :x (aref widths  0)
                :y (aref heights 0)
                :delta 1f0))
       (dolist (i '(1 2 3))
@@ -65,38 +70,41 @@
                  :x   (aref widths i)
                  :y   (aref heights i)
                  :delta 1f0)))
+      ;;
       (dolist (i '(3 2 1 0))
         (with-blending *bloom-blend*
           (with-fbo-bound ((aref fbos i))
             (clear-fbo (aref fbos i))
             (map-g #'blur-pipe *bs*
                    :sam (aref samplers (1+ i))
-                   :x   (aref widths i)
-                   :y   (aref heights i)
-                   :delta .5))))
-      )))
+                   :x   (aref widths   i)
+                   :y   (aref heights  i)
+                   :delta .5)))))))
 
 ;;--------------------------------------------------
 ;; 2D - Blur
 
-(defun-g sample-box ((uv :vec2) (delta :float) (sam :sampler-2d) (x :float) (y :float))
-  (let* ((o (* (v! x y x y) (v! (- delta) (- delta) delta delta)))
+(defun-g sample-box ((uv    :vec2)
+                     (delta :float)
+                     (sam   :sampler-2d))
+  (let* ((texture-size (texture-size sam 0))
+         (x (/ 1f0 (x texture-size)))
+         (y (/ 1f0 (y texture-size)))
+         (o (* (v! x y x y)
+               (v! (- delta) (- delta) delta delta)))
          (s (+ (texture sam (+ uv (s~ o :xy)))
                (texture sam (+ uv (s~ o :zy)))
                (texture sam (+ uv (s~ o :xw)))
                (texture sam (+ uv (s~ o :zw))))))
-    (* s .125)))
+    (* s .25)))
 
-;; FIXME: sample-box is returing BLACK WTF!
 (defun-g blur-frag ((uv :vec2)
                     &uniform
                     (delta :float)
                     (sam :sampler-2d)
                     (x :float)
                     (y :float))
-  (let ((color (texture sam uv)
-               ;;(sample-box uv delta sam x y)
-               ))
+  (let ((color (sample-box uv delta sam)))
     color))
 
 (defpipeline-g blur-pipe (:points)
@@ -113,7 +121,7 @@
                      (x :float)
                      (y :float))
   (let* ((c (texture light-sam uv))
-         (c (v! (+ (s~ (sample-box uv delta sam x y) :xyz)
+         (c (v! (+ (s~ (sample-box uv delta sam) :xyz)
                    (s~ c :xyz))
                 (w c))))
     c))
