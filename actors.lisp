@@ -1,6 +1,8 @@
 (in-package #:incandescent)
 
 (defvar *actors* nil)
+(defvar *scenes* (make-array 5 :initial-element nil))
+(defvar *scene-index* 0)
 
 (defclass actor ()
   ((name   :initarg :name   :reader   actor-name)
@@ -20,9 +22,32 @@
    :scale 1f0))
 
 (defmethod free (object) t)
+
 (defun free-actors ()
   (mapcar #'free *actors*)
   (setf *actors* nil))
+
+(defun free-scene (nr-scene)
+  (declare (type (integer 0 4) nr-scene))
+  (when-let ((scene (aref *scenes* nr-scene)))
+    (mapcar #'free scene)
+    (setf (aref *scenes* nr-scene) nil)))
+
+(defun free-scenes ()
+  (dotimes (i 5)
+    (free-scene i))
+  (setf *scenes* (make-array 5 :initial-element nil)))
+
+(defmacro in-scene (nr-scene &body body)
+  "(in-scene 0
+     (make-box)"
+  (declare (type (integer 0 4) nr-scene))
+  `(progn (free-scene ,nr-scene)
+          (let ((*actors* nil))
+            (mapcar (lambda (n) (push n (aref *scenes* ,nr-scene)))
+                    (serapeum:collecting
+                      ,@(loop :for actor :in body
+                              :collect `(collect ,actor)))))))
 
 (defun update-all-the-things (l dt)
   (declare (list l))
@@ -32,7 +57,8 @@
 (defun model->world (actor)
   (with-slots (pos rot) actor
     (m4:* (m4:translation pos)
-          (q:to-mat4 rot))))
+          (q:to-mat4      rot))))
+
 (defun find-actor-class (class-name)
   (declare (type symbol class-name))
   (find-if (lambda (a) (typep a class-name))
@@ -69,7 +95,3 @@
 ;;--------------------------------------------------
 (defgeneric update (actor dt))
 (defmethod update (actor dt))
-
-
-
-
