@@ -484,21 +484,39 @@
                             (light-dir         :vec3)
                             (cutoff            :float)
                             (outer-cutoff      :float))
+  (pbr-spotlight-lum light-pos frag-pos v n
+                     roughness f0 metallic albedo
+                     specular-strength light-color
+                     light-dir
+                     cutoff
+                     outer-cutoff
+                     .027
+                     .0028))
+
+(defun-g pbr-spotlight-lum ((light-pos         :vec3)
+                            (frag-pos          :vec3)
+                            (v                 :vec3)
+                            (n                 :vec3)
+                            (roughness         :float)
+                            (f0                :vec3)
+                            (metallic          :float)
+                            (albedo            :vec3)
+                            (specular-strength :float)
+                            (light-color       :vec3)
+                            (light-dir         :vec3)
+                            (cutoff            :float)
+                            (outer-cutoff      :float)
+                            (linear            :float)
+                            (quadratic         :float))
   (let* ((l         (normalize (- light-pos frag-pos)))
          (h         (normalize (+ v l)))
          (distance  (length    (- light-pos frag-pos)))
          ;;
          (constant  1f0)
-         (linear    .35)
-         (quadratic .44)
-         (linear .09)
-         (quadratic .032)
-         ;;
          (attenuation (/ 1f0
-                         #+nil
                          (+ constant
                             (* linear distance)
-                            (* quadratic distance distance))))
+                            (* quadratic distance))))
          ;;
          (cut-off       (cos (radians cutoff)))
          (outer-cut-off (cos (radians outer-cutoff)))
@@ -528,6 +546,4 @@
          (lo      (* (+ specular (/ (* kd albedo) +PI+))
                      radiance
                      n-dot-l)))
-    lo
-    ;;attenuation
-    ))
+    (* attenuation lo)))
