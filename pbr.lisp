@@ -148,65 +148,21 @@
 ;; PBR helpers to apply lights - NO IBL
 ;;--------------------------------------------------
 
-(defun-g pbr-direct-lum ((light-pos :vec3)
-                         (frag-pos :vec3)
-                         (v :vec3)
-                         (n :vec3)
-                         (roughness :float)
-                         (f0 :vec3)
-                         (metallic :float)
-                         (albedo :vec3))
-  "default light color"
-  (pbr-direct-lum light-pos frag-pos v n roughness f0 metallic albedo (v! 5 5 5)))
-(defun-g pbr-direct-lum ((light-pos :vec3)
-                         (frag-pos :vec3)
-                         (v :vec3)
-                         (n :vec3)
-                         (roughness :float)
-                         (f0 :vec3)
-                         (metallic :float)
-                         (albedo :vec3)
-                         (light-color :vec3))
+(defun-g pbr-direct-lum ((light-pos         :vec3)
+                         (frag-pos          :vec3)
+                         (v                 :vec3)
+                         (n                 :vec3)
+                         (roughness         :float)
+                         (f0                :vec3)
+                         (metallic          :float)
+                         (albedo            :vec3)
+                         (specular-strength :float)
+                         (light-color       :vec3))
   (let* ((l (normalize (- light-pos frag-pos)))
          (h (normalize (+ v l)))
+         ;;
          (distance (length (- light-pos frag-pos)))
          (radiance light-color)
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g   (geometry-smith n v l roughness))
-         (f   (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks f)
-         (kd (- 1 ks))
-         (kd (* kd (- 1 metallic)))
-         ;;
-         (numerator   (* ndf g f))
-         (denominator (+ .001
-                         (* (max (dot n v) 0)
-                            (max (dot n l) 0)
-                            4)))
-         (specular (/ numerator denominator))
-         ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0))
-         (lo (* (+ specular (/ (* kd albedo) +PI+))
-                radiance
-                n-dot-l)))
-    lo))
-
-(defun-g pbr-direct-lum ((light-pos :vec3)
-                         (frag-pos :vec3)
-                         (v :vec3)
-                         (n :vec3)
-                         (roughness :float)
-                         (f0 :vec3)
-                         (metallic :float)
-                         (albedo :vec3)
-                         (specular-strength :float))
-  (let* ((l (normalize (- light-pos frag-pos)))
-         (h (normalize (+ v l)))
-         ;;
-         (distance (length (- light-pos frag-pos)))
-         (radiance (v! 5 5 5))
          ;; pbr - cook-torrance brdf
          (ndf (distribution-ggx n h roughness))
          (g   (geometry-smith n v l roughness))
@@ -230,153 +186,33 @@
                 n-dot-l)))
     lo))
 
+(defun-g pbr-direct-lum ((light-pos         :vec3)
+                         (frag-pos          :vec3)
+                         (v                 :vec3)
+                         (n                 :vec3)
+                         (roughness         :float)
+                         (f0                :vec3)
+                         (metallic          :float)
+                         (albedo            :vec3)
+                         (specular-strength :float))
+  (pbr-direct-lum light-pos frag-pos v n roughness f0 metallic albedo
+                  specular-strength
+                  (v! 5 5 5)))
+
+(defun-g pbr-direct-lum ((light-pos :vec3)
+                         (frag-pos  :vec3)
+                         (v         :vec3)
+                         (n         :vec3)
+                         (roughness :float)
+                         (f0        :vec3)
+                         (metallic  :float)
+                         (albedo    :vec3))
+  (pbr-direct-lum light-pos frag-pos v n roughness f0 metallic albedo
+                  .1))
+
+;;--------------------------------------------------
 ;; POINT
-
-(defun-g pbr-point-lum ((light-pos         :vec3)
-                        (frag-pos          :vec3)
-                        (v                 :vec3)
-                        (n                 :vec3)
-                        (roughness         :float)
-                        (f0                :vec3)
-                        (metallic          :float)
-                        (albedo            :vec3))
-  (let* ((l         (normalize (- light-pos frag-pos)))
-         (h         (normalize (+ v l)))
-         (distance  (length    (- light-pos frag-pos)))
-         ;;
-         (constant  1f0)
-         (linear    .022)
-         (quadratic .0019)
-         ;;
-         (attenuation (/ 1f0 (+ constant
-                                (* linear distance)
-                                (* quadratic distance distance))))
-         (light-color (v! 1 1 1))
-         (radiance (* light-color attenuation))
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g   (geometry-smith n v l roughness))
-         (f   (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks  f)
-         (kd  (- 1 ks))
-         (kd  (* kd (- 1 metallic)))
-         ;;
-         (numerator   (* ndf g f))
-         (denominator (* (max (dot n v) 0)
-                         (max (dot n l) 0)
-                         4))
-         (specular    (/ numerator (max denominator .001)))
-         ;; add to outgoing radiance lo
-         (n-dot-l     (max (dot n l) 0))
-         (lo          (* (+ specular (/ (* kd albedo) +PI+))
-                         radiance
-                         n-dot-l)))
-    lo
-    ;;attenuation
-    ))
-
-;; POINT + SPECULAR
-
-(defun-g pbr-point-lum ((light-pos         :vec3)
-                        (frag-pos          :vec3)
-                        (v                 :vec3)
-                        (n                 :vec3)
-                        (roughness         :float)
-                        (f0                :vec3)
-                        (metallic          :float)
-                        (albedo            :vec3)
-                        (specular-strength :float))
-  (let* ((l         (normalize (- light-pos frag-pos)))
-         (h         (normalize (+ v l)))
-         (distance  (length    (- light-pos frag-pos)))
-         ;;
-         (constant  1f0)
-         (linear    .35)
-         (quadratic .44)
-         (linear .09)
-         (quadratic .032)
-         ;;
-         (attenuation (/ 1f0 (+ constant
-                                (* linear distance)
-                                (* quadratic distance distance))))
-         (light-color (v! 5 5 5))
-         (radiance (* light-color attenuation))
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g   (geometry-smith n v l roughness))
-         (f   (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks  f)
-         (kd  (- 1 ks))
-         (kd  (* kd (- 1 metallic)))
-         ;;
-         (numerator   (* ndf g f))
-         (denominator (* (max (dot n v) 0)
-                         (max (dot n l) 0)
-                         4))
-         (specular    (* specular-strength
-                         (/ numerator (max denominator .001))))
-         ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0))
-         (lo      (* (+ specular (/ (* kd albedo) +PI+))
-                     radiance
-                     n-dot-l)))
-    lo
-    ;;attenuation
-    ))
-
-;; POINT + SPECULAR + linear, quad params
-
-(defun-g pbr-point-lum ((light-pos         :vec3)
-                        (frag-pos          :vec3)
-                        (v                 :vec3)
-                        (n                 :vec3)
-                        (roughness         :float)
-                        (f0                :vec3)
-                        (metallic          :float)
-                        (albedo            :vec3)
-                        (specular-strength :float)
-                        (linear            :float)
-                        (quadratic         :float))
-  (let* ((l         (normalize (- light-pos frag-pos)))
-         (h         (normalize (+ v l)))
-         (distance  (length    (- light-pos frag-pos)))
-         ;;
-         (constant  1f0)
-         ;; (linear    .35)
-         ;; (quadratic .44)
-         ;; (linear .09)
-         ;; (quadratic .032)
-         ;;
-         (attenuation (/ 1f0 (+ constant
-                                (* linear distance)
-                                (* quadratic distance distance))))
-         (light-color (v! 5 5 5))
-         (radiance (* light-color attenuation))
-         ;; pbr - cook-torrance brdf
-         (ndf (distribution-ggx n h roughness))
-         (g   (geometry-smith n v l roughness))
-         (f   (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks  f)
-         (kd  (- 1 ks))
-         (kd  (* kd (- 1 metallic)))
-         ;;
-         (numerator   (* ndf g f))
-         (denominator (* (max (dot n v) 0)
-                         (max (dot n l) 0)
-                         4))
-         (specular    (* specular-strength
-                         (/ numerator (max denominator .001))))
-         ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0))
-         (lo      (* (+ specular (/ (* kd albedo) +PI+))
-                     radiance
-                     n-dot-l)))
-    lo
-    ;;attenuation
-    ))
+;;--------------------------------------------------
 
 (defun-g pbr-point-lum ((light-pos         :vec3)
                         (frag-pos          :vec3)
@@ -396,7 +232,7 @@
          (constant  1f0)
          (attenuation (/ 1f0 (+ constant
                                 (* linear distance)
-                                (* quadratic distance distance))))
+                                (* quadratic distance))))
          (radiance (* light-color attenuation))
          ;; pbr - cook-torrance brdf
          (ndf (distribution-ggx n h roughness))
@@ -418,80 +254,50 @@
          (lo      (* (+ specular (/ (* kd albedo) +PI+))
                      radiance
                      n-dot-l)))
-    lo
-    ;;attenuation
-    ))
+    (* attenuation lo)))
 
-;; SPOTLIGHT + SPECULAR
+(defun-g pbr-point-lum ((light-pos         :vec3)
+                        (frag-pos          :vec3)
+                        (v                 :vec3)
+                        (n                 :vec3)
+                        (roughness         :float)
+                        (f0                :vec3)
+                        (metallic          :float)
+                        (albedo            :vec3)
+                        (specular-strength :float)
+                        (linear            :float)
+                        (quadratic         :float))
+  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+                 specular-strength linear quadratic
+                 (v! 5 5 5)))
 
-(defun-g pbr-spotlight-lum ((light-pos         :vec3)
-                            (frag-pos          :vec3)
-                            (v                 :vec3)
-                            (n                 :vec3)
-                            (roughness         :float)
-                            (f0                :vec3)
-                            (metallic          :float)
-                            (albedo            :vec3)
-                            (specular-strength :float))
-  (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
-                     specular-strength
-                     (v! 5 5 5)))
+(defun-g pbr-point-lum ((light-pos         :vec3)
+                        (frag-pos          :vec3)
+                        (v                 :vec3)
+                        (n                 :vec3)
+                        (roughness         :float)
+                        (f0                :vec3)
+                        (metallic          :float)
+                        (albedo            :vec3)
+                        (specular-strength :float))
+  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+                 specular-strength
+                 .22 .20))
 
-(defun-g pbr-spotlight-lum ((light-pos         :vec3)
-                            (frag-pos          :vec3)
-                            (v                 :vec3)
-                            (n                 :vec3)
-                            (roughness         :float)
-                            (f0                :vec3)
-                            (metallic          :float)
-                            (albedo            :vec3)
-                            (specular-strength :float)
-                            (light-color       :vec3))
-  (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
-                     specular-strength light-color
-                     (v! 0 -1 0)))
+(defun-g pbr-point-lum ((light-pos         :vec3)
+                        (frag-pos          :vec3)
+                        (v                 :vec3)
+                        (n                 :vec3)
+                        (roughness         :float)
+                        (f0                :vec3)
+                        (metallic          :float)
+                        (albedo            :vec3))
+  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+                 .1))
 
-(defun-g pbr-spotlight-lum ((light-pos         :vec3)
-                            (frag-pos          :vec3)
-                            (v                 :vec3)
-                            (n                 :vec3)
-                            (roughness         :float)
-                            (f0                :vec3)
-                            (metallic          :float)
-                            (albedo            :vec3)
-                            (specular-strength :float)
-                            (light-color       :vec3)
-                            (light-dir         :vec3))
-  (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
-                     specular-strength light-color
-                     light-dir
-                     4.5
-                     7.5))
-
-(defun-g pbr-spotlight-lum ((light-pos         :vec3)
-                            (frag-pos          :vec3)
-                            (v                 :vec3)
-                            (n                 :vec3)
-                            (roughness         :float)
-                            (f0                :vec3)
-                            (metallic          :float)
-                            (albedo            :vec3)
-                            (specular-strength :float)
-                            (light-color       :vec3)
-                            (light-dir         :vec3)
-                            (cutoff            :float)
-                            (outer-cutoff      :float))
-  (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
-                     specular-strength light-color
-                     light-dir
-                     cutoff
-                     outer-cutoff
-                     .027
-                     .0028))
+;;--------------------------------------------------
+;; SPOTLIGHT
+;;--------------------------------------------------
 
 (defun-g pbr-spotlight-lum ((light-pos         :vec3)
                             (frag-pos          :vec3)
@@ -542,8 +348,76 @@
          (specular    (* specular-strength
                          (/ numerator (max denominator .001))))
          ;; add to outgoing radiance lo
-         (n-dot-l (max (dot n l) 0))
-         (lo      (* (+ specular (/ (* kd albedo) +PI+))
-                     radiance
-                     n-dot-l)))
+         (n-dot-l     (max (dot n l) 0))
+         (lo          (* (+ specular (/ (* kd albedo) +PI+))
+                         radiance
+                         n-dot-l)))
     (* attenuation lo)))
+
+(defun-g pbr-spotlight-lum ((light-pos         :vec3)
+                            (frag-pos          :vec3)
+                            (v                 :vec3)
+                            (n                 :vec3)
+                            (roughness         :float)
+                            (f0                :vec3)
+                            (metallic          :float)
+                            (albedo            :vec3)
+                            (specular-strength :float)
+                            (light-color       :vec3)
+                            (light-dir         :vec3)
+                            (cutoff            :float)
+                            (outer-cutoff      :float))
+  (pbr-spotlight-lum light-pos frag-pos v n
+                     roughness f0 metallic albedo
+                     specular-strength light-color
+                     light-dir
+                     cutoff
+                     outer-cutoff
+                     .027 .0028))
+
+(defun-g pbr-spotlight-lum ((light-pos         :vec3)
+                            (frag-pos          :vec3)
+                            (v                 :vec3)
+                            (n                 :vec3)
+                            (roughness         :float)
+                            (f0                :vec3)
+                            (metallic          :float)
+                            (albedo            :vec3)
+                            (specular-strength :float)
+                            (light-color       :vec3)
+                            (light-dir         :vec3))
+  (pbr-spotlight-lum light-pos frag-pos v n
+                     roughness f0 metallic albedo
+                     specular-strength light-color
+                     light-dir
+                     4.5 7.5))
+
+(defun-g pbr-spotlight-lum ((light-pos         :vec3)
+                            (frag-pos          :vec3)
+                            (v                 :vec3)
+                            (n                 :vec3)
+                            (roughness         :float)
+                            (f0                :vec3)
+                            (metallic          :float)
+                            (albedo            :vec3)
+                            (specular-strength :float)
+                            (light-color       :vec3))
+  (pbr-spotlight-lum light-pos frag-pos v n
+                     roughness f0 metallic albedo
+                     specular-strength light-color
+                     (v! 0 -1 0)))
+
+(defun-g pbr-spotlight-lum ((light-pos         :vec3)
+                            (frag-pos          :vec3)
+                            (v                 :vec3)
+                            (n                 :vec3)
+                            (roughness         :float)
+                            (f0                :vec3)
+                            (metallic          :float)
+                            (albedo            :vec3)
+                            (specular-strength :float))
+  (pbr-spotlight-lum light-pos frag-pos v n
+                     roughness f0 metallic albedo
+                     specular-strength
+                     (v! 5 5 5)))
+
