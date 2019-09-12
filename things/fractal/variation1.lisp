@@ -1,9 +1,9 @@
 (in-package #:incandescent)
 
-(defclass mandelbrot (fractal)
-  ())
+(defclass variation1 (fractal)
+  ((seed :initform (v! 1 1) :initarg :seed)))
 
-(defun make-mandelbrot (&key (nr-colors 32)
+(defun make-variation1 (&key (nr-colors 32)
                              (iterations 128)
                              (dimensions '(352 192)))
   (declare (type unsigned-byte nr-colors iterations))
@@ -13,23 +13,24 @@
                           (list (* 16 dimension-x)
                                 (* 16 dimension-y))
                           '(352 192)))
-         (obj (make-instance 'mandelbrot :nr-colors nr-colors
-                                         :iterations iterations
-                                         :dimensions dimensions)))
+         (obj (make-instance 'variation1 :nr-colors nr-colors
+                                         :dimensions dimensions
+                                         :iterations iterations)))
     (push obj *actors*)
     obj))
 
 (let ((stepper (make-stepper (seconds .05)
                              (seconds .05))))
-  (defmethod draw ((actor mandelbrot) camera time)
+  (defmethod draw ((actor variation1) camera time)
     ;; Draw to texture
-    (with-slots (dimensions zam scolors center scale iterations) actor
+    (with-slots (dimensions zam scolors seed center scale iterations) actor
       (when (funcall stepper)
-        (map-g #'mandelbrot-pipe (make-compute-space (/ (first dimensions) 16)
+        (map-g #'variation1-pipe (make-compute-space (/ (first dimensions) 16)
                                                      (/ (second dimensions) 16))
                :dst zam
                :colors scolors
                :center center
+               :seed seed
                :scale scale
                :max-iterations iterations)))
     ;; Draw to screen
@@ -37,11 +38,12 @@
       (map-g #'pass-pipe *bs*
              :sam sam))))
 
-(defun-g mandelbrot-compute (&uniform
+(defun-g variation1-compute (&uniform
                              (colors         :sampler-1d)
                              (dst            :image-2d)
                              ;;
                              (center         :vec2)
+                             (seed           :vec2)
                              (scale          :float)
                              (max-iterations :int))
   (declare (local-size :x 16
@@ -55,19 +57,26 @@
       (return))
 
     (let* ((z (v! 0 0))
-           (c (- (* scale (/ (v! (float (x thread-id))
+           #+nil
+           (z (- (* scale (/ (v! (float (x thread-id))
                                  (float (y thread-id)))
                              (min (x dst-size)
                                   (y dst-size))))
+                 center))
+           ;;#+nil
+           (z (- (* scale (/ (v! (* 3 (float (x thread-id)))
+                                 (* 2 (float (y thread-id))))
+                             (v! (float (x dst-size))
+                                 (float (y dst-size)))))
                  center))
            (i (int 0)))
       (while (< (setf i (+ i 1)) max-iterations)
              (let ((x (+ (- (* (x z) (x z))
                             (* (y z) (y z)))
-                         (x c)))
+                         (x seed)))
                    (y (+ (+ (* (y z) (x z))
                             (* (x z) (y z)))
-                         (y c))))
+                         (y seed))))
                (when (> (+ (* x x) (* y y))
                         4f0)
                  (break))
@@ -84,6 +93,5 @@
                                    ))))))
   (values))
 
-(defpipeline-g mandelbrot-pipe ()
-  :compute mandelbrot-compute)
-
+(defpipeline-g variation1-pipe ()
+  :compute variation1-compute)
