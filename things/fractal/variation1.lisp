@@ -1,5 +1,8 @@
 (in-package #:incandescent)
 
+;; Reference:
+;; http://nuclear.mutantstargoat.com/articles/sdr_fract/
+
 (defclass variation1 (fractal)
   ((seed :initform (v! 1 1) :initarg :seed)))
 

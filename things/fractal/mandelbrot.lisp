@@ -1,5 +1,8 @@
 (in-package #:incandescent)
 
+;; Reference:
+;; https://github.com/sfreed141/vct/blob/master/shaders/mandelbrot.comp
+
 (defclass mandelbrot (fractal)
   ())
 
