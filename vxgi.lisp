@@ -8,9 +8,17 @@
 ;;
 ;; two passes, runs every frame
 ;; 1) light voxelization
-;; 2) cone tracing
+;; 2) cone tracing - 9idiffuse, 1specular
 ;;
-;; Only works with things inside the -1,-1,-1 and 1,1,1 range
+;; - Only works with things inside the -1,-1,-1 and 1,1,1 range
+;; - rgba8, aka ldr texture
+;; - freeze on mipmap generation step (on my pc)
+
+;; TODO: voxelize emissive factor
+;; color =+ (* (clamp emissive 0 1) diffuse-color)
+;; TODO: rgb32?
+;; TODO: atomic
+;; TODO: AO
 
 (defvar *voxel-fbo*        nil)
 (defvar *voxel-light*      nil)
@@ -18,10 +26,12 @@
 (defvar *voxel-light-zam*  nil)
 
 (defvar *voxel-stepper* nil)
-(defvar *voxel-step-size* 1)
+(defparameter *voxel-step-size* 2)
 
 (defparameter *voxel-mipmaps*    7)
 (defparameter *volume-dimension* 64)
+
+;;--------------------------------------------------
 
 (defun-g voxelize-vert ((vert g-pnt)
                         &uniform
@@ -39,8 +49,7 @@
 
 (defun-g voxelize-geom ((nor  (:vec3 3))
                         (lpos (:vec4 3)))
-  (declare (output-primitive :kind :triangle-strip
-                             :max-vertices 3))
+  (declare (output-primitive :kind :triangle-strip :max-vertices 3))
   (let* ((p1 (- (s~ (gl-position (aref gl-in 1)) :xyz)
                 (s~ (gl-position (aref gl-in 0)) :xyz)))
          (p2 (- (s~ (gl-position (aref gl-in 2)) :xyz)
@@ -87,27 +96,19 @@
                         (cam-pos     :vec3))
   (if (not (inside-cube-p pos 0f0))
       (return))
-  (let* ((spec     (y props))
+  (let* (;; NT: we do not care about specular here
          (rough    (z props))
          (metallic (w props))
          (f0       (vec3 .04))
          (f0       (mix f0 albedo metallic))
          (vis      (shadow-factor shadowmap lpos))
          (color    (v! 0 0 0)))
-    (setf color (pbr-spotlight-lum light-pos
-                                   pos
-                                   (normalize (- pos cam-pos))
-                                   nor
-                                   rough
-                                   f0
-                                   metallic
-                                   albedo
-                                   spec
-                                   (* *cone-mult* 2 light-color)
-                                   light-dir
-                                   *cone-inner*
-                                   *cone-outer*
-                                   .027 .0028))
+    (setf color
+          (spot-light-apply albedo (* *cone-mult* light-color)
+                            light-pos light-dir pos nor
+                            1f0 .027 .0028
+                            (cos (radians *cone-inner*))
+                            (cos (radians *cone-outer*))))
     (let* ((voxel (scale-and-bias pos))
            (dim   (image-size ithing))
            (dxv   (* dim voxel))
@@ -187,8 +188,7 @@
                    :shadowmap *shadow-sam*)))))
     (generate-mipmaps *voxel-light*)))
 
-;; From Light POV
-
+;;--------------------------------------------------
 
 ;; 2)
 ;; - normal vertex shader (model>world>view>clip)
@@ -220,18 +220,18 @@
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           .0));.1953125
+         (dist           .01953125));.1953125
     ;; Trace
     (while (and (< dist sqrt2)
                 (< (w acc) 1f0))
            (let* (;;(c (+ from (* dist direction)))
-                  (c     (scale-and-bias (+ from (* dist direction))))
-                  (l     (+ 1f0 (/ (* cone-spread dist) voxel-size)))
-                  (level (log2 l))
-                  (ll    (* (+ 1f0 level) (+ 1f0 level)))
-                  (voxel (texture-lod voxel-light
-                                      c
-                                      (min mipmap-hardcap level))))
+                  (sample-pos (scale-and-bias (+ from (* dist direction))))
+                  (l          (+ 1f0 (/ (* cone-spread dist) voxel-size)))
+                  (level      (log2 l))
+                  (ll         (* (+ 1f0 level) (+ 1f0 level)))
+                  (voxel      (texture-lod voxel-light
+                                           sample-pos
+                                           (min mipmap-hardcap level))))
              (incf acc  (* 0.075 ll voxel (pow (- 1 (w voxel)) 2f0)))
              (incf dist (* ll voxel-size 2))))
     (pow (* (s~ acc :xyz) 2f0)
@@ -310,6 +310,8 @@
        acc
        (+ albedo 0.001))))
 
+;;--------------------------------------------------
+
 (defun-g trace-specular-voxel-cone ((from        :vec3)
                                     (direction   :vec3)
                                     (normal      :vec3)
@@ -320,11 +322,12 @@
          ;;
          (direction (normalize direction))
          (offset (* 8 #.(/ 64f0)))
-         (step  #.(/ 64f0))
-         (from (+ from (* offset normal)))
-         (acc (vec4 0f0))
-         (dist offset))
-    (while (and (< dist max-distance) (< (w acc) 1f0))
+         (step   #.(/ 64f0))
+         (from   (+ from (* offset normal)))
+         (acc    (vec4 0f0))
+         (dist   offset))
+    (while (and (< dist max-distance)
+                (< (w acc) 1f0))
            (let ((c (+ from (* dist direction))))
              (if (not (inside-cube-p c 0f0))
                  (break))
@@ -349,3 +352,35 @@
                                               normal
                                               spec
                                               voxel-light))))
+
+;;--------------------------------------------------
+
+;; Returns a soft shadow blend by using shadow cone tracing.
+;; Uses 2 samples per step, so it's pretty expensive.
+(defun-g trace-shadow-cone ((from            :vec3)
+                            (direction       :vec3)
+                            (target-distance :float)
+                            (voxel-light     :sampler-3d)
+                            (normal          :vec3))
+  (let* ((from (+ from (* normal .05))) ; Removes artifacts but makes self shadowing for dense meshes meh.
+         (acc 0f0)
+         (voxel-size #.(/ 64f0))
+         (dist (* 3 voxel-size))
+         ;; I'm using a pretty big margin here since I use an emissive
+         ;; light ball with a pretty big radius in my demo scenes.
+         (stop (- target-distance (* 16f0 voxel-size))))
+    (while (and (< dist stop)
+                (< acc  1f0))
+           (let ((c (+ from (* dist direction))))
+             (if (not (inside-cube-p c 0))
+                 (break))
+             (setf c (scale-and-bias c))
+             (let* ((l (pow dist 2)); Experimenting with inverse square falloff for shadows.
+                    (s1 (* 0.062 (w (texture-lod voxel-light c (+ 1f0 (* 0.75 l))))))
+                    (s2 (* 0.135 (w (texture-lod voxel-light c (* 4.5 l)))))
+                    (s  (+ s1 s2)))
+               (incf acc (* s (- 1 acc)))
+               (incf dist (* .9 voxel-size (+ 1f0 (* 0.05 l)))))))
+    (- 1f0 (pow (smoothstep 0f0 1f0 (* acc 1.4)) (/ 1f0 1.4)))))
+
+
