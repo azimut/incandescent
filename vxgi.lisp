@@ -18,7 +18,7 @@
 ;; color =+ (* (clamp emissive 0 1) diffuse-color)
 ;; TODO: rgb32?
 ;; TODO: atomic
-;; TODO: AO
+;; TODO: sun/sky color on voxelization(?
 
 (defvar *voxel-fbo*        nil)
 (defvar *voxel-light*      nil)
@@ -35,10 +35,12 @@
 
 (defun-g voxelize-vert ((vert g-pnt)
                         &uniform
+                        (time        :float)
                         (scale       :float)
                         (light-vp    :mat4)
                         (model-world :mat4))
-  (let* ((mpos (v! (* scale (pos vert)) 1f0))
+  (let* ((mpos (v! (* scale (pos vert))
+                   1f0))
          (wpos (* model-world mpos))
          (norm (norm vert)))
     (values wpos
@@ -93,32 +95,34 @@
                         (ithing      :image-3d)
                         (props       :vec4)
                         (albedo      :vec3)
-                        (cam-pos     :vec3))
+                        (cone-inner  :float)
+                        (cone-outer  :float))
   (if (not (inside-cube-p pos 0f0))
       (return))
   (let* (;; NT: we do not care about specular here
-         (rough    (z props))
-         (metallic (w props))
-         (f0       (vec3 .04))
-         (f0       (mix f0 albedo metallic))
+         (emissive (x props))
          (vis      (shadow-factor shadowmap lpos))
+         ;;(vis 1f0)
          (color    (v! 0 0 0)))
-    (setf color
-          (spot-light-apply albedo (* *cone-mult* light-color)
-                            light-pos light-dir pos nor
-                            1f0 .027 .0028
-                            (cos (radians *cone-inner*))
-                            (cos (radians *cone-outer*))))
+    (incf color (vec3 emissive))
+    (setf color (spot-light-apply albedo (* *cone-mult* light-color)
+                                  light-pos light-dir pos nor
+                                  1f0 .027 .0028
+                                  cone-inner
+                                  cone-outer))
     (let* ((voxel (scale-and-bias pos))
            (dim   (image-size ithing))
            (dxv   (* dim voxel))
-           (alpha (pow 1f0 4f0))
-           (res   (* alpha (v! color 1))))
+           ;;(alpha (pow 1f0 4f0)); 1f0 = (pow (- 1 transparency) 4f0)
+           ;;(alpha 1f0)
+           ;;(res   (* alpha (v! color 1)))
+           (res (v! color 1)))
       (image-store ithing
                    (ivec3 (int (x dxv))
                           (int (y dxv))
                           (int (z dxv)))
-                   (v! (* vis (s~ res :xyz)) (w res)))
+                   (v! (* vis (s~ res :xyz))
+                       (w res)))
       (values))))
 
 (defpipeline-g voxelize-pipe ()
@@ -141,7 +145,10 @@
                                                       ,*volume-dimension*
                                                       ,*volume-dimension*)
                                         :mipmap *voxel-mipmaps*
-                                        :element-type :rgba8))
+                                        :element-type
+                                        ;;:rgba8
+                                        :rgba16f
+                                        ))
   (setf *voxel-light-zam* (sample *voxel-light* ;;:minify-filter :linear
                                   :magnify-filter :nearest
                                   :wrap :clamp-to-border
@@ -162,31 +169,36 @@
                        :float
                        (cffi:null-pointer)))
 
-(defun draw-voxel ()
-  (when (funcall *voxel-stepper*)
-    (clear-voxel)
-    (with-fbo-bound (*voxel-fbo* :attachment-for-size :d)
-      (with-setf* ((depth-mask) nil
-                   (depth-test-function) nil
-                   (cull-face) nil
-                   (clear-color) (v! 0 0 0 1))
-        (dolist (actor *actors*)
-          (with-slots (buf scale color properties) actor
-            (map-g #'voxelize-pipe buf
-                   ;; - Vertex
-                   :scale scale
-                   :light-vp (world->clip *shadow-camera*)
-                   :model-world (model->world actor)
-                   ;; - Fragment
-                   :light-color *light-color*
-                   :light-pos *light-pos*
-                   :light-dir *light-dir*
-                   :props properties
-                   :albedo color
-                   :ithing *voxel-light-sam*
-                   :cam-pos (pos *currentcamera*)
-                   :shadowmap *shadow-sam*)))))
-    (generate-mipmaps *voxel-light*)))
+(let ((stepper (make-stepper (seconds .1)
+                             (seconds .1))))
+  (defun draw-voxel ()
+    (when (funcall *voxel-stepper*)
+      (clear-voxel)
+      (with-fbo-bound (*voxel-fbo* :attachment-for-size :d)
+        (with-setf* ((depth-mask) nil
+                     (depth-test-function) nil
+                     (cull-face) nil
+                     (clear-color) (v! 0 0 0 1))
+          (dolist (actor *actors*)
+            (when (slot-value actor 'voxelize-p)
+              (with-slots (buf scale color properties) actor
+                (map-g #'voxelize-pipe buf
+                       ;; - Vertex
+                       :time (* 1f0 (get-internal-real-time))
+                       :scale scale
+                       :light-vp (world->clip *shadow-camera*)
+                       :model-world (model->world actor)
+                       ;; - Fragment
+                       :cone-inner (cos (radians *cone-inner*))
+                       :cone-outer (cos (radians *cone-outer*))
+                       :light-color *light-color*
+                       :light-pos *light-pos*
+                       :light-dir *light-dir*
+                       :props properties
+                       :albedo color
+                       :ithing *voxel-light-sam*
+                       :shadowmap *shadow-sam*))))))
+      (generate-mipmaps *voxel-light*))))
 
 ;;--------------------------------------------------
 
@@ -206,21 +218,36 @@
 ;; - trace every Nth pixel on the screen (member (range 4 16) n)
 ;; - trace ends when acumulated alpha is >1 or outside voxel
 ;; - traced color uses a "simple polynomial correction curve to alter the intensity"
+
+;; From BERO
+;; return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
+;; return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
+;; return clamp(tan((PI * (0.5 * 0.75)) * max(0.0, roughness)), 0.00174533102, 3.14159265359);
+(defun-g roughness-to-aperture-angle ((roughness :float))
+  (let ((roughness (clamp roughness 0f0 1f0)))
+    ;;(tan (acos (pow 0.244 (/ (1+ (clamp (- (/ 2f0 (max 1e-4 (* roughness roughness))) 2f0) 4f0 (* 1024f0 16f0)))))))
+    (clamp (* 3.14159265359 .5 .75 (max 0f0 roughness)) 0.00174533102 3.14159265359)
+    #+nil
+    (tan (+ 0.0003474660443456835
+            (* roughness (- 1.3331290497744692
+                            (* roughness 0.5040552688878546)))))))
+
 (defun-g trace-diffuse-voxel-cone ((from        :vec3)
                                    (direction   :vec3)
                                    (voxel-light :sampler-3d))
   "Traces a diffuse voxel cone."
   (let* ((voxel-size     #.(/ 64f0))
          (mipmap-hardcap 5.4)
-         (sqrt2          1.414213)
+         (sqrt2          1.414213);F 1.414213 ; A 1.73205080757
          ;;
          (direction      (normalize direction))
-         (cone-spread    .325)
+         (cone-spread    .55785173935); "aperture" ; F .325; A .55785173935
          (acc            (vec4 0f0))
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           .01953125));.1953125
+         (dist           #.(* 1.5f0 (/ 1f0 64f0))
+                         )); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
     ;; Trace
     (while (and (< dist sqrt2)
                 (< (w acc) 1f0))
@@ -237,6 +264,7 @@
     (pow (* (s~ acc :xyz) 2f0)
          (vec3 1.5))))
 
+;; From Friduric
 (defun-g orthogonal ((u :vec3))
   "Returns a vector that is orthogonal to u."
   (let ((u (normalize u))
@@ -244,6 +272,14 @@
     (if (> (abs (dot u v)) .99999)
         (cross u (v! 0 1 0))
         (cross u v))))
+
+;; From Armory (used instead of orthogonal)
+(defun-g tangent ((n :vec3))
+  (let ((t1 (cross n (v! 0 0 1)))
+        (t2 (cross n (v! 0 1 0))))
+    (if (> (length t1) (length t2))
+        (normalize t1)
+        (normalize t2))))
 
 ;; Calculates indirect diffuse light using voxel cone tracing.
 ;; The current implementation uses 9 cones. I think 5 cones should be enough,
@@ -261,11 +297,11 @@
          (w                       (v! 1 1 1)) ; cone weights
          ;; Find a base for the side cones with the normal as one
          ;; of its base vectors.
-         (ortho                   (normalize (orthogonal normal)))
+         (ortho                   (normalize (tangent normal)))
          (ortho2                  (normalize (cross ortho normal)))
          ;; Find base vectors for the corner cones too.
-         (corner                  (* .5 (+ ortho ortho2)))
-         (corner2                 (* .5 (- ortho ortho2)))
+         (corner                  (* 0.5 (+ ortho ortho2)))
+         (corner2                 (* 0.5 (- ortho ortho2)))
          ;; Find start position of trace (start with a bit of offset).
          (n-offset                (* normal (+ 1 (* 4 isqrt2)) voxel-size))
          (c-origin                (+ wpos n-offset))
@@ -379,8 +415,17 @@
                     (s1 (* 0.062 (w (texture-lod voxel-light c (+ 1f0 (* 0.75 l))))))
                     (s2 (* 0.135 (w (texture-lod voxel-light c (* 4.5 l)))))
                     (s  (+ s1 s2)))
-               (incf acc (* s (- 1 acc)))
+               (incf acc  (* s (- 1 acc)))
                (incf dist (* .9 voxel-size (+ 1f0 (* 0.05 l)))))))
     (- 1f0 (pow (smoothstep 0f0 1f0 (* acc 1.4)) (/ 1f0 1.4)))))
 
-
+;; vec3 lightDirection = light.position - worldPositionFrag;
+;; const float distanceToLight = length(lightDirection);
+;; lightDirection = lightDirection / distanceToLight;
+#+nil
+(- 1 (trace-shadow-cone
+      pos
+      (/ (- light-pos pos) (length (- light-pos pos)))
+      (length (- light-pos pos))
+      voxel-light
+      norm))
