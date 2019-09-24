@@ -5,6 +5,7 @@
 
 ;; Reference:
 ;; - https://github.com/Friduric/voxel-cone-tracing/
+;; - https://vimeo.com/212749785
 ;;
 ;; two passes, runs every frame
 ;; 1) light voxelization
@@ -19,6 +20,8 @@
 ;; TODO: rgb32?
 ;; TODO: atomic
 ;; TODO: sun/sky color on voxelization(?
+;; TODO: secondary bounce
+;; TODO: shadow on metals looks weird, not enough lluminance can't compensate shadow
 
 (defvar *voxel-fbo*        nil)
 (defvar *voxel-light*      nil)
@@ -99,11 +102,11 @@
                         (cone-outer  :float))
   (if (not (inside-cube-p pos 0f0))
       (return))
-  (let* (;; NT: we do not care about specular here
-         (emissive (x props))
-         (vis      (shadow-factor shadowmap lpos))
-         ;;(vis 1f0)
-         (color    (v! 0 0 0)))
+  (let (;; NT: we do not care about specular here, because that is view dependant
+        (emissive (x props))
+        (vis      (shadow-factor shadowmap lpos))
+        ;;(vis 1f0)
+        (color    (v! 0 0 0)))
     (incf color (vec3 emissive))
     (setf color (spot-light-apply albedo (* *cone-mult* light-color)
                                   light-pos light-dir pos nor
@@ -169,8 +172,8 @@
                        :float
                        (cffi:null-pointer)))
 
-(let ((stepper (make-stepper (seconds .1)
-                             (seconds .1))))
+(let ((stepper (make-stepper (seconds 5)
+                             (seconds 5))))
   (defun draw-voxel ()
     (when (funcall *voxel-stepper*)
       (clear-voxel)
@@ -232,27 +235,29 @@
             (* roughness (- 1.3331290497744692
                             (* roughness 0.5040552688878546)))))))
 
+;; vec3
 (defun-g trace-diffuse-voxel-cone ((from        :vec3)
                                    (direction   :vec3)
-                                   (voxel-light :sampler-3d))
+                                   (voxel-light :sampler-3d)
+                                   (roughness   :float))
   "Traces a diffuse voxel cone."
   (let* ((voxel-size     #.(/ 64f0))
          (mipmap-hardcap 5.4)
-         (sqrt2          1.414213);F 1.414213 ; A 1.73205080757
+         (sqrt2          1.4114213);F 1.414213 ; A 1.73205080757
          ;;
          (direction      (normalize direction))
-         (cone-spread    .55785173935); "aperture" ; F .325; A .55785173935
+         ;;(cone-spread    .9655785173935); "aperture" ; F .325; A .55785173935
+         (cone-spread (roughness-to-aperture-angle roughness))
          (acc            (vec4 0f0))
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           #.(* 1.5f0 (/ 1f0 64f0))
+         (dist           #.(* 1f0 (/ 1f0 64f0))
                          )); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
     ;; Trace
     (while (and (< dist sqrt2)
                 (< (w acc) 1f0))
-           (let* (;;(c (+ from (* dist direction)))
-                  (sample-pos (scale-and-bias (+ from (* dist direction))))
+           (let* ((sample-pos (scale-and-bias (+ from (* dist direction))))
                   (l          (+ 1f0 (/ (* cone-spread dist) voxel-size)))
                   (level      (log2 l))
                   (ll         (* (+ 1f0 level) (+ 1f0 level)))
@@ -287,7 +292,8 @@
 (defun-g indirect-diffuse-light ((wpos        :vec3)
                                  (normal      :vec3)
                                  (voxel-light :sampler-3d)
-                                 (albedo      :vec3))
+                                 (albedo      :vec3)
+                                 (roughness   :float))
   (let* ((isqrt2                  .707106)
          (voxel-size              #.(/ 64f0))
          (diffuse-indirect-factor .52)
@@ -314,33 +320,33 @@
     ;; Trace front cone
     (incf acc (* (x w) (trace-diffuse-voxel-cone (+ c-origin (* cone-offset normal))
                                                  normal
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     ;; Trace 4 side cones.
     (incf acc (* (y w) (trace-diffuse-voxel-cone (+ c-origin (* cone-offset ortho))
                                                  (mix normal ortho angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (y w) (trace-diffuse-voxel-cone (- c-origin (* cone-offset ortho))
                                                  (mix normal (- ortho) angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (y w) (trace-diffuse-voxel-cone (+ c-origin (* cone-offset ortho2))
                                                  (mix normal ortho2 angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (y w) (trace-diffuse-voxel-cone (- c-origin (* cone-offset ortho2))
                                                  (mix normal (- ortho2) angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     ;; Trace 4 corner cones.
     (incf acc (* (z w) (trace-diffuse-voxel-cone (+ c-origin (* cone-offset corner))
                                                  (mix normal corner angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (z w) (trace-diffuse-voxel-cone (- c-origin (* cone-offset corner))
                                                  (mix normal (- corner) angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (z w) (trace-diffuse-voxel-cone (+ c-origin (* cone-offset corner2))
                                                  (mix normal corner2 angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     (incf acc (* (z w) (trace-diffuse-voxel-cone (- c-origin (* cone-offset corner2))
                                                  (mix normal (- corner2) angle-mix)
-                                                 voxel-light)))
+                                                 voxel-light roughness)))
     ;; Return result.
     (* diffuse-indirect-factor
        acc
@@ -357,11 +363,11 @@
          (mipmap-hardcap 5.4)
          ;;
          (direction (normalize direction))
-         (offset (* 8 #.(/ 64f0)))
-         (step   #.(/ 64f0))
-         (from   (+ from (* offset normal)))
-         (acc    (vec4 0f0))
-         (dist   offset))
+         (offset    (* 8 #.(/ 64f0)))
+         (step      #.(/ 64f0))
+         (from      (+ from (* offset normal)))
+         (acc       (vec4 0f0))
+         (dist      offset))
     (while (and (< dist max-distance)
                 (< (w acc) 1f0))
            (let ((c (+ from (* dist direction))))
@@ -381,13 +387,16 @@
                                   (spec           :float)
                                   (voxel-light    :sampler-3d)
                                   (wpos           :vec3)
-                                  (albedo         :vec3))
+                                  (albedo         :vec3)
+                                  (metallic       :float))
   (let ((reflection (normalize (reflect view-direction normal))))
-    (* spec albedo (trace-specular-voxel-cone wpos
-                                              reflection
-                                              normal
-                                              spec
-                                              voxel-light))))
+    (* metallic
+       albedo
+       (trace-specular-voxel-cone wpos
+                                  reflection
+                                  normal
+                                  spec
+                                  voxel-light))))
 
 ;;--------------------------------------------------
 
