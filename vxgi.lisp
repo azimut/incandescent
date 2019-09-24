@@ -38,7 +38,6 @@
 
 (defun-g voxelize-vert ((vert g-pnt)
                         &uniform
-                        (time        :float)
                         (scale       :float)
                         (light-vp    :mat4)
                         (model-world :mat4))
@@ -160,8 +159,8 @@
                                   :magnify-filter :nearest
                                   :wrap :clamp-to-border
                                   ))
-  ;; (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
-  ;; (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
+  (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
+  (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
   (setf (%cepl.types::%sampler-imagine *voxel-light-sam*) t))
 
 (declaim (inline clear-voxel))
@@ -187,7 +186,6 @@
               (with-slots (buf scale color properties) actor
                 (map-g #'voxelize-pipe buf
                        ;; - Vertex
-                       :time (* 1f0 (get-internal-real-time))
                        :scale scale
                        :light-vp (world->clip *shadow-camera*)
                        :model-world (model->world actor)
