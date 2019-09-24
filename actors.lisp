@@ -5,15 +5,19 @@
 (defvar *scene-index* 0)
 
 (defclass actor ()
-  ((name   :initarg :name   :reader   actor-name)
-   (pos    :initarg :pos    :accessor pos)
-   (rot    :initarg :rot    :accessor rot)
-   (buf    :initarg :buf)
-   (color  :initarg :color)
-   (scale  :initarg :scale)
-   (seed   :initarg :seed   :initform (random 1f0))
-   (draw-p :initarg :draw-p :initform t))
+  ((name       :initarg :name       :reader   actor-name)
+   (pos        :initarg :pos        :accessor pos)
+   (rot        :initarg :rot        :accessor rot)
+   (buf        :initarg :buf)
+   (color      :initarg :color)
+   (scale      :initarg :scale)
+   (seed       :initarg :seed       :initform (random 1f0))
+   (voxelize-p :initarg :voxelize-p)
+   (shadow-p   :initarg :shadow-p   :documentation "casts shadow?")
+   (draw-p     :initarg :draw-p     :initform t))
   (:default-initargs
+   :shadow-p t
+   :voxelize-p t
    :name  (gensym)
    :pos   (v! 0 0 0)
    :rot   (q:identity)
@@ -39,7 +43,8 @@
   (setf *scenes* (make-array 5 :initial-element nil)))
 
 (defmacro in-scene (nr-scene &body body)
-  "(in-scene 0
+  "Populates elements in BODY into *SCENES* NR-SCENE
+  (in-scene 0
      (make-box)"
   (declare (type (integer 0 4) nr-scene))
   `(progn (free-scene ,nr-scene)
