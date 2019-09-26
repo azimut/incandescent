@@ -28,7 +28,7 @@
         *variance-sam*
         (sample (attachment-tex *variance-fbo* 0) :wrap :clamp-to-edge))
   (setf (cepl.samplers::border-color *shadow-sam*) (v! 1 1 1 1))
-  ;;(setf (cepl.samplers::border-color *variance-sam*) (v! 0 0 0 1))
+  (setf (cepl.samplers::border-color *variance-sam*) (v! 1 1 1 1))
   t)
 
 ;;--------------------------------------------------
@@ -88,7 +88,15 @@
   (with-fbo-bound (*shadow-fbo*)
     (clear *shadow-fbo*)
     (loop :for actor :in *actors*
-          :do (draw-variance-actor actor)))
+          :do (with-slots (shadow-p draw-p buf scale) actor
+                (when (and draw-p shadow-p)
+                  (map-g #'variance-3d-pipe buf
+                         :scale scale
+                         :model-world (model->world actor)
+                         :world-view  (world->view *shadow-camera*)
+                         :view-clip   (projection  *shadow-camera*))))
+              ;;(draw-variance-actor actor)
+          ))
   ;;
   (with-fbo-bound (*variance-fbo*)
     (clear *variance-fbo*)

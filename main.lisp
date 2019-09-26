@@ -114,7 +114,7 @@
     ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
     ;;--------------------------------------------------
     ;;(update  *currentcamera* delta)
-    (control *currentcamera* delta 1)
+    ;;(control *currentcamera* delta 1)
     ;;#+nil
     (progn (setf (pos *currentcamera*)
                  (v3:+ (v! (rocket-get "camera:x")
@@ -130,12 +130,13 @@
                                  (rocket-get "look:y")
                                  (rocket-get "look:z")))))
     ;;--------------------------------------------------
+    ;;(draw-variance)
     (with-fbo-bound (*fbo*);; defer rendering
       (clear-fbo *fbo*)
       (clear-fbo *shadow-fbo*)
-      (draw-variance)
       (dolist (actor *actors*)
         (draw actor *currentcamera* time)
+        (draw-variance-actor actor)
         (update actor delta)))
     (draw-god *sam3* (* .001 time)
               :weight (rocket-get "god:weight")
@@ -186,10 +187,15 @@
       ))
   ;; (rotatef *sdfbo* *dsfbo*)
   ;; (rotatef *sdsam* *dssam*)
+  (when (keyboard-button (keyboard) key.escape)
+    (play :stop))
   (decay-events))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
 
 (defun playit ()
+  ;; (cepl:initialize-cepl)
+  ;; (cepl.context::legacy-add-surface (cepl:cepl-context) "CEPL" 341 192 nil t
+  ;;                                   nil nil t nil)
   (play :start))
