@@ -29,6 +29,27 @@
             world-norm
             (s~ world-pos :xyz))))
 
+;; 3D - g-pnt without tangents + modifiers for texture
+
+(defun-g vert-tex ((vert g-pnt)
+                   &uniform
+                   (model-world :mat4)
+                   (world-view  :mat4)
+                   (view-clip   :mat4)
+                   (uv-scale    :vec2)
+                   (scale       :float))
+  (let* ((pos        (* scale (pos vert)))
+         (norm       (norm vert))
+         (tex        (tex vert))
+         (world-norm (* (m4:to-mat3 model-world) norm))
+         (world-pos  (* model-world (v! pos 1)))
+         (view-pos   (* world-view  world-pos))
+         (clip-pos   (* view-clip   view-pos)))
+    (values clip-pos
+            (* uv-scale (treat-uvs tex))
+            world-norm
+            (s~ world-pos :xyz))))
+
 (defun-g frag ((uv :vec2)
                (frag-norm :vec3)
                (frag-pos :vec3)
