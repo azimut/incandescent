@@ -106,12 +106,12 @@
         (vis      (shadow-factor shadowmap lpos))
         ;;(vis 1f0)
         (color    (v! 0 0 0)))
-    (incf color (vec3 emissive))
     (setf color (spot-light-apply albedo (* *cone-mult* light-color)
                                   light-pos light-dir pos nor
                                   1f0 .027 .0028
                                   cone-inner
                                   cone-outer))
+    (incf color (* albedo emissive))
     (let* ((voxel (scale-and-bias pos))
            (dim   (image-size ithing))
            (dxv   (* dim voxel))
