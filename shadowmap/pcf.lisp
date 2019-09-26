@@ -22,25 +22,30 @@
   :vertex   (vert g-pnt)
   :fragment (simplest-3d-frag :vec2 :vec3 :vec3))
 
+(defmethod draw-shadowmap-actor (actor)
+  (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
+    ;;(with-setf (cull-face) :front)
+    (with-slots (buf scale draw-p shadow-p) actor
+      (when (and draw-p shadow-p)
+        (map-g #'simplest-3d-pipe buf
+               :scale scale
+               :model-world (model->world actor)
+               :world-view  (world->view *shadow-camera*)
+               :view-clip   (projection  *shadow-camera*))))))
+
 (defun draw-shadowmap ()
   "draws the scene in *ACTORS* from the point of view of *SHADOW-CAMERA* into *SHADOW-FBO* using a simple shader pipe"
   (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
     (clear-fbo *shadow-fbo*)
-    (with-setf (cull-face) :front)
     (loop :for actor :in *actors*
-          :do (with-slots (buf scale draw-p) actor
-                (when draw-p
-                  (map-g #'simplest-3d-pipe buf
-                         :scale scale
-                         :model-world (model->world actor)
-                         :world-view  (world->view *shadow-camera*)
-                         :view-clip   (projection  *shadow-camera*)))))))
+          :do (draw-shadowmap-actor actor))))
 
 ;;--------------------------------------------------
 ;; PCF type of helpers
 
-;; NO BIAS
-(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
+;; NO BIAS - useful for debug
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
   (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz)
                            (w  pos-in-light-space)))
          (proj-coords   (+ .5 (* .5 proj-coords)))
@@ -52,7 +57,8 @@
         shadow)))
 
 ;; NO BIAS - PCF
-(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
   (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
                          (w pos-in-light-space)))
          (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
@@ -77,10 +83,13 @@
             ))))
 
 ;; BIAS static
-(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
-  (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz) (w  pos-in-light-space)))
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
+  (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz)
+                           (w  pos-in-light-space)))
          (proj-coords   (+ .5 (* .5 proj-coords)))
-         (bias          .005 ;;#.(* 2f0 (/ 1024f0))
+         (bias          .005
+                        ;;#.(* 2f0 (/ 1024f0))
                         )
          (current-depth (z proj-coords))
          (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
@@ -101,11 +110,12 @@
          (current-depth (z proj-coords))
          (bias (max (* .005 (- 1 (dot normal light-dir))) .005)))
     (if (> (- current-depth bias) closest-depth)
-        1f0
-        0f0)))
+        0f0
+        1f0)))
 
 ;; BIAS static - PCF
-(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
   (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
                          (w pos-in-light-space)))
          (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
@@ -131,7 +141,8 @@
                                      0f0))))))
     ;;
     (- 1 (/ shadow (* num-samples num-samples)))))
-(defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
+(defun-g shadow-factor ((light-sampler :sampler-2d)
+                        (pos-in-light-space :vec4))
   (let* ((proj-coords (/ (s~ pos-in-light-space :xyz)
                          (w pos-in-light-space)))
          (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
@@ -177,6 +188,19 @@
                                  1f0
                                  0f0)))))
     ;;
-    (/ shadow 9f0)))
+    (- 1 (/ shadow 9f0))))
 
 
+;;--------------------------------------------------
+
+#+nil
+(defun-g shadowmap-point-geom (&uniform (shadow-matrices (:mat4 6)))
+  (declare (output-primitive :kind :triangle-strip
+                             :max-vertices 18))
+  (dotimes (face 6)
+    (setf gl-layer face)
+    (dotimes (i 3)
+      (let ((pos (gl-position (aref gl-in i))))
+        (emit () (* (aref shadow-matrices face) pos))))
+    (end-primitive))
+  (values))

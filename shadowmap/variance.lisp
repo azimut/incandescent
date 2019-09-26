@@ -28,6 +28,7 @@
         *variance-sam*
         (sample (attachment-tex *variance-fbo* 0) :wrap :clamp-to-edge))
   (setf (cepl.samplers::border-color *shadow-sam*) (v! 1 1 1 1))
+  ;;(setf (cepl.samplers::border-color *variance-sam*) (v! 0 0 0 1))
   t)
 
 ;;--------------------------------------------------
@@ -49,7 +50,7 @@
   :vertex   (vert g-pnt)
   :fragment (variance-3d-frag :vec2 :vec3 :vec3))
 
-;;
+;;--------------------------------------------------
 
 (defun-g variant-blur-frag ((uv :vec2) &uniform
                             (sam :sampler-2d)
@@ -67,25 +68,35 @@
 
 ;;--------------------------------------------------
 
+(defmethod draw-variance-actor (actor)
+  "un-specialized method used when drawing a generic actor from *ACTORS* into the variance pipeline.
+   you can add your own specialization for other things like deformed or
+   animated meshes"
+  (with-fbo-bound (*shadow-fbo*)
+    (with-slots (shadow-p draw-p buf scale) actor
+      (when (and draw-p shadow-p)
+        (map-g #'variance-3d-pipe buf
+               :scale scale
+               :model-world (model->world actor)
+               :world-view  (world->view *shadow-camera*)
+               :view-clip   (projection  *shadow-camera*))))))
+
 (defun draw-variance (&optional (br 1f0))
   "draws the scene in *ACTORS* from the point of view of *variance-CAMERA* into *variance-FBO* using a simple shader pipe"
   (declare (type single-float br))
+  ;;
   (with-fbo-bound (*shadow-fbo*)
     (clear *shadow-fbo*)
     (loop :for actor :in *actors*
-          :do (with-slots (draw-p buf scale) actor
-                (when draw-p
-                  (map-g #'variance-3d-pipe buf
-                         :scale scale
-                         :model-world (model->world actor)
-                         :world-view  (world->view *shadow-camera*)
-                         :view-clip   (projection  *shadow-camera*))))))
+          :do (draw-variance-actor actor)))
+  ;;
   (with-fbo-bound (*variance-fbo*)
     (clear *variance-fbo*)
     (map-g #'variance-blur-pipe *bs*
            :sam *shadow-sam*
            :blur-scale (v! (/ 1 (* br (car *shadow-dimensions*)))
                            0)))
+  ;;
   (with-fbo-bound (*shadow-fbo*)
     (clear *shadow-fbo*)
     (map-g #'variance-blur-pipe *bs*
@@ -109,6 +120,7 @@
     p))
 
 ;; With lightbleed
+#+nil
 (defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
   (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz) (w  pos-in-light-space)))
          (proj-coords   (+ .5 (* .5 proj-coords)))
@@ -125,13 +137,13 @@
     ;;(- 1 pmax)
     ))
 
-;; "NO" lightbleed
-#+nil
+;; "NO" lightbleed/seems between shadows
+;;#+nil
 (defun-g lin-step ((low :float) (high :float) (v :float))
   (clamp (/ (- v low) (- high low))
          0f0
          1f0))
-#+nil
+;;#+nil
 (defun-g shadow-factor ((light-sampler :sampler-2d) (pos-in-light-space :vec4))
   (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz) (w  pos-in-light-space)))
          (proj-coords   (+ .5 (* .5 proj-coords)))
@@ -148,5 +160,6 @@
          (pmax          (/ variance (+ variance (* d d))))
          (pmax          (lin-step 0.2 1f0 pmax)))
     ;;(- 1 (min 1f0 (min 1f0 (max p pmax))))
+    ;;(min 1f0 (min 1f0 (max p pmax)))
     (clamp (max p pmax) 0f0 1f0)
     ))

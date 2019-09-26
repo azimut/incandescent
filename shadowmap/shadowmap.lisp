@@ -22,15 +22,35 @@
 (defvar *shadow-fbo* NIL)
 (defvar *shadow-sam* NIL)
 
+(defvar *light-dir* (q:to-direction
+                     (q:point-at (v! 0 1 0) *light-pos* (v! 0 0 0))))
+
+;; In theory perspective is for Spotlights...but I think it also needs a tweak on
+;; the prober (shadow-factor) gpu function for pcf, but variance works fine
 (defparameter *shadow-camera*
-  (let* ((lpos (v! 50 50 50))
-         (cam  (make-instance 'orth
+  (let* ((lpos (v3:*s (v! 10 20 10) 1f0))
+         (ldir (q:point-at (v! 0 1 0) lpos (v! 0 3 0)))
+         (cam  (make-instance 'pers
                               :name :shadow-camera
-                              :frame-size (v2! 30) ;; zoom
-                              :far 120f0
-                              :near 70f0
-                              :rot (q:point-at (v! 0 1 0) lpos
-                                               (v! 0 0 0))
+                              ;;:frame-size (v2! 10) ;; zoom
+                              :far 80f0
+                              :near 20f0
+                              :rot ldir
                               :pos lpos)))
     (setf *light-pos* lpos)
+    (setf *light-dir* (q:to-direction ldir))
+    cam))
+
+(defparameter *shadow-camera*
+  (let* ((lpos (v! 5 10 5))
+         (ldir (q:point-at (v! 0 1 0) lpos (v! .7 0 .2)))
+         (cam  (make-instance 'orth
+                              :name :shadow-camera
+                              :frame-size (v2! 5) ;; zoom
+                              :far 20f0
+                              :near 10f0
+                              :rot ldir
+                              :pos lpos)))
+    (setf *light-pos* lpos)
+    (setf *light-dir* (q:to-direction ldir))
     cam))

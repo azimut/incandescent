@@ -6,7 +6,8 @@
 (defun-g shadow-vert ((vert g-pnt) &uniform
                       (model-world :mat4) (world-view :mat4) (view-clip :mat4)
                       (scale :float)
-                      (light-world :mat4) (light-clip :mat4))
+                      (light-world :mat4)
+                      (light-clip :mat4))
   (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
          (world-norm (* (m4:to-mat3 model-world) norm))
