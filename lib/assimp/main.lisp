@@ -2,7 +2,6 @@
 ;;--------------------------------------------------
 ;; Assimp - 3d object loader
 ;;
-;; TODO: support objets with no UVs, like low poly things
 ;; TODO: support more generic way to load that only returns the buffer
 ;; TODO: c-array for bones leaking memory on restart
 ;; TODO: fix the animation loop so it does it automatically...might be with a helper, is really manual now
@@ -16,10 +15,26 @@
   "override this locally to change the normal map")
 (defvar *assimp-buffers* (make-hash-table :test #'equal))
 
+;; optimize-meshes:    looks like a good default
 ;; flip-u-vs:          needed to unwrap texture correctly
 ;; gen-smooth-normals: ONLY needed for meshes without normals
 ;; triangulate:        use it ALWAYS
 ;; calc-tangent-space: generates arc/bi tan from normals
+;; process-preset-target-realtime-fast
+;; process-preset-target-realtime-max-quality
+;; process-preset-target-realtime-quality
+;; x aiProcess_CalcTangentSpace
+;; x aiProcess_GenSmoothNormals
+;; - aiProcess_JoinIdenticalVertices
+;; - aiProcess_ImproveCacheLocality
+;; x aiProcess_LimitBoneWeights
+;; x aiProcess_RemoveRedundantMaterials
+;; - aiProcess_SplitLargeMeshes
+;; - aiProcess_Triangulate
+;; x aiProcess_GenUVCoords
+;; - aiProcess_SortByPType
+;; - aiProcess_FindDegenerates
+;; - aiProcess_FindInvalidData
 (defvar *processing-flags* '(:ai-process-triangulate
                              :ai-process-flip-u-vs
                              :ai-process-calc-tangent-space))
@@ -327,7 +342,12 @@
            (if (emptyp (ai:normals (aref (ai:meshes scene) 0)))
                (cons :ai-process-gen-smooth-normals *processing-flags*)
                *processing-flags*))
-         (scene (ai:import-into-lisp file :processing-flags processing-flags)))
+         (scene (ai:import-into-lisp file :processing-flags (print
+                                                             processing-flags)
+                                          :properties
+                                          '(:pp-slm-triangle-limit 25000)
+                                          ;;'(:pp-slm-vertex-limit 20000)
+                                          )))
     ;; TODO: error instead if there is an untextured among textured
     ;; Error if all texture coords are missing :(
     #+nil
@@ -373,22 +393,24 @@
                (destructuring-bind (&key buf albedo normals specular)
                    (assimp-mesh-to-stream mesh scene path type)
                  (remove-nil-plist
-                  (list :scene scene
-                        :buf buf
-                        :albedo albedo
-                        :normals normals
-                        :specular specular
-                        :bones (when (eq type :bones)
-                                 (make-c-array ;; TODO: leaking
-                                  (coerce
-                                   ;; NOTE: init using the first transform in the animation, for those that only have 1
-                                   ;; frame of "animation"
-                                   (get-bones-tranforms scene :frame 0)
-                                   'list) :element-type :mat4))
-                        :duration (when (eq type :bones)
-                                    (if (not (emptyp (ai:animations scene)))
-                                        (coerce
-                                         (ai:duration
-                                          (aref (ai:animations scene) 0))
-                                         'single-float)
-                                        0f0)))))))))
+                  (list
+                   :type type
+                   :scene scene
+                   :buf buf
+                   :albedo albedo
+                   :normals normals
+                   :specular specular
+                   :bones (when (eq type :bones)
+                            (make-c-array ;; TODO: leaking
+                             (coerce
+                              ;; NOTE: init using the first transform in the animation, for those that only have 1
+                              ;; frame of "animation"
+                              (get-bones-tranforms scene :frame 0)
+                              'list) :element-type :mat4))
+                   :duration (when (eq type :bones)
+                               (if (not (emptyp (ai:animations scene)))
+                                   (coerce
+                                    (ai:duration
+                                     (aref (ai:animations scene) 0))
+                                    'single-float)
+                                   0f0)))))))))
