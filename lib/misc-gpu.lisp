@@ -18,19 +18,19 @@
 ;; https://github.com/glslify/glsl-diffuse-oren-nayar
 ;; - is roughness a value in radians?
 (defun-g diffuse-oren-nayar ((light-dir :vec3)
-                             (view-dir :vec3)
-                             (normal :vec3)
+                             (view-dir  :vec3)
+                             (normal    :vec3)
                              (roughness :float)
                              (intensity :float))
   (let* ((l-dot-v (dot light-dir view-dir))
          (n-dot-l (dot light-dir normal))
          (n-dot-v (dot normal view-dir))
-         (s (- l-dot-v (* n-dot-l n-dot-v)))
-         (tt (mix 1 (max n-dot-l n-dot-v) (step 0 s)))
-         (sigma2 (* roughness roughness))
-         (a (1+ (* sigma2 (+ (/ intensity (+ sigma2 .13))
-                             (/ .5 (+ sigma2 .33))))))
-         (b (* .45 (/ sigma2 (+ sigma2 .09)))))
+         (s       (- l-dot-v (* n-dot-l n-dot-v)))
+         (tt      (mix 1 (max n-dot-l n-dot-v) (step 0 s)))
+         (sigma2  (* roughness roughness))
+         (a       (1+ (* sigma2 (+ (/ intensity (+ sigma2 .13))
+                                   (/ .5 (+ sigma2 .33))))))
+         (b       (* .45 (/ sigma2 (+ sigma2 .09)))))
     (* intensity (max 0 n-dot-l) (/ (+ a (/ (* b s) tt)) +pi+))))
 
 ;;--------------------------------------------------
@@ -66,17 +66,17 @@
          (diffuse (* light-color diff)))
     (* color attenuation (+ ambient diffuse))))
 
-(defun-g point-light-apply ((color :vec3)
+(defun-g point-light-apply ((color       :vec3)
                             (light-color :vec3)
-                            (light-pos :vec3)
-                            (frag-pos :vec3)
-                            (normal :vec3)
-                            (constant :float)
-                            (linear :float)
-                            (quadratic :float)
-                            (cam-pos :vec3)
-                            (roughness :float)
-                            (intensity :float))
+                            (light-pos   :vec3)
+                            (frag-pos    :vec3)
+                            (normal      :vec3)
+                            (constant    :float)
+                            (linear      :float)
+                            (quadratic   :float)
+                            (cam-pos     :vec3)
+                            (roughness   :float)
+                            (intensity   :float))
   (let* ((light-dir   (normalize (- light-pos frag-pos)))
          (view-dir    (normalize (- cam-pos frag-pos)))
          (diff        (diffuse-oren-nayar light-dir
@@ -129,6 +129,7 @@
 (defun-g spot-light-apply ((color         :vec3)
                            (light-color   :vec3)
                            (light-pos     :vec3)
+                           (light-dir     :vec3)
                            (frag-pos      :vec3)
                            (normal        :vec3)
                            ;;
@@ -138,21 +139,19 @@
                            ;;
                            (cut-off       :float)
                            (outer-cut-off :float))
-  (let* ((light-dir   (normalize (- light-pos frag-pos)))
-         (diff        (saturate  (dot normal light-dir)))
-         ;; HDR distance, not squared
-         (distance    (length    (- light-pos frag-pos)))
-         (attenuation (/ 1 (+ constant
-                              (* linear distance)
-                              (* quadratic distance distance))))
+  (let* ((l           (normalize (- light-pos frag-pos)))
+         (diff        (saturate  (dot normal l)))
          ;;
-         (theta     (dot light-dir (normalize (- (v! 0 -1 0)))))
+         (distance    (length (- light-pos frag-pos)))
+         (attenuation (/ 1f0 (+ constant
+                                (* linear distance)
+                                (* quadratic distance distance))))
+         ;;
+         (theta     (dot l (normalize (- light-dir))))
          (epsilon   (- cut-off outer-cut-off))
-         (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1))
-         ;;
-         (ambient (* light-color .1))
-         (diffuse (* light-color diff)))
-    (* color attenuation intensity (+ ambient diffuse))))
+         ;;(intensity (/ (- theta outer-cut-off) epsilon))
+         (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1)))
+    (* color attenuation intensity diff light-color)))
 
 ;;--------------------------------------------------
 ;; Flashlight
@@ -250,11 +249,11 @@
 ;;--------------------------------------------------
 
 ;; Only lambert diffuse
-(defun-g dir-light-apply ((color :vec3)
+(defun-g dir-light-apply ((color       :vec3)
                           (light-color :vec3)
-                          (light-pos :vec3)
-                          (frag-pos :vec3)
-                          (normal :vec3))
+                          (light-pos   :vec3)
+                          (frag-pos    :vec3)
+                          (normal      :vec3))
   (let* ((light-dir (normalize (- light-pos frag-pos)))
          ;; Diffuse shading
          (diff    (saturate (dot normal light-dir)))
@@ -420,7 +419,7 @@
 ;; http://www.voidcn.com/article/p-nvhpdsyj-yy.html
 (defun-g linear-eye-depth ((d :float))
   (let* ((n .1)
-         (f 1000f0)
+         (f 100f0)
          (zz (/ (/ (- 1 (/ f n)) 2) f))
          (zw (/ (/ (+ 1 (/ f n)) 2) f)))
     (/ 1 (+ (* zz d) zw))))
@@ -441,10 +440,11 @@
 ;; better suited for demonstration purposes.
 (defun-g linearize-depth ((depth :float))
   (let* ((near 0.1)
-         (far 1000f0)
+         (far 100f0)
          (z (- (* depth 2.0) 1.0)))
     (/ (* 2.0 (* near far))
        (- (+ far near) (* z (- far near))))))
+
 (defun-g linearize-depth ((depth :float) (near :float) (far :float))
   (let* ((z (- (* depth 2.0) 1.0)))
     (/ (* 2.0 (* near far))
@@ -498,3 +498,86 @@
                            (y uv-scale)))))
     (values uv-scale uv-offset)))
 
+
+;;--------------------------------------------------
+;; https://forum.processing.org/two/discussion/3955/textured-billboard-and-transparency-problem
+;; https://developer.download.nvidia.com/whitepapers/2007/SDK10/SoftParticles_hi.pdf
+;; https://discourse.threejs.org/t/soft-particles-render/504/3
+(defun-g calculate-fade ((particle-depth :float)
+                         (scene-depth    :float))
+  (let* ((z-fade      1f0)
+         (f-distance 10f0)
+         (f-contrast  1f0)
+         (input-depth (* (- scene-depth particle-depth) f-distance)))
+    (if (and (> input-depth 0) (< input-depth 1))
+        (setf z-fade (* .5 (pow (saturate (* 2f0 (if (> input-depth .5)
+                                                     (- 1 input-depth)
+                                                     input-depth)))
+                                f-contrast))
+              z-fade (if (> input-depth .5) (- 1 z-fade) z-fade))
+        (setf z-fade (saturate input-depth)))
+    z-fade))
+
+;; https://developer.download.nvidia.com/cg/fmod.html
+;; float2 fmod(float2 a, float2 b)
+;; {
+;; float2 c = frac(abs(a/b))*abs(b);
+;; return (a < 0) ? -c : c;   /* if ( a < 0 ) c = 0-c */
+;; }
+(defun-g fmod ((a :int) (b :int))
+  (let ((c (* (fract (abs (/ a b)) ) (abs b))))
+    (if (< a 0) (- c) c)))
+;; https://stackoverflow.com/questions/7610631/glsl-mod-vs-hlsl-fmod
+;; ???
+(defun-g fmod ((x :float) (y :float))
+  (- x (* y (trunc (/ x y)))))
+(defun-g fmod ((x :vec2) (y :vec2))
+  (- x (* y (trunc (/ x y)))))
+(defun-g fmod ((x :vec3) (y :vec3))
+  (- x (* y (trunc (/ x y)))))
+
+;;-------------------------------------------------
+;; Used for ssao or rsm
+(defun-g get-view-pos ((uv         :vec2)
+                       (g-depth    :sampler-2d)
+                       (world-view :mat4))
+  "Returns the world position from a depth texture"
+  (let* ((x (1- (* 2f0 (x uv))))
+         (y (1- (* 2f0 (y uv))))
+         (z (1- (* 2f0 (x (texture g-depth uv)))))
+         (pos-proj (v! x y z 1))
+         (pos-view (* (inverse world-view) pos-proj))
+         (pos-view (/ pos-view (w pos-view))))
+    pos-view))
+
+;;--------------------------------------------------
+
+;; Unity (it works!)
+;; just send it from the vertex shader to the fragment
+;; and there XY/W to get some uvs
+;; and then substract Z
+(defun-g compute-screen-pos ((clip-pos :vec4))
+  (let ((o (* .5 clip-pos)))
+    (v! (+ (v! (x o) (* (y o) 1)) ;; or -1
+           (w o))
+        (s~ clip-pos :zw))))
+
+
+;;--------------------------------------------------
+
+(defun-g linear-to-srgb ((c :vec3))
+  (let ((igamma (/ 2.2f0)))
+    (pow c (vec3 igamma))))
+
+;; Usage:
+;; - (tonemap-acesfilm (* (linear-to-srgb (* *exposure* final-color))))
+;; https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
+(defun-g tonemap-acesfilm ((x :vec3))
+  (let ((a 2.51)
+        (b 0.03)
+        (c 2.43)
+        (d 0.59)
+        (e 0.14))
+    (clamp (/ (* x (+ (* a x) b))
+              (+ e (* x (+ d (* c x)))))
+           0 1)))
