@@ -21,7 +21,7 @@
   `(let* ,bindings
      (unwind-protect (progn ,@body)
        ,@(loop :for (name) :in bindings :collect
-            `(free ,name)))))
+                  `(free ,name)))))
 
 ;;------------------------------------------------------------
 ;; Helpers for tangent-space calculations
@@ -51,21 +51,21 @@
                       (* (x delta-uv2) (y delta-uv1)))))
          ;;
          (tangent1
-          (v3:normalize
-           (v! (* f (- (* (y delta-uv2) (x edge1))
-                       (* (y delta-uv1) (x edge2))))
-               (* f (- (* (y delta-uv2) (y edge1))
-                       (* (y delta-uv1) (y edge2))))
-               (* f (- (* (y delta-uv2) (z edge1))
-                       (* (y delta-uv1) (z edge2)))))))
+           (v3:normalize
+            (v! (* f (- (* (y delta-uv2) (x edge1))
+                        (* (y delta-uv1) (x edge2))))
+                (* f (- (* (y delta-uv2) (y edge1))
+                        (* (y delta-uv1) (y edge2))))
+                (* f (- (* (y delta-uv2) (z edge1))
+                        (* (y delta-uv1) (z edge2)))))))
          (bitangent1
-          (v3:normalize
-           (v! (* f (+ (* (- (x delta-uv2)) (x edge1))
-                       (*    (x delta-uv1)  (x edge2))))
-               (* f (+ (* (- (x delta-uv2)) (y edge1))
-                       (*    (x delta-uv1)  (y edge2))))
-               (* f (+ (* (- (x delta-uv2)) (z edge1))
-                       (*    (x delta-uv1)  (z edge2))))))))
+           (v3:normalize
+            (v! (* f (+ (* (- (x delta-uv2)) (x edge1))
+                        (*    (x delta-uv1)  (x edge2))))
+                (* f (+ (* (- (x delta-uv2)) (y edge1))
+                        (*    (x delta-uv1)  (y edge2))))
+                (* f (+ (* (- (x delta-uv2)) (z edge1))
+                        (*    (x delta-uv1)  (z edge2))))))))
     (list tangent1 bitangent1)))
 
 (defun tbdata-from-vertex-and-indices (g-verts g-indices)
@@ -76,12 +76,12 @@
                    :element-type 'tb-data)))
     (with-gpu-array-as-c-array (data result)
       (loop :for (i0 i1 i2)
-         :on indices
-         :by #'cdddr
-         :do (let ((pair (calc verts i0 i1 i2)))
-               (setf (aref-c data i0) pair)
-               (setf (aref-c data i1) pair)
-               (setf (aref-c data i2) pair))))
+            :on indices
+            :by #'cdddr
+            :do (let ((pair (calc verts i0 i1 i2)))
+                  (setf (aref-c data i0) pair)
+                  (setf (aref-c data i1) pair)
+                  (setf (aref-c data i2) pair))))
     result))
 
 ;;------------------------------------------------------------
@@ -94,10 +94,13 @@
 
 (defun sphere
     (&optional (radius 1f0)
-       (lines-of-latitude 30)
-       (lines-of-longitude 30) has-tangents)
+               (lines-of-latitude 30)
+               (lines-of-longitude 30) has-tangents)
   (declare (boolean has-tangents))
-  (let ((key (list radius has-tangents)))
+  (let ((key (list radius
+                   lines-of-latitude
+                   lines-of-longitude
+                   has-tangents)))
     (or (gethash key *meshes*)
         (destructuring-bind (vert index)
             (nineveh.mesh.data.primitives:sphere-gpu-arrays
