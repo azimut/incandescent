@@ -7,10 +7,13 @@
         #:vari
         #:nineveh
         #:cepl.skitter
+        #:with-setf
         #:livesupport)
   (:import-from #:temporal-functions
                 #:make-stepper
                 #:seconds)
+  (:import-from #:arrow-macros
+                #:->)
   (:import-from #:alexandria
                 #:maphash-values
                 #:maphash-keys
@@ -28,7 +31,4 @@
                 #:do-each
                 #:vect
                 #:random-in-range
-                #:class-name-of)
-  (:import-from #:with-setf
-                #:with-setf
-                #:with-setf*))
+                #:class-name-of))
