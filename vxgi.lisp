@@ -118,7 +118,7 @@
            ;;(alpha (pow 1f0 4f0)); 1f0 = (pow (- 1 transparency) 4f0)
            ;;(alpha 1f0)
            ;;(res   (* alpha (v! color 1)))
-           (res (v! color 1)))
+           (res   (v! color 1)))
       (image-store ithing
                    (ivec3 (int (x dxv))
                           (int (y dxv))
@@ -172,18 +172,21 @@
                        (cffi:null-pointer)))
 
 (let ((stepper (make-stepper (seconds 5)
-                             (seconds 5))))
+                             (seconds 5)))
+      (done nil))
   (defun draw-voxel ()
-    (when (funcall *voxel-stepper*)
+    (when (and (not done)
+               ;;(funcall *voxel-stepper*)
+               )
+      (setf done t)
       (clear-voxel)
       (with-fbo-bound (*voxel-fbo* :attachment-for-size :d)
         (with-setf* ((depth-mask) nil
                      (depth-test-function) nil
-                     (cull-face) nil
-                     (clear-color) (v! 0 0 0 1))
+                     (cull-face) nil)
           (dolist (actor *actors*)
-            (when (slot-value actor 'voxelize-p)
-              (with-slots (buf scale color properties) actor
+            (with-slots (buf scale color properties voxelize-p draw-p) actor
+              (when (and draw-p voxelize-p)
                 (map-g #'voxelize-pipe buf
                        ;; - Vertex
                        :scale scale
@@ -239,9 +242,9 @@
                                    (voxel-light :sampler-3d)
                                    (roughness   :float))
   "Traces a diffuse voxel cone."
-  (let* ((voxel-size     #.(/ 64f0))
+  (let* ((voxel-size     #.(/ 1f0 64))
          (mipmap-hardcap 5.4)
-         (sqrt2          1.4114213);F 1.414213 ; A 1.73205080757
+         (sqrt2          1.74114213);F 1.414213 ; A 1.73205080757
          ;;
          (direction      (normalize direction))
          ;;(cone-spread    .9655785173935); "aperture" ; F .325; A .55785173935
@@ -250,20 +253,20 @@
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           #.(* 1f0 (/ 1f0 64f0))
+         (dist           #.(* 1.5f0 (/ 1f0 64))
                          )); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
     ;; Trace
     (while (and (< dist sqrt2)
                 (< (w acc) 1f0))
-           (let* ((sample-pos (scale-and-bias (+ from (* dist direction))))
-                  (l          (+ 1f0 (/ (* cone-spread dist) voxel-size)))
-                  (level      (log2 l))
-                  (ll         (* (+ 1f0 level) (+ 1f0 level)))
-                  (voxel      (texture-lod voxel-light
-                                           sample-pos
-                                           (min mipmap-hardcap level))))
-             (incf acc  (* 0.075 ll voxel (pow (- 1 (w voxel)) 2f0)))
-             (incf dist (* ll voxel-size 2))))
+      (let* ((sample-pos (scale-and-bias (+ from (* dist direction))))
+             (l          (+ 1f0 (/ (* cone-spread dist) voxel-size)))
+             (level      (log2 l))
+             (ll         (* (+ 1f0 level) (+ 1f0 level)))
+             (voxel      (texture-lod voxel-light
+                                      sample-pos
+                                      (min mipmap-hardcap level))))
+        (incf acc  (* 0.075 ll voxel (pow (- 1 (w voxel)) 2f0)))
+        (incf dist (* ll voxel-size 2))))
     (pow (* (s~ acc :xyz) 2f0)
          (vec3 1.5))))
 
@@ -293,7 +296,7 @@
                                  (albedo      :vec3)
                                  (roughness   :float))
   (let* ((isqrt2                  .707106)
-         (voxel-size              #.(/ 64f0))
+         (voxel-size              #.(/ 1f0 64))
          (diffuse-indirect-factor .52)
          ;; Angle mix (1.0f => orthogonal direction,
          ;;            0.0f => direction of normal).
@@ -361,8 +364,8 @@
          (mipmap-hardcap 5.4)
          ;;
          (direction (normalize direction))
-         (offset    (* 8 #.(/ 64f0)))
-         (step      #.(/ 64f0))
+         (offset    (* 8 #.(/ 1f0 64)))
+         (step      #.(/ 1f0 64))
          (from      (+ from (* offset normal)))
          (acc       (vec4 0f0))
          (dist      offset))
@@ -372,7 +375,7 @@
              (if (not (inside-cube-p c 0f0))
                  (break))
              (setf c (scale-and-bias c))
-             (let* ((level (* .1 spec (log2 (+ 1f0 (/ dist #.(/ 64f0))))))
+             (let* ((level (* .1 spec (log2 (+ 1f0 (/ dist #.(/ 1f0 64))))))
                     (voxel (texture-lod voxel-light c (min level mipmap-hardcap)))
                     (f (- 1 (w acc))))
                (incf (s~ acc :xyz) (* .25 (+ spec) (s~ voxel :xyz) (w voxel) f))
@@ -407,7 +410,7 @@
                             (normal          :vec3))
   (let* ((from (+ from (* normal .05))) ; Removes artifacts but makes self shadowing for dense meshes meh.
          (acc 0f0)
-         (voxel-size #.(/ 64f0))
+         (voxel-size #.(/ 1f0 64))
          (dist (* 3 voxel-size))
          ;; I'm using a pretty big margin here since I use an emissive
          ;; light ball with a pretty big radius in my demo scenes.
