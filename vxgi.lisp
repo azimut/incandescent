@@ -2,27 +2,28 @@
 
 ;; Inputs:
 ;; - *shadow-camera*
+;; - *actors*
 
 ;; Reference:
 ;; - https://github.com/Friduric/voxel-cone-tracing/
 ;; - https://vimeo.com/212749785
 ;;
 ;; two passes, runs every frame
-;; 1) forward rendering, light voxelization
+;; 1) forward rendering, light voxelization of all *ACTORS* in world space
 ;; 2) cone tracing - 9idiffuse, 1specular
 ;;
 ;; - Only works with things inside the -1,-1,-1 and 1,1,1 range
-;; - rgba8, aka ldr texture
-;; - freeze on mipmap generation step (on my pc)
 
-;; TODO: Ambient occlussion
-;; TODO: indirect shadows
-;;
+;; LOW  - 64x64x64    - rgb8   - no specular - atomic
+;; MED  - 64x64x64    - rgb16f - specular
+;; HIGH - 128x128x128 - rgb16f - specular
+
 ;; 1
 ;; TODO: rgb32?
 ;; TODO: atomic
+;; TODO: Ambient occlussion
+;; TODO: indirect shadows
 ;; TODO: sun/sky color on voxelization(?
-;; TODO: if not using voxel based shadow, use a "shadow sampler" on the shadowmap
 ;; TODO: transparency? store the color only if  if(g_DiffuseColor.a > 0)
 ;; TODO: shadow on metals looks weird, not enough lluminance can't compensate shadow
 ;; TODO: debug shadows using reflectance
@@ -49,7 +50,7 @@
 (defparameter *voxel-step-size* 2)
 
 (defparameter *voxel-mipmaps*    7)
-(defparameter *volume-dimension* 128)
+(defparameter *volume-dimension* 64)
 
 ;;--------------------------------------------------
 
@@ -96,10 +97,36 @@
 
 ;;--------------------------------------------------
 
-;; From "VCTGI"
+;; From sfreed141/vct
+;; From OpenGL Insights:
+;; https://rauwendaal+.net/2013/02/07/glslrunningaverage/
+(defun-g image-atomic-rgba8-avg ((voxel-light :uimage-3d)
+                                 (coord       :ivec3)
+                                 (val         :vec4))
+  (let ((val (v! (s~ val :xyz) (/ 255f0)))
+        (new-val (pack-unorm4x8 val))
+        (prev-stored-val (uint 0))
+        (cur-stored-val  (uint 0)))
+    ;; Spin(lock) wait while other threads modify
+    (while (not (= (setf cur-stored-val
+                         (image-atomic-comp-swap voxel-light
+                                                 coord
+                                                 prev-stored-val
+                                                 new-val))
+                   prev-stored-val))
+           (setf prev-stored-val cur-stored-val)
+           ;; Extract the moving average
+           ;; (current average in rgb, normalized count in w)
+           (let* ((avg (unpack-unorm4x8 cur-stored-val))
+                  (avg (v! (/ (+ (* (s~ avg :xyz) (w avg))
+                                 (* (s~ val :xyz) (w val))))
+                           (+ (w avg) (w val)))))
+             (setf new-val (pack-unorm4x8 avg))))))
+
+;; From "VCTGI", unexpensive way to query shadowmap (todo shadowsampler)
 ;; "step='0.001' max='1.0' min='0.0' label='Shadow Map Bias' group='Light'"
 ;; NT: adds floor bleeding if doesn't return 0f0, even 0.7...might work with AO
-;; NT: See other types of bleeding using reflectance/metallic and incf shadow-bias
+;; NT: debug other types of bleeding using reflectance/metallic and incf shadow-bias to fix them
 (defun-g shadow-factor-fast ((light-sampler      :sampler-2d)
                              (pos-in-light-space :vec4))
   "returns quickly from the shadowmap, to be used on voxelization"
@@ -123,7 +150,8 @@
                         (nor         :vec3)
                         (lpos        :vec4)
                         &uniform
-                        (ithing      :image-3d)
+                        ;;(ithing      :image-3d)
+                        (ithing :uimage-3d)
                         (shadowmap   :sampler-2d)
                         (light-pos   :vec3)
                         (light-dir   :vec3)
@@ -142,11 +170,11 @@
         ;;(vis 1f0)
         (color    (v! 0 0 0)))
     #+nil
-    (setf color (spot-light-apply albedo (* *cone-mult* light-color)
-                                  light-pos light-dir pos nor
-                                  1f0 .027 .0028
-                                  cone-inner
-                                  cone-outer))
+    (setf color (* vis (spot-light-apply albedo (* *cone-mult* light-color)
+                                         light-pos light-dir pos nor
+                                         1f0 .027 .0028
+                                         cone-inner
+                                         cone-outer)))
     ;;#+nil
     (setf color (* vis (dir-light-apply albedo
                                         (* *cone-mult* light-color)
@@ -161,6 +189,13 @@
            ;;(alpha 1f0)
            ;;(res   (* alpha (v! color 1)))
            (res   (v! color 1)))
+      (image-atomic-rgba8-avg ithing
+                              (ivec3 (int (x dxv))
+                                     (int (y dxv))
+                                     (int (z dxv)))
+                              (v! (s~ res :xyz)
+                                  (w res)))
+      #+nil
       (image-store ithing
                    (ivec3 (int (x dxv))
                           (int (y dxv))
@@ -190,17 +225,13 @@
                                                       ,*volume-dimension*)
                                         :mipmap *voxel-mipmaps*
                                         :element-type
-                                        ;;:rgba8
-                                        :rgba16f
+                                        :rgba8
+                                        ;;:rgba16f
                                         ))
-  (setf *voxel-light-zam* (sample *voxel-light* ;;:minify-filter :linear
-                                  :magnify-filter :nearest
-                                  :wrap :clamp-to-border
-                                  ))
-  (setf *voxel-light-sam* (sample *voxel-light* ;;:minify-filter :linear
-                                  :magnify-filter :nearest
-                                  :wrap :clamp-to-border
-                                  ))
+  (setf *voxel-light-zam*
+        (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
+  (setf *voxel-light-sam*
+        (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
   (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
   (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
   (setf (%cepl.types::%sampler-imagine *voxel-light-sam*) t))
@@ -223,8 +254,8 @@
              :light-vp (world->clip *shadow-camera*)
              :model-world (model->world actor)
              ;; - Fragment
-             :cone-inner (cos (radians *cone-inner*))
-             :cone-outer (cos (radians *cone-outer*))
+             :cone-inner (cos (radians *cone-inner*));spotlight
+             :cone-outer (cos (radians *cone-outer*));spotlight
              :light-color *light-color*
              :light-pos *light-pos*
              :light-dir *light-dir*
@@ -233,8 +264,8 @@
              :ithing *voxel-light-sam*
              :shadowmap *shadow-sam*))))
 
-(let ((stepper (make-stepper (seconds .4)
-                             (seconds .4)))
+(let ((stepper (make-stepper (seconds 1)
+                             (seconds 1)))
       (done nil))
   (defun draw-voxel ()
     (when (and ;;(not done)
@@ -244,8 +275,9 @@
       (setf done t)
       (clear-voxel)
       (with-fbo-bound (*voxel-fbo* :attachment-for-size :d)
-        (with-setf* ((depth-mask) nil
-                     (depth-test-function) nil
+        (with-setf* ((depth-test-function) nil
+                     (clear-color) (v! 1 1 1 1)
+                     (depth-mask) nil
                      (cull-face) nil)
           (dolist (actor *actors*)
             (draw-voxel-actor actor))))
@@ -270,36 +302,23 @@
 ;; - trace ends when acumulated alpha is >1 or outside voxel
 ;; - traced color uses a "simple polynomial correction curve to alter the intensity"
 
-;; From BERO
-;; return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
-;; return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
-;; return clamp(tan((PI * (0.5 * 0.75)) * max(0.0, roughness)), 0.00174533102, 3.14159265359);
-(defun-g roughness-to-aperture-angle ((roughness :float))
-  (let ((roughness (clamp roughness 0f0 1f0)))
-    (tan (acos (pow 0.244 (/ (1+ (clamp (- (/ 2f0 (max 1e-4 (* roughness roughness))) 2f0) 4f0 (* 1024f0 16f0)))))))
-    ;;(clamp (* 3.14159265359 .5 .75 (max 0f0 roughness)) 0.00174533102 3.14159265359)
-    #+nil
-    (tan (+ 0.0003474660443456835
-            (* roughness (- 1.3331290497744692
-                            (* roughness 0.5040552688878546)))))))
-
 ;; vec3
 (defun-g trace-diffuse-voxel-cone ((from        :vec3)
                                    (direction   :vec3)
                                    (voxel-light :sampler-3d))
   "Traces a diffuse voxel cone."
-  (let* ((voxel-size     #.(/ 1f0 128))
-         (mipmap-hardcap 6.4)
-         (sqrt2          1.714213);F 1.414213 ; A 1.73205080757 ; fixed 1 distance?
+  (let* ((voxel-size     #.(/ 1f0 64))
+         (mipmap-hardcap 5.4)
+         (sqrt2          1.414213);F 1.414213 ; A 1.73205080757 ; fixed 1 distance?
          ;;
          (direction      (normalize direction))
-         (cone-spread    .55785); "aperture" ; F .325; A .55785173935
+         (cone-spread    .557851); "aperture" ; F .325; A .55785173935
          ;;(cone-spread (roughness-to-aperture-angle roughness))
          (acc            (vec4 0f0))
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           #.(* 2f0 (/ 1f0 128));; fixed 1 distance (?
+         (dist           #.(* 3f0 (/ 1f0 64));; fixed 1 distance (?
                          )); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
     ;; Trace
     (while (and (< dist sqrt2)
@@ -341,7 +360,7 @@
                                  (voxel-light :sampler-3d)
                                  (albedo      :vec3))
   (let* ((isqrt2                  .707106)
-         (voxel-size              #.(/ 1f0 128))
+         (voxel-size              #.(/ 1f0 64))
          (diffuse-indirect-factor .52)
          ;; Angle mix (1.0f => orthogonal direction,
          ;;            0.0f => direction of normal).
@@ -400,6 +419,19 @@
 
 ;;--------------------------------------------------
 
+;; From BERO
+;; return tan(0.0003474660443456835 + (roughness * (1.3331290497744692 - (roughness * 0.5040552688878546)))); // <= used in the 64k
+;; return tan(acos(pow(0.244, 1.0 / (clamp(2.0 / max(1e-4, (roughness * roughness)) - 2.0, 4.0, 1024.0 * 16.0) + 1.0))));
+;; return clamp(tan((PI * (0.5 * 0.75)) * max(0.0, roughness)), 0.00174533102, 3.14159265359);
+(defun-g roughness-to-aperture-angle ((roughness :float))
+  (let ((roughness (clamp roughness 0f0 1f0)))
+    (tan (acos (pow 0.244 (/ (1+ (clamp (- (/ 2f0 (max 1e-4 (* roughness roughness))) 2f0) 4f0 (* 1024f0 16f0)))))))
+    ;;(clamp (* 3.14159265359 .5 .75 (max 0f0 roughness)) 0.00174533102 3.14159265359)
+    #+nil
+    (tan (+ 0.0003474660443456835
+            (* roughness (- 1.3331290497744692
+                            (* roughness 0.5040552688878546)))))))
+
 (defun-g trace-specular-voxel-cone ((from        :vec3)
                                     (direction   :vec3)
                                     (normal      :vec3)
@@ -408,25 +440,27 @@
   (let* ((max-distance (distance (abs from) (vec3 -1f0))) ;; fixed 1 distance
          (mipmap-hardcap 5.4)
          ;;
-         (direction (normalize direction))
-         (voxel-size #.(/ 1f0 128))
-         (offset    (* 8 voxel-size))
-         (from      (+ from (* offset normal)))
-         (acc       (vec4 0f0))
-         (dist      offset))
+         (direction  (normalize direction))
+         (voxel-size #.(/ 1f0 64))
+         (offset     (* 8 voxel-size))
+         (step       (* 10 voxel-size)); x1
+         (from       (+ from (* offset normal)))
+         (acc        (vec4 0f0))
+         (dist       offset))
     (while (and (< dist max-distance)
                 (< (w acc) 1f0))
            (let ((c (+ from (* dist direction))))
              (if (not (inside-cube-p c 0f0))
                  (break))
              (setf c (scale-and-bias c))
-             (let* ((level (* .1 spec (log2 (+ 1f0 (/ (* 1.1 dist) voxel-size)))))
+             (let* ((level (* 0.1 spec (log2 (+ 1f0 (/ dist voxel-size)))))
                     (voxel (texture-lod voxel-light c (min level mipmap-hardcap)))
-                    (f (- 1 (w acc))))
-               (incf (s~ acc :xyz) (* .25 (+ spec) (s~ voxel :xyz) (w voxel) f))
-               (incf (w acc)       (* .25 (w voxel) f))
-               (incf dist          (* voxel-size (+ 1f0 (* .125 level)))))))
-    (* 1f0 (pow (+ 1 spec) .8) (s~ acc :xyz))))
+                    (f     (- 1 (w acc))))
+               (incf (s~ acc :xyz) (* 0.25 (+ 1f0 spec) (s~ voxel :xyz) (w voxel) f))
+               (incf (w acc)       (* 0.25 (w voxel) f))
+               (incf dist          (* step (+ 1f0 (* 0.125 level)))))))
+    (* (pow (+ 1 spec) .8)
+       (s~ acc :xyz))))
 
 (defun-g indirect-specular-light ((view-direction :vec3)
                                   (normal         :vec3)
@@ -448,15 +482,16 @@
 
 ;; Returns a soft shadow blend by using shadow cone tracing.
 ;; Uses 2 samples per step, so it's pretty expensive.
+;; NT: direct shadows
 (defun-g trace-shadow-cone ((from            :vec3)
                             (direction       :vec3)
                             (target-distance :float)
                             (voxel-light     :sampler-3d)
                             (normal          :vec3))
-  (let* ((from (+ from (* normal .05))) ; Removes artifacts but makes self shadowing for dense meshes meh.
-         (acc 0f0)
-         (voxel-size #.(/ 1f0 128))
-         (dist (* 3 voxel-size))
+  (let* ((from (+ from (* normal 0.05))) ; Removes artifacts but makes self shadowing for dense meshes meh.
+         (acc        0f0)
+         (voxel-size #.(/ 1f0 64))
+         (dist       (* 3 voxel-size))
          ;; I'm using a pretty big margin here since I use an emissive
          ;; light ball with a pretty big radius in my demo scenes.
          (stop (- target-distance (* 16f0 voxel-size))))
@@ -471,7 +506,7 @@
                     (s2 (* 0.135 (w (texture-lod voxel-light c (* 4.5 l)))))
                     (s  (+ s1 s2)))
                (incf acc  (* s (- 1 acc)))
-               (incf dist (* .9 voxel-size (+ 1f0 (* 0.05 l)))))))
+               (incf dist (* 0.9 voxel-size (+ 1f0 (* 0.05 l)))))))
     (- 1f0 (pow (smoothstep 0f0 1f0 (* acc 1.4)) (/ 1f0 1.4)))))
 
 ;; vec3 lightDirection = light.position - worldPositionFrag;
