@@ -5,8 +5,10 @@
 ;; - *actors*
 
 ;; Reference:
-;; - https://github.com/Friduric/voxel-cone-tracing/
+;; - https://github.com/Friduric/voxel-cone-tracing/ (most of the code)
 ;; - https://vimeo.com/212749785
+;; - https://github.com/rdinse/VCTGI (for: shadow-factor-fast)
+;; - https://github.com/sfreed141/vct (for: atomic write)
 ;;
 ;; two passes, runs every frame
 ;; 1) forward rendering, light voxelization of all *ACTORS* in world space
@@ -34,6 +36,9 @@
 ;; 2
 ;; TODO: roughness to affect specular cone angle
 ;; TODO: rethink composition
+;; - https://github.com/KhronosGroup/glTF/issues/915
+;; - https://github.com/KhronosGroup/glTF/issues/1427
+;; "ao is meant to occlude only indirect lighting"
 ;; - nvidia vxgi 1
 ;; float3 result =
 ;; albedo.rgb * (g_LightColor.rgb * shadow * NdotL + lerp(g_AmbientColor.rgb,
@@ -130,8 +135,9 @@
 (defun-g shadow-factor-fast ((light-sampler      :sampler-2d)
                              (pos-in-light-space :vec4))
   "returns quickly from the shadowmap, to be used on voxelization"
-  (let* ((shadow-bias .001f0)
-         (shadow-pos (/ (s~ pos-in-light-space :xyz) (w pos-in-light-space)))
+  (let* ((shadow-bias .005)
+         (shadow-pos (/ (s~ pos-in-light-space :xyz)
+                        (w pos-in-light-space)))
          (shadow-pos (+ .5 (* .5 shadow-pos)))
          (shadow-sample (x (texture light-sampler (s~ shadow-pos :xy)))))
     (if (< (+ (- (- shadow-sample) shadow-bias) (z shadow-pos)) 0)
@@ -150,8 +156,8 @@
                         (nor         :vec3)
                         (lpos        :vec4)
                         &uniform
-                        ;;(ithing      :image-3d)
-                        (ithing :uimage-3d)
+                        (ithing      :image-3d)
+                        ;;(ithing :uimage-3d)
                         (shadowmap   :sampler-2d)
                         (light-pos   :vec3)
                         (light-dir   :vec3)
@@ -170,14 +176,14 @@
         ;;(vis 1f0)
         (color    (v! 0 0 0)))
     #+nil
-    (setf color (* vis (spot-light-apply albedo (* *cone-mult* light-color)
+    (setf color (* vis (spot-light-apply albedo light-color
                                          light-pos light-dir pos nor
                                          1f0 .027 .0028
                                          cone-inner
                                          cone-outer)))
     ;;#+nil
     (setf color (* vis (dir-light-apply albedo
-                                        (* *cone-mult* light-color)
+                                        light-color
                                         light-pos
                                         pos
                                         nor)))
@@ -188,20 +194,13 @@
            ;;(alpha (pow 1f0 4f0)); 1f0 = (pow (- 1 transparency) 4f0)
            ;;(alpha 1f0)
            ;;(res   (* alpha (v! color 1)))
-           (res   (v! color 1)))
-      (image-atomic-rgba8-avg ithing
-                              (ivec3 (int (x dxv))
-                                     (int (y dxv))
-                                     (int (z dxv)))
-                              (v! (s~ res :xyz)
-                                  (w res)))
+           (res   (v! color 1))
+           (coord (ivec3 (int (x dxv)) (int (y dxv)) (int (z dxv)))))
       #+nil
-      (image-store ithing
-                   (ivec3 (int (x dxv))
-                          (int (y dxv))
-                          (int (z dxv)))
-                   (v! (s~ res :xyz)
-                       (w res)))
+      (let ((ldr (v! (min (s~ res :xyz) (vec3 1f0)) (w res)))); Armory
+        (image-atomic-rgba8-avg ithing coord ldr); r8uint/rgba8
+        (image-store ithing coord ldr)); rgba8
+      (image-store ithing coord res); rgba16f
       (values))))
 
 (defpipeline-g voxelize-pipe ()
@@ -225,8 +224,8 @@
                                                       ,*volume-dimension*)
                                         :mipmap *voxel-mipmaps*
                                         :element-type
-                                        :rgba8
-                                        ;;:rgba16f
+                                        ;;:rgba8
+                                        :rgba16f
                                         ))
   (setf *voxel-light-zam*
         (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
@@ -256,7 +255,7 @@
              ;; - Fragment
              :cone-inner (cos (radians *cone-inner*));spotlight
              :cone-outer (cos (radians *cone-outer*));spotlight
-             :light-color *light-color*
+             :light-color (v3:*s *light-color* *cone-mult*)
              :light-pos *light-pos*
              :light-dir *light-dir*
              :props properties
@@ -264,8 +263,8 @@
              :ithing *voxel-light-sam*
              :shadowmap *shadow-sam*))))
 
-(let ((stepper (make-stepper (seconds 1)
-                             (seconds 1)))
+(let ((stepper (make-stepper (seconds 2)
+                             (seconds 2)))
       (done nil))
   (defun draw-voxel ()
     (when (and ;;(not done)
@@ -307,24 +306,38 @@
                                    (direction   :vec3)
                                    (voxel-light :sampler-3d))
   "Traces a diffuse voxel cone."
-  (let* ((voxel-size     #.(/ 1f0 64))
+  (let* ((voxel-size #.(/ 1f0 64f0))
          (mipmap-hardcap 5.4)
-         (sqrt2          1.414213);F 1.414213 ; A 1.73205080757 ; fixed 1 distance?
+         (max-dist
+           #.(sqrt 2)
+           ;;#.(sqrt 3)
+           );F 1.414213=(sqrt 2);A 1.73205080757=(sqrt 3)
          ;;
-         (direction      (normalize direction))
-         (cone-spread    .557851); "aperture" ; F .325; A .55785173935
-         ;;(cone-spread (roughness-to-aperture-angle roughness))
-         (acc            (vec4 0f0))
+         (direction (normalize direction))
+         (aperture
+           ".325"
+           ;;".55785173935"
+           );F .325;A .55785173935=(tan 22.5)
+         (acc (vec4 0f0))
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist           #.(* 3f0 (/ 1f0 64));; fixed 1 distance (?
-                         )); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
+         (dist #.(* 4f0 (/ 1f0 64f0))
+               ); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
+         (diam (* dist aperture)))
     ;; Trace
-    (while (and (< dist sqrt2)
+    (while (and (< dist max-dist)
                 (< (w acc) 1f0))
+           #+nil
            (let* ((sample-pos (scale-and-bias (+ from (* dist direction))))
-                  (l          (+ 1f0 (/ (* cone-spread dist) voxel-size)))
+                  (mip (max (log2 (* 64 diam)) 0))
+                  (mip-sample (texture-lod voxel-light sample-pos mip)))
+             (incf acc (* (- 1f0 (w acc)) mip-sample))
+             (incf dist (max (/ diam 2f0) voxel-size))
+             (setf diam (* dist aperture)))
+           ;;#+nil
+           (let* ((sample-pos (scale-and-bias (+ from (* dist direction))))
+                  (l          (+ 1f0 (/ (* aperture dist) voxel-size)))
                   (level      (log2 l))
                   (ll         (* (+ 1f0 level) (+ 1f0 level)))
                   (voxel      (texture-lod voxel-light
@@ -332,8 +345,9 @@
                                            (min mipmap-hardcap level))))
              (incf acc  (* 0.075 ll voxel (pow (- 1 (w voxel)) 2f0)))
              (incf dist (* ll voxel-size 2))))
-    (pow (* (s~ acc :xyz) 2f0)
-         (vec3 1.5))))
+    ;;(s~ acc :xyz)
+    (pow (* (s~ acc :xyz) 2f0) (vec3 1.5))
+    ))
 
 ;; From Friduric
 (defun-g orthogonal ((u :vec3))
@@ -359,8 +373,8 @@
                                  (normal      :vec3)
                                  (voxel-light :sampler-3d)
                                  (albedo      :vec3))
-  (let* ((isqrt2                  .707106)
-         (voxel-size              #.(/ 1f0 64))
+  (let* ((isqrt2                  #.(/ (sqrt 2f0) 2f0))
+         (voxel-size              #.(/ 1f0 64f0))
          (diffuse-indirect-factor .52)
          ;; Angle mix (1.0f => orthogonal direction,
          ;;            0.0f => direction of normal).
@@ -375,6 +389,7 @@
          (corner2                 (* 0.5 (- ortho ortho2)))
          ;; Find start position of trace (start with a bit of offset).
          (n-offset                (* normal (+ 1 (* 4 isqrt2)) voxel-size))
+         ;;(n-offset 0f0)
          (c-origin                (+ wpos n-offset))
          ;; Accumulate indirect diffuse light.
          (acc                     (v! 0 0 0))
@@ -413,9 +428,9 @@
                                                  (mix normal (- corner2) angle-mix)
                                                  voxel-light)))
     ;; Return result.
-    (* diffuse-indirect-factor
-       acc
-       (+ albedo 0.001))))
+    (* acc diffuse-indirect-factor (+ albedo 0.001))
+    ;;(* (+ albedo .0001) (/ acc 9))
+    ))
 
 ;;--------------------------------------------------
 
@@ -437,16 +452,16 @@
                                     (normal      :vec3)
                                     (spec        :float)
                                     (voxel-light :sampler-3d))
-  (let* ((max-distance (distance (abs from) (vec3 -1f0))) ;; fixed 1 distance
+  (let* ((max-distance   (distance (abs from) (vec3 -1f0))) ;; fixed 1 distance
          (mipmap-hardcap 5.4)
+         (voxel-size     #.(/ 1f0 64f0))
          ;;
-         (direction  (normalize direction))
-         (voxel-size #.(/ 1f0 64))
-         (offset     (* 8 voxel-size))
-         (step       (* 10 voxel-size)); x1
-         (from       (+ from (* offset normal)))
-         (acc        (vec4 0f0))
-         (dist       offset))
+         (direction (normalize direction))
+         (offset    (* 8f0 voxel-size))
+         (step      voxel-size); x1
+         (from      (+ from (* offset normal)))
+         (acc       (vec4 0f0))
+         (dist      offset))
     (while (and (< dist max-distance)
                 (< (w acc) 1f0))
            (let ((c (+ from (* dist direction))))
@@ -455,11 +470,11 @@
              (setf c (scale-and-bias c))
              (let* ((level (* 0.1 spec (log2 (+ 1f0 (/ dist voxel-size)))))
                     (voxel (texture-lod voxel-light c (min level mipmap-hardcap)))
-                    (f     (- 1 (w acc))))
+                    (f     (- 1f0 (w acc))))
                (incf (s~ acc :xyz) (* 0.25 (+ 1f0 spec) (s~ voxel :xyz) (w voxel) f))
                (incf (w acc)       (* 0.25 (w voxel) f))
                (incf dist          (* step (+ 1f0 (* 0.125 level)))))))
-    (* (pow (+ 1 spec) .8)
+    (* (pow (+ 1f0 spec) .8)
        (s~ acc :xyz))))
 
 (defun-g indirect-specular-light ((view-direction :vec3)
@@ -490,7 +505,7 @@
                             (normal          :vec3))
   (let* ((from (+ from (* normal 0.05))) ; Removes artifacts but makes self shadowing for dense meshes meh.
          (acc        0f0)
-         (voxel-size #.(/ 1f0 64))
+         (voxel-size #.(/ 1f0 64f0))
          (dist       (* 3 voxel-size))
          ;; I'm using a pretty big margin here since I use an emissive
          ;; light ball with a pretty big radius in my demo scenes.
