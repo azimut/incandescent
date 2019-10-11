@@ -8,7 +8,7 @@
 
 (defparameter *cone-inner* 1f0)
 (defparameter *cone-outer* 1.5f0)
-(defparameter *cone-mult*  .5f0)
+(defparameter *cone-mult*  1f0)
 
 (defvar *unstarted* nil)
 
@@ -55,27 +55,23 @@
   (when *fbo*   (free *fbo*))
   (when *sdfbo* (free *sdfbo*))
   (when *dsfbo* (free *dsfbo*))
-  #+nil
-  (setf *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f)
-                          ;;`(1 :dimensions ,*dimensions* :element-type :rgb16f)
-                          )
-        *sdsam* (sample (attachment-tex *sdfbo* 0) :wrap :clamp-to-edge)
-        ;;*sd2sam* (sample (attachment-tex *sdfbo* 1) :wrap :clamp-to-edge)
-        )
+  ;;#+nil
+  (setf *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f))
+        *sdsam* (sample (attachment-tex *sdfbo* 0) :wrap :clamp-to-edge))
   (setf *fbo*  (make-fbo
                 `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
-                ;; `(1 :dimensions ,*dimensions*  :element-type :rgba16f)
-                ;; `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
-                ;; `(3 :dimensions ,*dimensions*  :element-type :rg16f)
+                `(1 :dimensions ,*dimensions*  :element-type :rgba16f)
+                `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
+                `(3 :dimensions ,*dimensions*  :element-type :rg16f)
                 ;;`(:d ,*dstex*)
                 ;;`(:s ,*dstex*)
                 `(:d :dimensions ,*dimensions*)
                 ))
   (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
-  ;; (setf *sam1* (sample (attachment-tex *fbo*  1) :wrap :clamp-to-edge))
-  ;; (setf *sam2* (sample (attachment-tex *fbo*  2) :wrap :clamp-to-edge))
-  ;; (setf *sam3* (sample (attachment-tex *fbo*  3) :wrap :clamp-to-edge))
-  ;; (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
+  (setf *sam1* (sample (attachment-tex *fbo*  1) :wrap :clamp-to-edge))
+  (setf *sam2* (sample (attachment-tex *fbo*  2) :wrap :clamp-to-edge))
+  (setf *sam3* (sample (attachment-tex *fbo*  3) :wrap :clamp-to-edge))
+  (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
   ;;---------------------------------------------- ----
   (setf (clear-color) (v! 0 0 0 1))
   (gl:clear-stencil 0)
@@ -84,6 +80,7 @@
   (free-scenes)
   ;;--------------------------------------------------
   (init-scene)
+  (init-shadowmap)
   nil)
 
 (let ((stepper (make-stepper (seconds 1) (seconds 1))))
@@ -98,14 +95,15 @@
       ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
       ;;--------------------------------------------------
       (update  *currentcamera* delta)
-      (control *currentcamera* delta 1)
+      (control *currentcamera* delta 4)
       ;;--------------------------------------------------
+      (draw-shadowmap)
       (with-fbo-bound (*fbo*)
         (clear-fbo *fbo*)
         (dolist (actor *actors*)
           (draw actor *currentcamera* time)
           (update actor delta)))
-      #+nil
+      ;;#+nil
       (with-fbo-bound (*sdfbo*) ;; defer shading
         (clear-fbo *sdfbo*)
         (with-setf* ((depth-mask) nil
@@ -118,7 +116,7 @@
                  :metallic-sam *sam3*
                  :shadowmap *shadow-sam*
                  :light-vp (world->clip *shadow-camera*)
-                 :voxel-light  *voxel-light-zam*
+                 ;;:voxel-light  *voxel-light-zam*
                  :cam-pos (pos *currentcamera*)
                  :light-dir   *light-dir*
                  :light-color (v3:*s *light-color* *cone-mult*)
@@ -129,10 +127,10 @@
                      (cull-face)  nil
                      (depth-test-function) nil)
           (map-g #'generic-2d-pipe *bs*
-                 :sam  *sam*
+                 ;;:sam  *sam*
                  ;;:sam2 *god-sam*
                  ;;:sam2 *sam-ssao*
-                 ;;:sam *sdsam*
+                 :sam *sdsam*
                  :samd *samd*)
           ;;(draw-tex-bl *sam-ssao*)
           ;;(draw-tex-tl *sssr*)
@@ -143,7 +141,7 @@
           ;; (draw-tex-br *sam1*)
           ;; (draw-tex-bl *sam2*)
           ;;
-          ;;(draw-tex-tr *shadow-sam*)
+          (draw-tex-tr *shadow-sam*)
           ;;(draw-tex-tr *dssam*)
           ;;(draw-tex-tl *sdsam*)
           ;;(draw-tex-bl *god-sam*)
