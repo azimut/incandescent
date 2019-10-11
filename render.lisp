@@ -65,7 +65,7 @@
                (prefilter-map  :sampler-cube))
   (let* ((roughness .7)
          (metallic .01)
-         (ambient (v! .03 .03 .03))
+         (ambient (* color .03))
          (f0 (v3! .04))
          (f0 (mix f0 color metallic))
          (final-color color)
