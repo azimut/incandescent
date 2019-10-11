@@ -59,17 +59,19 @@
          ;;               2f0)
          ;;   -1f0)
          (uv         uv)
-         (samples    20) ; 20
+         (samples    30) ; 20
          (decay      .9) ; .9 ;; the ghost outside the halo
          (exposure   .4) ; .4 ;; the halo
          ;;(density    .2)
          ;;(weight     .8) ;.8
+         (weight .1)
          (illumdecay .3) ;.1 ;; intensity
          (color      (texture sam uv))
          (occ        (y color))
          (dtc        (* (- uv sun-pos)
                         (/ 1f0 samples)))
-         (dither     (fbm-hash (+ uv (fract time)))))
+         (dither     (fbm-hash (+ uv (fract .2;;time
+                                            )))))
     (dotimes (i samples)
       (decf uv dtc)
       (let ((s (x (texture sam (+ uv (* dither dtc))))))
