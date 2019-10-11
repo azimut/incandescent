@@ -190,7 +190,7 @@
     (incf color (* albedo emissive))
     (let* ((voxel (scale-and-bias pos))
            (dim   (image-size ithing))
-           (dxv   (* dim voxel))
+           (dxv   (* voxel dim))
            ;;(alpha (pow 1f0 4f0)); 1f0 = (pow (- 1 transparency) 4f0)
            ;;(alpha 1f0)
            ;;(res   (* alpha (v! color 1)))
@@ -231,8 +231,8 @@
         (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
   (setf *voxel-light-sam*
         (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
-  (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
-  (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
+  ;; (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
+  ;; (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
   (setf (%cepl.types::%sampler-imagine *voxel-light-sam*) t))
 
 (declaim (inline clear-voxel))
@@ -250,8 +250,8 @@
       (map-g #'voxelize-pipe buf
              ;; - Vertex
              :scale scale
-             :light-vp (world->clip *shadow-camera*)
              :model-world (model->world actor)
+             :light-vp (world->clip *shadow-camera*)
              ;; - Fragment
              :cone-inner (cos (radians *cone-inner*));spotlight
              :cone-outer (cos (radians *cone-outer*));spotlight
@@ -309,20 +309,20 @@
   (let* ((voxel-size #.(/ 1f0 64f0))
          (mipmap-hardcap 5.4)
          (max-dist
-           #.(sqrt 2)
-           ;;#.(sqrt 3)
+           ;;#.(sqrt 2)
+           #.(sqrt 3)
            );F 1.414213=(sqrt 2);A 1.73205080757=(sqrt 3)
          ;;
          (direction (normalize direction))
          (aperture
-           ".325"
-           ;;".55785173935"
+           ;;".325"
+           ".55785173935"
            );F .325;A .55785173935=(tan 22.5)
          (acc (vec4 0f0))
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist #.(* 4f0 (/ 1f0 64f0))
+         (dist #.(* 3f0 (/ 1f0 64f0))
                ); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
          (diam (* dist aperture)))
     ;; Trace
@@ -373,8 +373,8 @@
                                  (normal      :vec3)
                                  (voxel-light :sampler-3d)
                                  (albedo      :vec3))
-  (let* ((isqrt2                  #.(/ (sqrt 2f0) 2f0))
-         (voxel-size              #.(/ 1f0 64f0))
+  (let* ((isqrt2                  #.(/ (sqrt 2f0) 2f0)) ; 0.7071
+         (voxel-size              #.(/ 1f0 64f0))       ; 0.015
          (diffuse-indirect-factor .52)
          ;; Angle mix (1.0f => orthogonal direction,
          ;;            0.0f => direction of normal).
