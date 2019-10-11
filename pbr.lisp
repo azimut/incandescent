@@ -1,5 +1,12 @@
 (in-package #:incandescent)
 
+;; https://darmstadt-graphics.com/doc/cli/05-working-with-PBR-Materials/index.html
+;;                   BaseColor       Metallic 	Roughness
+;; Blue Metal 	     0.1, 0.1, 1.0   1.0 	0.1
+;; White Half- Metal 0.9, 0.9, 0.9   0.5 	0.25
+;; White Porcealain  0.9, 0.9, 0.9   0.0 	0.15
+;; Blue Rubber       0.1, 0.1, 1.0   0.0 	0.7
+
 ;;--------------------------------------------------
 ;; PBR - BRDF
 ;; https://learnopengl.com/PBR/Lighting
@@ -7,17 +14,17 @@
 (defun-g fresnel-schlick ((cos-theta :float)
                           (f0 :vec3))
   (+ f0
-     (* (- 1 f0)
-        (pow (- 1 cos-theta) 5))))
+     (* (- 1f0 f0)
+        (pow (- 1f0 cos-theta) 5f0))))
 
 (defun-g distribution-ggx ((n :vec3)
                            (h :vec3)
                            (roughness :float))
   (let* ((a  (* roughness roughness))
          (a2 (* a a))
-         (n-dot-h  (max (dot n h) 0))
+         (n-dot-h  (max (dot n h) 0f0))
          (n-dot-h2 (* n-dot-h n-dot-h))
-         (num a2)
+         (num   a2)
          (denom (1+ (* n-dot-h2 (1- a2))))
          (denom (* +PI+ denom denom)))
     (/ num denom)))
@@ -25,9 +32,9 @@
 (defun-g geometry-schlick-ggx ((n-dot-v :float)
                                (roughness :float))
   (let* ((r (1+ roughness))
-         (k (/ (* r r) 8))
+         (k (/ (* r r) 8f0))
          (num n-dot-v)
-         (denom (+ (* n-dot-v (- 1 k))
+         (denom (+ (* n-dot-v (- 1f0 k))
                    k)))
     (/ num denom)))
 
@@ -46,11 +53,11 @@
 ;;--------------------------------------------------
 
 (defun-g pbr-ambient-map ((irradiance-map :sampler-cube)
-                          (albedo :vec3)
-                          (ao :float)
-                          (v :vec3)
-                          (n :vec3)
-                          (f0 :vec3))
+                          (albedo         :vec3)
+                          (ao             :float)
+                          (v              :vec3)
+                          (n              :vec3)
+                          (f0             :vec3))
   (let* ((ks (fresnel-schlick (max (dot n v) 0) f0))
          (kd (- 1 ks))
          (irradiance (s~ (texture irradiance-map n)
@@ -84,15 +91,15 @@
 
 
 ;; AMBIENT no SPECULAR
-(defun-g ambient-ibl ((v :vec3)
-                      (n :vec3)
-                      (f0 :vec3)
+(defun-g ambient-ibl ((v              :vec3)
+                      (n              :vec3)
+                      (f0             :vec3)
                       (prefilter-map  :sampler-cube)
                       (irradiance-map :sampler-cube)
-                      (roughness :float)
-                      (metallic  :float)
-                      (color :vec3)
-                      (ao :float))
+                      (roughness      :float)
+                      (metallic       :float)
+                      (color          :vec3)
+                      (ao             :float))
   (let* ((r (reflect (- v) n))
          (f (fresnel-schlick-roughness (max (dot n v) 0) f0
                                        roughness))
@@ -101,8 +108,8 @@
          (irradiance (s~ (texture irradiance-map n) :xyz))
          (diffuse (* irradiance color))
          (prefiltered-color
-          (s~ (texture-lod prefilter-map r (* roughness 4f0))
-              :xyz))
+           (s~ (texture-lod prefilter-map r (* roughness 4f0))
+               :xyz))
          (ambient (* kd diffuse ao)))
     ambient))
 
@@ -153,13 +160,14 @@
                          (v                 :vec3)
                          (n                 :vec3)
                          (roughness         :float)
-                         (f0                :vec3)
                          (metallic          :float)
                          (albedo            :vec3)
                          (specular-strength :float)
                          (light-color       :vec3))
-  (let* ((l (normalize (- light-pos frag-pos)))
-         (h (normalize (+ v l)))
+  (let* ((f0 (vec3 0.04))
+         (f0 (mix f0 albedo metallic))
+         (l  (normalize (- light-pos frag-pos)))
+         (h  (normalize (+ v l)))
          ;;
          (distance (length (- light-pos frag-pos)))
          (radiance light-color)
@@ -191,11 +199,10 @@
                          (v                 :vec3)
                          (n                 :vec3)
                          (roughness         :float)
-                         (f0                :vec3)
                          (metallic          :float)
                          (albedo            :vec3)
                          (specular-strength :float))
-  (pbr-direct-lum light-pos frag-pos v n roughness f0 metallic albedo
+  (pbr-direct-lum light-pos frag-pos v n roughness metallic albedo
                   specular-strength
                   (v! 5 5 5)))
 
@@ -204,10 +211,9 @@
                          (v         :vec3)
                          (n         :vec3)
                          (roughness :float)
-                         (f0        :vec3)
                          (metallic  :float)
                          (albedo    :vec3))
-  (pbr-direct-lum light-pos frag-pos v n roughness f0 metallic albedo
+  (pbr-direct-lum light-pos frag-pos v n roughness metallic albedo
                   .1))
 
 ;;--------------------------------------------------
@@ -219,14 +225,15 @@
                         (v                 :vec3)
                         (n                 :vec3)
                         (roughness         :float)
-                        (f0                :vec3)
                         (metallic          :float)
                         (albedo            :vec3)
                         (specular-strength :float)
                         (linear            :float)
                         (quadratic         :float)
                         (light-color       :vec3))
-  (let* ((l         (normalize (- light-pos frag-pos)))
+  (let* ((f0 (vec3 0.04))
+         (f0 (mix f0 albedo metallic))
+         (l         (normalize (- light-pos frag-pos)))
          (h         (normalize (+ v l)))
          (distance  (length    (- light-pos frag-pos)))
          (constant  1f0)
@@ -261,13 +268,12 @@
                         (v                 :vec3)
                         (n                 :vec3)
                         (roughness         :float)
-                        (f0                :vec3)
                         (metallic          :float)
                         (albedo            :vec3)
                         (specular-strength :float)
                         (linear            :float)
                         (quadratic         :float))
-  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+  (pbr-point-lum light-pos frag-pos v n roughness metallic albedo
                  specular-strength linear quadratic
                  (v! 5 5 5)))
 
@@ -276,11 +282,10 @@
                         (v                 :vec3)
                         (n                 :vec3)
                         (roughness         :float)
-                        (f0                :vec3)
                         (metallic          :float)
                         (albedo            :vec3)
                         (specular-strength :float))
-  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+  (pbr-point-lum light-pos frag-pos v n roughness metallic albedo
                  specular-strength
                  .22 .20))
 
@@ -289,10 +294,9 @@
                         (v                 :vec3)
                         (n                 :vec3)
                         (roughness         :float)
-                        (f0                :vec3)
                         (metallic          :float)
                         (albedo            :vec3))
-  (pbr-point-lum light-pos frag-pos v n roughness f0 metallic albedo
+  (pbr-point-lum light-pos frag-pos v n roughness metallic albedo
                  .1))
 
 ;;--------------------------------------------------
@@ -304,7 +308,6 @@
                             (v                 :vec3)
                             (n                 :vec3)
                             (roughness         :float)
-                            (f0                :vec3)
                             (metallic          :float)
                             (albedo            :vec3)
                             (specular-strength :float)
@@ -314,52 +317,63 @@
                             (outer-cutoff      :float)
                             (linear            :float)
                             (quadratic         :float))
-  (let* ((l         (normalize (- light-pos frag-pos)))
-         (h         (normalize (+ v l)))
-         (distance  (length    (- light-pos frag-pos)))
+  (let* ((f0 (vec3 0.04))
+         (f0 (mix f0 albedo metallic))
+         (distance (length (- light-pos frag-pos)))
          ;;
-         (constant  1f0)
+         (constant 1f0)
+         ;;#+nil
          (attenuation (/ 1f0
                          (+ constant
                             (* linear distance)
-                            (* quadratic distance))))
+                            (* quadratic distance distance))))
+         ;;(attenuation (/ 1f0 (* distance distance)))
+         (light-color (* light-color attenuation)) ;? took from learnopengl pbr code
          ;;
          (cut-off       (cos (radians cutoff)))
          (outer-cut-off (cos (radians outer-cutoff)))
          ;;
+         (l         (normalize (- light-pos frag-pos)))
          (theta     (dot l (normalize (- light-dir))))
          (epsilon   (- cut-off outer-cut-off))
-         (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1))
+         (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0f0 1f0))
          ;;
          (radiance (* light-color intensity))
          ;; pbr - cook-torrance brdf
+         (h   (normalize (+ v l)))
          (ndf (distribution-ggx n h roughness))
          (g   (geometry-smith n v l roughness))
-         (f   (fresnel-schlick (max (dot h v) 0) f0))
-         ;;
-         (ks  f)
-         (kd  (- 1 ks))
-         (kd  (* kd (- 1 metallic)))
+         (f   (fresnel-schlick (max (dot h v) 0f0) f0))
          ;;
          (numerator   (* ndf g f))
-         (denominator (* (max (dot n v) 0)
-                         (max (dot n l) 0)
-                         4))
+         (denominator (* (max (dot n v) 0f0)
+                         (max (dot n l) 0f0)
+                         4f0))
          (specular    (* specular-strength
                          (/ numerator (max denominator .001))))
+         ;;
+         (ks f) ; is = fresnel
+         ;; for energy conservation, the diffuse and specular light can't
+         ;; be above 1.0 (unless the surface emits light); to preserve this
+         ;; relationship the diffuse component (kD) should equal 1.0 - kS.
+         (kd (- 1f0 ks))
+         ;; multiply kD by the inverse metalness such that only non-metals
+         ;; have diffuse lighting, or a linear blend if partly metal (pure metals
+         ;; have no diffuse light).
+         (kd (* kd (- 1f0 metallic)))
+         ;; scale light by NdotL
+         (n-dot-l (max (dot n l) 0f0))
          ;; add to outgoing radiance lo
-         (n-dot-l     (max (dot n l) 0))
-         (lo          (* (+ specular (/ (* kd albedo) +PI+))
-                         radiance
-                         n-dot-l)))
-    (* attenuation lo)))
+         (lo      (* (+ specular (/ (* kd albedo) +PI+))
+                     radiance
+                     n-dot-l)))
+    lo))
 
 (defun-g pbr-spotlight-lum ((light-pos         :vec3)
                             (frag-pos          :vec3)
                             (v                 :vec3)
                             (n                 :vec3)
                             (roughness         :float)
-                            (f0                :vec3)
                             (metallic          :float)
                             (albedo            :vec3)
                             (specular-strength :float)
@@ -368,7 +382,7 @@
                             (cutoff            :float)
                             (outer-cutoff      :float))
   (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
+                     roughness metallic albedo
                      specular-strength light-color
                      light-dir
                      cutoff
@@ -380,14 +394,13 @@
                             (v                 :vec3)
                             (n                 :vec3)
                             (roughness         :float)
-                            (f0                :vec3)
                             (metallic          :float)
                             (albedo            :vec3)
                             (specular-strength :float)
                             (light-color       :vec3)
                             (light-dir         :vec3))
   (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
+                     roughness metallic albedo
                      specular-strength light-color
                      light-dir
                      4.5 7.5))
@@ -397,13 +410,12 @@
                             (v                 :vec3)
                             (n                 :vec3)
                             (roughness         :float)
-                            (f0                :vec3)
                             (metallic          :float)
                             (albedo            :vec3)
                             (specular-strength :float)
                             (light-color       :vec3))
   (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
+                     roughness metallic albedo
                      specular-strength light-color
                      (v! 0 -1 0)))
 
@@ -412,12 +424,11 @@
                             (v                 :vec3)
                             (n                 :vec3)
                             (roughness         :float)
-                            (f0                :vec3)
                             (metallic          :float)
                             (albedo            :vec3)
                             (specular-strength :float))
   (pbr-spotlight-lum light-pos frag-pos v n
-                     roughness f0 metallic albedo
+                     roughness metallic albedo
                      specular-strength
                      (v! 5 5 5)))
 

@@ -207,8 +207,8 @@
                                  (* (sin theta) (sin phi))
                                  (cos theta)))
              ;; Tangent space to world
-             (sample-vec (+ (* right (x tangent-sample))
-                            (* up (y tangent-sample))
+             (sample-vec (+ (* right  (x tangent-sample))
+                            (* up     (y tangent-sample))
                             (* normal (z tangent-sample)))))
         (incf irradiance (* (s~ (texture tex sample-vec) :xyz)
                             (cos theta)
