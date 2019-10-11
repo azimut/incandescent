@@ -16,9 +16,10 @@
 
 (defun-g cubemap-frag ((tc :vec3)
                        &uniform
+                       (color :vec3)
                        (tex :sampler-cube))
-  (let* ((color (s~ (texture tex tc) :xyz)))
-    (v! color 1)))
+  (let ((color3 (s~ (texture tex tc) :xyz)))
+    (v! (* color color3) 1)))
 
 (defpipeline-g cubemap-pipe ()
   :vertex   (cubemap-vert g-pnt)
