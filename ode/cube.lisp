@@ -39,13 +39,14 @@
     (push obj *actors*)
     obj))
 
-(defmethod update ((actor physic-box) dt)
+(defmethod update :around ((actor physic-box) dt)
   "updates visual representation from ODE value"
   (when *world*
     (with-slots (pos rot body orot geom immovablep) actor
       (unless immovablep
         (setf pos (ode-geom-get-position geom))
-        (setf rot (ode-geom-get-quaternion2 orot geom))))))
+        (setf rot (ode-geom-get-quaternion2 orot geom)))))
+  (call-next-method))
 
 (defmethod draw ((actor physic-box) camera (time single-float))
   (with-slots (buf scale color draw-p) actor

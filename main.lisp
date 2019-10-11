@@ -141,12 +141,13 @@
           ;; (draw-tex-br *sam1*)
           ;; (draw-tex-bl *sam2*)
           ;;
-          (draw-tex-tr *shadow-sam*)
+          ;;(draw-tex-tr *shadow-sam*)
           ;;(draw-tex-tr *dssam*)
           ;;(draw-tex-tl *sdsam*)
           ;;(draw-tex-bl *god-sam*)
           )
         ))
+    (ode-update)
     ;; Stop on ESC
     (when (keyboard-button (keyboard) key.escape)
       (play :stop))

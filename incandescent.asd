@@ -293,7 +293,8 @@
   :license  "MIT"
   :version "0.0.1"
   :serial t
-  :depends-on (#:incandescent)
+  :depends-on (#:incandescent
+               #:incandescent/ode)
   :components (
                ;; (:file "cubemap/render")
                ;; (:file "cubemap/cubemap")
@@ -305,7 +306,7 @@
                ;; (:file "things/piso")
                ;; (:file "things/pbr-simple")
                ;; (:file "things/pbr")
-               (:file "shadowmap")
+               (:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
                (:file "things/drifter/defer")
                (:file "things/drifter/the")

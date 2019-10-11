@@ -1,6 +1,6 @@
 (in-package #:incandescent)
 
-(defclass drifter (actor) ;;(physic-box)
+(defclass drifter (physic-box)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
                :documentation "emissive, spec, rough, metallic"))
@@ -20,9 +20,9 @@
                             :scale scale :color color
                             :pos pos :rot rot
                             ;; ODE
-                            ;; :x (coerce (x dim) 'double-float)
-                            ;; :y (coerce (y dim) 'double-float)
-                            ;; :z (coerce (z dim) 'double-float)
+                            :x (coerce (x dim) 'double-float)
+                            :y (coerce (y dim) 'double-float)
+                            :z (coerce (z dim) 'double-float)
                             ;; ---
                             :buf (box (x dim)
                                       (y dim)
@@ -60,3 +60,20 @@
            :model-world (model->world actor)
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))
+
+;; fake it
+
+(let ((jump nil)
+      (sjump (make-stepper (seconds 1) (seconds 1))))
+  (defmethod update ((obj drifter) dt)
+    (with-slots (body pos) obj
+      (when (< (y pos) .5)
+        (when (keyboard-button (keyboard) key.j)
+          (%ode:body-enable body)
+          (%ode:body-add-force body 0d0 1000d0 0d0)))
+      (when (keyboard-button (keyboard) key.u)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 10d0))
+      (when (keyboard-button (keyboard) key.m)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 -10d0)))))
