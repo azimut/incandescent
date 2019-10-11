@@ -7,14 +7,15 @@
 (defvar *bs* nil)
 
 (defparameter *cone-inner* 1f0)
-(defparameter *cone-outer* 1.2f0)
-(defparameter *cone-mult*  8f0)
+(defparameter *cone-outer* 1.5f0)
+(defparameter *cone-mult*  .5f0)
 
 (defvar *unstarted* nil)
 
 (defparameter *dimensions* '(1366 768))
 ;;(defparameter *dimensions* '(800 600))
 ;;(defparameter *dimensions* '(533 400))
+(defparameter *dimensions* '(171 81))
 (defparameter *dimensions* '(341 192))
 (defparameter *dimensions* '(683 384))
 (defparameter *dimensions* '(320 240))
@@ -44,7 +45,7 @@
 (defvar *sd2sam* nil)
 
 ;; 5 3 2 1 - with 0
-(defun init ()
+(defmethod init ()
   (setf *random-state* (make-random-state t))
   ;;--------------------------------------------------
   ;; Buffer stream for single stage pipelines
@@ -54,148 +55,110 @@
   (when *fbo*   (free *fbo*))
   (when *sdfbo* (free *sdfbo*))
   (when *dsfbo* (free *dsfbo*))
-  (cloud::init-csound)
+  #+nil
   (setf *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f)
                           ;;`(1 :dimensions ,*dimensions* :element-type :rgb16f)
                           )
         *sdsam* (sample (attachment-tex *sdfbo* 0) :wrap :clamp-to-edge)
         ;;*sd2sam* (sample (attachment-tex *sdfbo* 1) :wrap :clamp-to-edge)
         )
-  ;; (setf *dsfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f))
-  ;;       *dssam* (sample (attachment-tex *dsfbo* 0)))
-  #+nil
-  (setf *dstex* (make-texture nil :dimensions *dimensions*
-                              :element-type :DEPTH24;;-STENCIL8
-                              )
-        *dsfbo* (make-fbo `(:d ,*dstex*) `(:s ,*dstex*))
-        *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f)
-                          `(:d ,*dstex*) `(:s ,*dstex*))
-        *sdsam* (sample (attachment-tex *sdfbo* 0)))
   (setf *fbo*  (make-fbo
                 `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(1 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(3 :dimensions ,*dimensions*  :element-type :rg16f)
+                ;; `(1 :dimensions ,*dimensions*  :element-type :rgba16f)
+                ;; `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
+                ;; `(3 :dimensions ,*dimensions*  :element-type :rg16f)
                 ;;`(:d ,*dstex*)
                 ;;`(:s ,*dstex*)
                 `(:d :dimensions ,*dimensions*)
                 ))
   (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
-  (setf *sam1* (sample (attachment-tex *fbo*  1) :wrap :clamp-to-edge))
-  (setf *sam2* (sample (attachment-tex *fbo*  2) :wrap :clamp-to-edge))
-  (setf *sam3* (sample (attachment-tex *fbo*  3) :wrap :clamp-to-edge))
-  (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
+  ;; (setf *sam1* (sample (attachment-tex *fbo*  1) :wrap :clamp-to-edge))
+  ;; (setf *sam2* (sample (attachment-tex *fbo*  2) :wrap :clamp-to-edge))
+  ;; (setf *sam3* (sample (attachment-tex *fbo*  3) :wrap :clamp-to-edge))
+  ;; (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge))
   ;;---------------------------------------------- ----
   (setf (clear-color) (v! 0 0 0 1))
   (gl:clear-stencil 0)
   ;;--------------------------------------------------
   (free-actors)
   (free-scenes)
-  (init-variance)
-  (init-voxel)
-  (init-god)
-  (init-scene)
-  (rocket-reset t)
-  (rocketman:load-file *rocket* (truename "static/damo.rocket"))
   ;;--------------------------------------------------
   nil)
 
-(defmethod draw! ()
-  (unless *unstarted*
-    (setf *unstarted* t))
-  (rocket-update)
-  (let* ((res   (surface-resolution (current-surface)))
-         (now   (get-internal-real-time))
-         (time  (* 1f0 now))
-         (delta (* (- now *last-time*) .001))
-         (delta (if (> delta .16) .00001 delta)))
-    (setf *last-time* now)
-    (setf (resolution (current-viewport)) res)
-    ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
-    ;;--------------------------------------------------
-    ;;(update  *currentcamera* delta)
-    ;;(control *currentcamera* delta 1)
-    ;;#+nil
-    (progn (setf (pos *currentcamera*)
-                 (v3:+ (v! (rocket-get "camera:x")
-                           (rocket-get "camera:y")
-                           (rocket-get "camera:z"))
-                       *offset*))
-           (setf (fov *currentcamera*)
-                 (rocket-get "camera:fov"))
-           (setf (rot *currentcamera*)
-                 (q:point-at (v! 0 1 0)
-                             (pos *currentcamera*)
-                             (v! (rocket-get "look:x")
-                                 (rocket-get "look:y")
-                                 (rocket-get "look:z")))))
-    ;;--------------------------------------------------
-    ;;(draw-variance)
-    (with-fbo-bound (*fbo*);; defer rendering
-      (clear-fbo *fbo*)
-      (clear-fbo *shadow-fbo*)
-      (dolist (actor *actors*)
-        (draw actor *currentcamera* time)
-        (draw-variance-actor actor)
-        (update actor delta)))
-    (draw-god *sam3* (* .001 time)
-              :weight (rocket-get "god:weight")
-              :pos *light-pos*)
-    (with-fbo-bound (*sdfbo*) ;; defer shading
-      (clear-fbo *sdfbo*)
-      (with-setf* ((depth-mask) nil
-                   (cull-face) nil
-                   (depth-test-function) nil)
-        (map-g #'postprocess-defer-pipe *bs*
-               :albedo-sam   *sam*
-               :position-sam *sam1*
-               :normal-sam   *sam2*
-               :metallic-sam *sam3*
-               :shadowmap *shadow-sam*
-               :light-vp (world->clip *shadow-camera*)
-               :voxel-light  *voxel-light-zam*
-               :cam-pos (pos *currentcamera*)
-               :light-dir   *light-dir*
-               :light-color *light-color*
-               :light-pos   *light-pos*)))
-    (draw-voxel)
-    (cloud::play-noise)
-    (as-frame
-      (with-setf* ((depth-mask) nil
-                   (cull-face)  nil
-                   (depth-test-function) nil)
-        (map-g #'generic-2d-pipe *bs*
-               ;;:sam  *sam*
-               :sam2 *god-sam*
-               ;;:sam2 *sam-ssao*
-               :sam *sdsam*
-               :samd *samd*)
-        ;;(draw-tex-bl *sam-ssao*)
-        ;;(draw-tex-tl *sssr*)
-        ;;(draw-tex-tl *god-sam*)
-        ;;
-        ;; (draw-tex-tl *sam3*)
-        ;; (draw-tex-tr *sam*)
-        ;; (draw-tex-br *sam1*)
-        ;; (draw-tex-bl *sam2*)
-        ;;
-        ;;(draw-tex-tr *shadow-sam*)
-        ;;(draw-tex-tr *dssam*)
-        ;;(draw-tex-tl *sdsam*)
-        ;;(draw-tex-bl *god-sam*)
-        )
-      ))
-  ;; (rotatef *sdfbo* *dsfbo*)
-  ;; (rotatef *sdsam* *dssam*)
-  (when (keyboard-button (keyboard) key.escape)
-    (play :stop))
-  (decay-events))
+(let ((stepper (make-stepper (seconds 1) (seconds 1))))
+  (defmethod draw! ()
+    (let* ((res   (surface-resolution (current-surface)))
+           (now   (get-internal-real-time))
+           (time  (* 1f0 now))
+           (delta (* (- now *last-time*) .001))
+           (delta (if (> delta .16) .00001 delta)))
+      (setf *last-time* now)
+      (setf (resolution (current-viewport)) res)
+      ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
+      ;;--------------------------------------------------
+      (update  *currentcamera* delta)
+      (control *currentcamera* delta 1)
+      ;;--------------------------------------------------
+      (with-fbo-bound (*fbo*)
+        (clear-fbo *fbo*)
+        (dolist (actor *actors*)
+          (draw actor *currentcamera* time)
+          (update actor delta)))
+      #+nil
+      (with-fbo-bound (*sdfbo*) ;; defer shading
+        (clear-fbo *sdfbo*)
+        (with-setf* ((depth-mask) nil
+                     (cull-face) nil
+                     (depth-test-function) nil)
+          (map-g #'postprocess-defer-pipe *bs*
+                 :albedo-sam   *sam*
+                 :position-sam *sam1*
+                 :normal-sam   *sam2*
+                 :metallic-sam *sam3*
+                 :shadowmap *shadow-sam*
+                 :light-vp (world->clip *shadow-camera*)
+                 :voxel-light  *voxel-light-zam*
+                 :cam-pos (pos *currentcamera*)
+                 :light-dir   *light-dir*
+                 :light-color (v3:*s *light-color* *cone-mult*)
+                 :light-pos   *light-pos*)))
+      ;;#+nil
+      (as-frame
+        (with-setf* ((depth-mask) nil
+                     (cull-face)  nil
+                     (depth-test-function) nil)
+          (map-g #'generic-2d-pipe *bs*
+                 :sam  *sam*
+                 ;;:sam2 *god-sam*
+                 ;;:sam2 *sam-ssao*
+                 ;;:sam *sdsam*
+                 :samd *samd*)
+          ;;(draw-tex-bl *sam-ssao*)
+          ;;(draw-tex-tl *sssr*)
+          ;;(draw-tex-tl *god-sam*)
+          ;;
+          ;; (draw-tex-tl *sam3*)
+          ;;(draw-tex-tr *sam*)
+          ;; (draw-tex-br *sam1*)
+          ;; (draw-tex-bl *sam2*)
+          ;;
+          ;;(draw-tex-tr *shadow-sam*)
+          ;;(draw-tex-tr *dssam*)
+          ;;(draw-tex-tl *sdsam*)
+          ;;(draw-tex-bl *god-sam*)
+          )
+        ))
+    ;; Stop on ESC
+    (when (keyboard-button (keyboard) key.escape)
+      (play :stop))
+    (decay-events)))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))
 
 (defun playit ()
-  ;; (cepl:initialize-cepl)
-  ;; (cepl.context::legacy-add-surface (cepl:cepl-context) "CEPL" 341 192 nil t
+  ;; (cepl:initialize-cepl :gl-version nil)
+  ;; (cepl.context::legacy-add-surface (cepl:cepl-context) "CEPL" 341 192 t t
   ;;                                   nil nil t nil)
+  ;; (cepl:cls)
   (play :start))

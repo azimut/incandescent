@@ -8,15 +8,11 @@
   :serial t
   :depends-on (#:cepl
                #:alexandria
-               ;;#:cm ;;!!
-               #:cloud ;;!!!!
-               #:rocketman ;;!!
                #:serapeum
                #:temporal-functions
                #:with-setf
                #:rtg-math.vari
                #:cepl.sdl2
-               ;;#:swank
                #:nineveh
                #:png
                #:arrow-macros
@@ -25,13 +21,13 @@
                #:dirt)
   :components ((:file "package")
                (:file "incandescent")
-               (:file "lib/rocketman") ;;!!!!!!!
+               ;;(:file "lib/rocketman") ;;!!!!!!!
                (:file "lib/assets")   ;; lisp
                (:file "pbr")          ;; gpu
                (:file "lib/misc-gpu") ;; gpu
                (:file "actors")       ;; lisp
                (:file "camera")       ;; lisp
-               ;;(:file "controls")     ;; lisp
+               (:file "controls")     ;; lisp
                (:file "postprocess")  ;; gpu
                (:file "draw")         ;; lisp
                (:file "render")       ;; gpu - main pipelines
@@ -45,7 +41,7 @@
                ;; (:file "things/piso")
                ;; (:file "things/pbr-simple")
                ;; (:file "things/pbr")
-               (:file "shadowmap/render")
+               ;;(:file "shadowmap/render")
                (:file "main")))
 
 (asdf:defsystem #:incandescent/assimp
@@ -203,8 +199,7 @@
   :serial t
   :depends-on (#:incandescent
                #:bodge-ode
-               ;;#:ode-blob
-               )
+               #:ode-blob)
   :components ((:file "ode/ode")
                (:file "ode/physic")
                (:file "ode/camera")
@@ -240,19 +235,75 @@
   :depends-on (#:incandescent
                ;;#:incandescent/shadowmap
                #:incandescent/assimp
+               #:incandescent/ode
                ;;#:incandescent/rocketman
                ;;#:incandescent/particles
                )
-  :components ((:file "shadowmap/shadowmap")
-               (:file "shadowmap/variance")
+  :components ((:file "controls")
+               (:file "shadowmap/shadowmap")
+               (:file "shadowmap/pcf")
+               ;;(:file "shadowmap/variance")
                (:file "vxgi")
                (:file "things/defered-ssr/scene")
                (:file "things/defered-ssr/obstacles")
                (:file "things/defered-ssr/lucy")
                (:file "things/defered-ssr/sun")
-               (:file "things/defered-ssr/sound")
-               (:file "godrays"))
+               ;;(:file "things/defered-ssr/sound")
+               ;;(:file "godrays")
+               )
   :defsystem-depends-on (:deploy)
   :build-operation "deploy-op"
   :build-pathname "damo-app"
   :entry-point "incandescent::playit")
+
+(asdf:defsystem #:incandescent/next
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               ;;#:incandescent/shadowmap
+               #:incandescent/assimp
+               ;;#:incandescent/ode
+               ;;#:incandescent/rocketman
+               ;;#:incandescent/particles
+               )
+  :components ((:file "controls")
+               (:file "shadowmap/shadowmap")
+               (:file "shadowmap/pcf")
+               ;;(:file "shadowmap/variance")
+               (:file "vxgi")
+               (:file "things/defered-ssr/scene")
+               (:file "things/defered-ssr/obstacles")
+               (:file "things/defered-ssr/lucy")
+               (:file "things/defered-ssr/sun")
+               (:file "things/defered-ssr/walls")
+               ;;(:file "things/defered-ssr/sound")
+               (:file "godrays")
+               )
+  :defsystem-depends-on (:deploy)
+  :build-operation "deploy-op"
+  :build-pathname "damo-next"
+  :entry-point "incandescent::playit")
+
+(asdf:defsystem #:incandescent/drifter
+  :description "A game of sorts"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent)
+  :components (
+               ;; (:file "cubemap/render")
+               ;; (:file "cubemap/cubemap")
+               ;; (:file "cubemap/env-map")
+               ;; (:file "cubemap/clouds")
+               ;; (:file "cubemap/hdr")
+               ;; (:file "ibl")
+               ;; (:file "things/box")
+               ;; (:file "things/piso")
+               ;; (:file "things/pbr-simple")
+               ;; (:file "things/pbr")
+               ;;(:file "shadowmap/render")
+               (:file "things/drifter/the")))
