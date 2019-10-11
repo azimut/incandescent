@@ -32,7 +32,7 @@
    :fov 60f0))
 
 (defparameter *camera*
-  (make-instance 'pers :far 200f0))
+  (make-instance 'pers :far 200f0 :near .1))
 
 (defparameter *camera2*
   (make-instance 'pers :far 1000f0))

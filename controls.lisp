@@ -7,26 +7,27 @@
 (defparameter *run*   (make-stepper (seconds .5) (seconds .5)))
 
 (defun cam-spin (camera ang)
-  (with-slots (rot) camera
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle *vec3-forward* ang))))))
+  (setf (rot camera)
+        (q:normalize
+         (q:* (rot camera) (q:from-axis-angle *vec3-forward* ang)))))
 
 (defun cam-turn (camera ang)
-  (with-slots (rot) camera
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle *vec3-up* ang))))))
+  (setf (rot camera)
+        (q:normalize
+         (q:* (rot camera) (q:from-axis-angle *vec3-up* ang)))))
 
 (defun cam-tilt (camera ang)
-  (with-slots (rot) camera
-    (setf rot (q:normalize
-               (q:* rot (q:from-axis-angle *vec3-right* ang))))))
+  (setf (rot camera)
+        (q:normalize
+         (q:* (rot camera) (q:from-axis-angle *vec3-right* ang)))))
 
 
 (defun god-move (factor dt camera)
   "absolute movement"
   (declare (type fixnum factor)
            (type single-float dt)
-           (type camera camera))
+           ;;(type camera camera)
+           )
   ;; ↑ forward
   (when (keyboard-button (keyboard) key.w)
     (v3:incf (pos camera)
@@ -62,7 +63,8 @@
   "absolute movement"
   (declare (type fixnum factor)
            (type single-float dt)
-           (type camera camera))
+           ;;(type camera camera)
+           )
   ;; ↑ forward
   (when (keyboard-button (keyboard) key.w)
     (let* ((camdir (q:to-direction (rot camera)))
@@ -101,7 +103,7 @@
 (defgeneric control (camera dt factor))
 
 ;; MODIFIERS
-(defmethod control :around ((camera camera) dt factor)
+(defmethod control :around (camera dt factor)
   ;; - run
   (when (keyboard-button (keyboard) key.lshift)
     (setf factor 20))
@@ -110,12 +112,12 @@
     (setf factor 5))
   (call-next-method))
 
-(defmethod control ((camera camera) dt factor)
+(defmethod control (camera dt factor)
   "free camera controls"
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; MOVEMENT
-  ;;(human-move factor dt camera)
-  (god-move factor dt camera)
+  (human-move factor dt camera)
+  ;;(god-move factor dt camera)
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;; SPIN
   (when (key-down-p key.q)

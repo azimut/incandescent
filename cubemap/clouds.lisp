@@ -10,20 +10,21 @@
     (setf *t-cubemap* NIL)))
 
 (defun init-clouds ()
-  (unless *t-cubemap*
-    (setf *t-cubemap*
-          (make-cubemap-tex
-           "static/ThickCloudsWater/left.png"
-           "static/ThickCloudsWater/right.png"
-           "static/ThickCloudsWater/up.png"
-           "static/ThickCloudsWater/down.png"
-           "static/ThickCloudsWater/front.png"
-           "static/ThickCloudsWater/back.png"))
-    (setf *s-cubemap*
-          (sample *t-cubemap*
-                  :wrap :clamp-to-edge
-                  :magnify-filter :linear))))
+  (free-clouds)
+  (setf *t-cubemap*
+        (make-cubemap-tex
+         "static/ThickCloudsWater/left.png"
+         "static/ThickCloudsWater/right.png"
+         "static/ThickCloudsWater/up.png"
+         "static/ThickCloudsWater/down.png"
+         "static/ThickCloudsWater/front.png"
+         "static/ThickCloudsWater/back.png"))
+  (setf *s-cubemap*
+        (sample *t-cubemap*
+                :wrap :clamp-to-edge
+                :magnify-filter :linear)))
 
 (defun make-clouds ()
-  (init-clouds)
+  (unless *t-cubemap*
+    (init-clouds))
   (make-env-map *t-cubemap* *s-cubemap*))

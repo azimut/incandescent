@@ -14,8 +14,9 @@
    (seed       :initarg :seed       :initform (random 1f0))
    (voxelize-p :initarg :voxelize-p)
    (shadow-p   :initarg :shadow-p   :documentation "casts shadow?")
-   (draw-p     :initarg :draw-p     :initform t))
+   (draw-p     :initarg :draw-p))
   (:default-initargs
+   :draw-p t
    :shadow-p t
    :voxelize-p t
    :name  (gensym)
@@ -67,7 +68,7 @@
 (defun find-actor-class (class-name)
   (declare (type symbol class-name))
   (find-if (lambda (a) (typep a class-name))
-           *actors*))
+           (alexandria:shuffle *actors*)))
 
 (defun delete-actor-name (actor-name)
   (declare (symbol actor-name))
@@ -78,9 +79,11 @@
   NIL)
 
 (defun delete-actor-class (class-name)
-  (declare (type string class-name))
-  (let ((obj (find-if (lambda (x) (string-equal class-name (serapeum:class-name-of x)))
-                      *actors*)))
+  "deletes 1 of actor class"
+  (declare (type symbol class-name))
+  (let ((obj (find-if
+              (lambda (x) (eq class-name (serapeum:class-name-of x)))
+              *actors*)))
     (setf *actors* (delete obj *actors*))
     (when obj (free obj)))
   NIL)

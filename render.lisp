@@ -36,7 +36,7 @@
                    (model-world :mat4)
                    (world-view  :mat4)
                    (view-clip   :mat4)
-                   (uv-scale    :vec2)
+                   (uv-repeat   :vec2)
                    (scale       :float))
   (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
@@ -46,7 +46,7 @@
          (view-pos   (* world-view  world-pos))
          (clip-pos   (* view-clip   view-pos)))
     (values clip-pos
-            (* uv-scale (treat-uvs tex))
+            (* uv-repeat (treat-uvs tex))
             world-norm
             (s~ world-pos :xyz))))
 
@@ -74,57 +74,8 @@
                                        light-pos
                                        frag-pos
                                        frag-norm
-                                       cam-pos 32 1))
-         ;; (ambient (ambient-ibl (normalize (- cam-pos frag-pos))
-         ;;                       frag-norm
-         ;;                       f0
-         ;;                       brdf-luf
-         ;;                       prefilter-map
-         ;;                       irradiance-map
-         ;;                       roughness
-         ;;                       metallic
-         ;;                       color
-         ;;                       1f0))
-         ;;(final-color (- 1f0 (nineveh.noise:cellular-noise-fast (* 20 uv))))
-         ;; (final-color (* light-color
-         ;;                 (pbr-direct-lum light-pos
-         ;;                                 frag-pos
-         ;;                                 (normalize (- cam-pos frag-pos))
-         ;;                                 frag-norm
-         ;;                                 roughness
-         ;;                                 f0
-         ;;                                 metallic
-         ;;                                 final-color
-         ;;                                 )))
-         ;; (final-color
-         ;;  (+ final-color
-         ;;     (* (v! .2 .2 .9)
-         ;;        (pbr-point-lum (v! (* 2 (sin (* .01 time))) 0 0)
-         ;;                       frag-pos
-         ;;                       (normalize (- cam-pos frag-pos))
-         ;;                       frag-norm
-         ;;                       roughness
-         ;;                       f0
-         ;;                       metallic
-         ;;                       color
-         ;;                       ))))
-         ;; (final-color (+ final-color
-         ;;                 (point-light-apply color
-         ;;                                    (v! .2 .9 .2)
-         ;;                                    (v! (* 2 (sin (* .01 time))) 0 0)
-         ;;                                    frag-pos
-         ;;                                    frag-norm
-         ;;                                    1
-         ;;                                    .022
-         ;;                                    .0019
-         ;;                                    ;;cam-pos 2 .9
-         ;;                                    )))
-         )
-    (values (v! (+ ambient final-color) 1)
-            ;; (if (> (dot final-color (v! .2126 .7152 .0722)) 1f0)
-            ;;     (v! final-color 1)
-            ;;     (v! 0 0 0 1))
-            )))
+                                       cam-pos 32 1)))
+    (v! (+ ambient final-color) 1)))
 
 (defpipeline-g generic-pipe ()
   :vertex (vert g-pnt)
