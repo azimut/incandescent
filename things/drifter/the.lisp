@@ -1,11 +1,27 @@
 (in-package #:incandescent)
 
 (defclass drifter (physic-box)
-  ((properties :initform (v! 0 .7 .9 .2)
+  (amotor
+   (properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
                :documentation "emissive, spec, rough, metallic"))
   (:default-initargs
    :pos (v! 0 .9 0)))
+
+(defmethod free ((obj drifter))
+  (with-slots (amotor) obj
+    (%ode:joint-destroy amotor)))
+
+(defmethod initialize-instance :after ((obj drifter) &key)
+  (with-slots (amotor body) obj
+    (setf amotor (%ode:joint-create-a-motor *world* 0))
+    (%ode:joint-attach amotor body 0)
+    ;;
+    (%ode:joint-set-a-motor-num-axes amotor 1)
+    (%ode:joint-set-a-motor-axis     amotor 0 1 0d0 0d0 1d0)
+    (%ode:joint-set-a-motor-angle    amotor 0 0d0)
+    (%ode:joint-set-a-motor-param    amotor %ode:+param-f-max+
+                                     10000d0)))
 
 (defun make-drifter (&key (pos   (v! 0 .9 0))
                           (color (v! 1 .3 .9))
@@ -71,9 +87,17 @@
         (when (keyboard-button (keyboard) key.j)
           (%ode:body-enable body)
           (%ode:body-add-force body 0d0 1000d0 0d0)))
-      (when (keyboard-button (keyboard) key.u)
-        (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 10d0))
+      ;;
       (when (keyboard-button (keyboard) key.m)
         (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 -10d0)))))
+        (%ode:body-add-force body 0d0 0d0 10d0))
+      (when (keyboard-button (keyboard) key.u)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 -10d0))
+      ;;
+      (when (keyboard-button (keyboard) key.k)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 10d0 0d0 0d0))
+      (when (keyboard-button (keyboard) key.h)
+        (%ode:body-enable body)
+        (%ode:body-add-force body -10d0 0d0 0d0)))))
