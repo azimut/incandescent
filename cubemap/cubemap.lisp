@@ -219,6 +219,6 @@
   (let ((f (filename-to-save-function filename)))
     (funcall f texture filename)))
 
-(defun screen-to-disk (filename)
+(defun screen-to-disk (filename &optional (fbo *fbo*))
   "take what is already rendered on the main fbo and save it"
-  (texture-to-disk filename (attachment-tex *fbo* 0)))
+  (texture-to-disk filename (attachment-tex fbo 0)))
