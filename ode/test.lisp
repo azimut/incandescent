@@ -8,7 +8,8 @@
        (make-physic-newcyl :radius .9d0
                            :height 3d0
                            :pos (v! -3 1 -3)
-                           ;;:rot (q:from-axis-angle (v! 0 0 1) (radians 89))
+                           :density 3d0
+                           :rot (q:from-axis-angle (v! 0 0 1) (radians 89))
                            )
        (make-physic-cone :pos (v! 0 1 0))
        (make-physic-cone :pos (v! 3 1 3)))
@@ -27,12 +28,12 @@
                                     (radians (random 360f0)))
             :pos (v! (serapeum:random-in-range -5 5)
                      (serapeum:random-in-range 10   30)
-                     (serapeum:random-in-range -5 5)))))
+                     (serapeum:random-in-range -15 -5)))))
        (test))
 
 (progn (defun test ()
-         ;;(free-actors)
-         ;;(make-piso)
+         (free-actors)
+         (make-piso)
          (loop :for i :from 1 :by 2 :to 20
                :for y :from 1 :by .7 :to 10
                :do (make-physic-box
@@ -80,7 +81,6 @@
          (loop :for i :from 2 :by 1.87 :to 10
                :do (make-physic-box :pos (v! i 1.5 5)))
          )
-
        (test)
        )
 
@@ -154,3 +154,23 @@
              :height 3d0
              :pos (v! 0 6 i)
              :rot (q:from-axis-angle (v! 0 0 1) (radians 90)))))
+
+
+;;--------------------------------------------------
+(progn (defun test ()
+         ;;(free-actors)
+         ;; (ode-destroy)
+         ;; (ode-init)
+         ;;(make-piso)
+         (dotimes (i 50)
+           (make-physic-sphere
+            
+            ;;:immovablep t
+            :rot (q:from-axis-angle (v! (random 1f0)
+                                        (random 1f0)
+                                        (random 1f0))
+                                    (radians (random 360f0)))
+            :pos (v! (serapeum:random-in-range -5 5)
+                     0
+                     (serapeum:random-in-range -13 -7)))))
+       (test))

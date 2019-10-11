@@ -3,7 +3,7 @@
 ;; Composite geometries are those whose body has more than 1 geometry
 
 ;; One way to position them is to give a world position to the body
-;; instead of the geom and set offsets to the geoms instead.
+;; instead of the geom AND set offsets to the geoms instead.
 
 ;; TODO: I need an abstraction of some type for the whole parent children thing
 ;;       might be refactoring all ode?
@@ -82,15 +82,6 @@
                      :light-color *light-color*
                      :light-pos   *light-pos*))))
 
-(defun update-ode-rot (orot qrot)
-  "set the ODE rotation to the QROT rtg-math quaternion"
-  (declare (type rtg-math.types:quaternion qrot))
-  (claw:c-let ((ode-rot %ode:real :ptr orot))
-    (setf (ode-rot 0) (coerce (x qrot) 'double-float))
-    (setf (ode-rot 1) (coerce (x qrot) 'double-float))
-    (setf (ode-rot 2) (coerce (x qrot) 'double-float))
-    (setf (ode-rot 3) (coerce (x qrot) 'double-float))))
-
 (defun update-ode-mrot (omrot qrot)
   "sets the ODE matrix rotation to the QROT quaternion value"
   (declare (type rtg-math.types:quaternion qrot))
@@ -102,15 +93,14 @@
 
 (defun make-composite (&key (pos (v! 0 5 0))
                             (rot (q:identity)))
-  (let* (#+nil
+  (let* (;;#+nil
          (poss  (vect (v! (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0))))
                       (v! (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0)))
                           (+ -.15 (* .3 (random 1f0))))))
-         ;;(poss  (vect (v! 0 0 0) (v! 0 0 0)))
-         (poss  (vect (v! .25 0 0) (v! 0 0 0)))
+         ;;(poss  (vect (v! 1 0 1) (v! 0 0 0)))
          ;;#+nil
          (rots  (vect (q:from-axis-angle
                        (v! (random 1f0) (random 1f0) (random 1f0))
@@ -119,15 +109,14 @@
                        (v! (random 1f0) (random 1f0) (random 1f0))
                        (radians (random 360)))))
          ;;(rots  (vect (q:identity) (q:identity)))
-         #+nil
+         ;;#+nil
          (sides (vect (v! (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0))))
                       (v! (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0)))
                           (+ .1 (* .5 (random 1f0))))))
-         (sides (vect (v! .5 4 2)
-                      (v! 2 2 2)))
+         ;;(sides (vect (v! 1 1 1) (v! 2 2 2)))
          (bufs  (vect (box (x (aref sides 0))
                            (y (aref sides 0))
                            (z (aref sides 0)))

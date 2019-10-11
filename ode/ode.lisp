@@ -64,10 +64,11 @@
                   (contact i :surface :bounce-vel) .1d0
                   ;; constraint force mixing parameter
                   (contact i :surface :soft-cfm) .01d0))
-          (let ((numc (%ode:collide o1 o2 5
+          (let ((numc (%ode:collide o1 o2 10
                                     (contact :geom &)
                                     (claw:sizeof '%ode:contact))))
             (when (plusp numc)
+              (when (and b1 b2))
               (dotimes (i numc)
                 (%ode:joint-attach (%ode:joint-create-contact *world*
                                                               *contactgroup*
@@ -128,12 +129,12 @@
 (defun buffer-stream-to-ode (buf)
   "creates a new trimesh geometry on ODE from a cepl buffer stream"
   (destructuring-bind ((gv) gi) (buffer-stream-gpu-arrays buf)
-    (let ((gvl (car (gpu-array-dimensions gv)))
-          (gil (car (gpu-array-dimensions gi))))
+    (let ((gvl  (car (gpu-array-dimensions gv)))
+          (gil  (car (gpu-array-dimensions gi)))
+          (data (%ode:geom-tri-mesh-data-create)))
       (claw:c-let ((vertices :float :calloc t :count (* 3 gvl))
                    (indices  :unsigned-int :calloc t :count gil)
-                   (mesh-data %ode::tri-mesh-data-id
-                              :ptr (%ode:geom-tri-mesh-data-create)))
+                   (mesh-data %ode::tri-mesh-data-id :ptr data))
         ;;
         (with-gpu-array-as-c-array (ci gi)
           (loop :for i :below gil
@@ -162,10 +163,9 @@
 
 (defun physic-to-ode (physic)
   (with-slots (buf
-               pos
-               ode-vertices ode-indices data geom
-               mass density immovablep
-               body)
+               body geom mass
+               ode-vertices ode-indices data
+               pos density immovablep)
       physic
     (multiple-value-bind (v i d g) (buffer-stream-to-ode buf)
       (setf ode-vertices v

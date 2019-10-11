@@ -1,5 +1,7 @@
 (in-package #:incandescent)
 
+;; Attach physics to a camera...
+
 (defvar *camera-solid* nil)
 
 (defclass physic-camera (pers)
