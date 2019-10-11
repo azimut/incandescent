@@ -21,17 +21,30 @@
   (setf *t-hdr* nil
         *s-hdr* nil))
 
+(defun load-hdr-2d (filepath &optional alpha-p)
+  (declare (type boolean alpha-p))
+  (destructuring-bind (ptr width height components-per-pixel)
+      (stbi:loadf filepath)
+    (assert (and (= components-per-pixel 3)))
+    (with-c-array-freed (c-array (make-c-array-from-pointer
+                                  (list width height)
+                                  :vec3
+                                  ptr))
+      (make-texture c-array :element-type (if alpha-p
+                                              :rgba32f
+                                              :rgb32f)))))
+
 (defun init-hdr (file)
   (let ((filename (namestring (resolve-path file))))
     (free-hdr)
-    (setf *t-hdr* (nineveh:load-hdr-2d filename))
+    (setf *t-hdr* (load-hdr-2d filename))
     (setf *s-hdr* (sample *t-hdr* :wrap :clamp-to-edge
                                   :minify-filter :linear))))
 
 (defclass hdr (actor) ())
 
-(defun make-hdr ()
-  (let ((obj (make-instance 'hdr)))
+(defun make-hdr (&optional (color (v! 1 1 1)))
+  (let ((obj (make-instance 'hdr :color color)))
     (push obj *actors*)
     obj))
 
@@ -42,6 +55,7 @@
     (with-slots (buf scale color) actor
       (map-g #'hdr-pipe buf
              :sam *s-hdr*
+             :color color
              :world-view  (world->view camera)
              :view-clip   (projection  camera)))))
 
@@ -58,11 +72,11 @@
          (uv (+ uv .5)))
     uv))
 
-(defun-g hdr-frag ((pos :vec3) &uniform (sam :sampler-2d))
+(defun-g hdr-frag ((pos :vec3) &uniform (sam :sampler-2d) (color :vec3))
   (let* ((uv (sample-spherical-map (normalize pos)))
-         (color (s~ (texture sam uv)
-                    :xyz)))
-    (v! color 1)))
+         (color3 (s~ (texture sam uv)
+                     :xyz)))
+    (v! (* color3 color) 1)))
 
 (defpipeline-g hdr-pipe ()
   :vertex   (hdr-vert g-pnt)
