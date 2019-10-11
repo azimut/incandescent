@@ -83,6 +83,7 @@
   (free-actors)
   (free-scenes)
   ;;--------------------------------------------------
+  (init-scene)
   nil)
 
 (let ((stepper (make-stepper (seconds 1) (seconds 1))))

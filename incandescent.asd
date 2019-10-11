@@ -306,4 +306,5 @@
                ;; (:file "things/pbr-simple")
                ;; (:file "things/pbr")
                ;;(:file "shadowmap/render")
-               (:file "things/drifter/the")))
+               (:file "things/drifter/the")
+               (:file "things/drifter/scene")))
