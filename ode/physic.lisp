@@ -16,11 +16,13 @@
    :immovablep nil))
 
 ;; FIXME: mass is leaking?
-(defmethod free ((object physic))
+(defmethod free :around ((object physic))
+  (print "freeman")
   (with-slots (body geom orot) object
     (%ode:body-destroy body)
     (%ode:geom-destroy geom)
-    (claw:free orot)))
+    (claw:free orot))
+  (call-next-method))
 
 (defun update-ode-rot (orot qrot)
   "set the ODE rotation to the QROT rtg-math quaternion"
