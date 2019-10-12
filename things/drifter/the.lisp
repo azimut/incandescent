@@ -9,19 +9,37 @@
    :pos (v! 0 .9 0)))
 
 (defmethod free ((obj drifter))
-  (with-slots (amotor) obj
-    (%ode:joint-destroy amotor)))
+  (%ode:joint-destroy (slot-value obj 'amotor)))
 
 (defmethod initialize-instance :after ((obj drifter) &key)
   (with-slots (amotor body) obj
+    (setf *drifter-pointer* body)
+    ;;
     (setf amotor (%ode:joint-create-a-motor *world* 0))
     (%ode:joint-attach amotor body 0)
+    ;;(%ode:joint-set-a-motor-mode amotor %ode:+a-motor-euler+)
     ;;
-    (%ode:joint-set-a-motor-num-axes amotor 1)
-    (%ode:joint-set-a-motor-axis     amotor 0 1 0d0 0d0 1d0)
+    (%ode:joint-set-a-motor-num-axes amotor 2)
+    ;;
+    ;; 1 0 0 - front and back
+    ;; 0 0 1 - left  and right
+    (%ode:joint-set-a-motor-axis     amotor 0 0 0d0 0d0 1d0)
     (%ode:joint-set-a-motor-angle    amotor 0 0d0)
     (%ode:joint-set-a-motor-param    amotor %ode:+param-f-max+
-                                     10000d0)))
+                                     1000000d0)
+
+    (%ode:joint-set-a-motor-axis     amotor 1 0 0d0 1d0 0d0)
+    (%ode:joint-set-a-motor-angle    amotor 1 0d0)
+    (%ode:joint-set-a-motor-param    amotor (+ %ode:+param-f-max+
+                                               %ode:+param-group+)
+                                     1000000d0)
+
+    ;; (%ode:joint-set-a-motor-axis     amotor 2 0 0d0 1d0 0d0)
+    ;; (%ode:joint-set-a-motor-angle    amotor 2 0d0)
+    ;; (%ode:joint-set-a-motor-param    amotor (+ %ode:+param-f-max+
+    ;;                                            (* 2 %ode:+param-group+))
+    ;;                                  1000000d0)
+    ))
 
 (defun make-drifter (&key (pos   (v! 0 .9 0))
                           (color (v! 1 .3 .9))
@@ -77,27 +95,26 @@
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))
 
-;; fake it
-
-(let ((jump nil)
-      (sjump (make-stepper (seconds 1) (seconds 1))))
-  (defmethod update ((obj drifter) dt)
-    (with-slots (body pos) obj
-      (when (< (y pos) .5)
+(defmethod update ((obj drifter) dt)
+  (with-slots (pos body) obj
+    (let* ((groundedp (if (< (y pos) .5) t nil))
+           (force (if groundedp 50d0 10d0)))
+      ;; Jump
+      (when groundedp
         (when (keyboard-button (keyboard) key.j)
           (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 1000d0 0d0)))
-      ;;
-      (when (keyboard-button (keyboard) key.m)
-        (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 10d0))
+          (%ode:body-add-force body 0d0 600d0 0d0)))
+      ;; forward
       (when (keyboard-button (keyboard) key.u)
         (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 -10d0))
-      ;;
-      (when (keyboard-button (keyboard) key.k)
+        (%ode:body-add-force body 0d0 0d0 (- force)))
+      (when (keyboard-button (keyboard) key.m)
         (%ode:body-enable body)
-        (%ode:body-add-force body 10d0 0d0 0d0))
+        (%ode:body-add-force body 0d0 0d0 force))
+      ;; sides
       (when (keyboard-button (keyboard) key.h)
         (%ode:body-enable body)
-        (%ode:body-add-force body -10d0 0d0 0d0)))))
+        (%ode:body-add-force body (- force) 0d0 0d0))
+      (when (keyboard-button (keyboard) key.k)
+        (%ode:body-enable body)
+        (%ode:body-add-force body force 0d0 0d0)))))

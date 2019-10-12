@@ -7,6 +7,9 @@
   (:default-initargs
    :pos (v! 0 .9 0)))
 
+(defmethod initialize-instance :after ((obj obstacle) &key)
+  (push (slot-value obj 'body) *obstacles-pointers*))
+
 (defun make-obstacle (&key (pos   (v! 0 .9 0))
                            (color (v! .3 1 .9))
                            (radius 1f0)
@@ -79,14 +82,4 @@
               (< (x pos) -6)
               (> (x pos) 6))
       (reset-obstacle obj))
-    (%ode:body-add-force body 0d0 0d0 4d0)
-    ))
-(defun getbody-force-and-torque (body)
-  (let ((force (%ode:body-get-force body))
-        (torque (%ode:body-get-torque body)))
-    (values (v! (cffi:mem-ref force :double 0)
-                (cffi:mem-ref force :double 1)
-                (cffi:mem-ref force :double 2))
-            (v! (cffi:mem-ref torque :double 0)
-                (cffi:mem-ref torque :double 1)
-                (cffi:mem-ref torque :double 2)))))
+    (%ode:body-add-force body 0d0 0d0 4d0)))

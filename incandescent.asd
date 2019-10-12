@@ -294,14 +294,15 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent
+               #:cm
                #:incandescent/ode)
   :components (
-               ;; (:file "cubemap/render")
-               ;; (:file "cubemap/cubemap")
-               ;; (:file "cubemap/env-map")
-               ;; (:file "cubemap/clouds")
-               ;; (:file "cubemap/hdr")
-               ;; (:file "ibl")
+               (:file "cubemap/render")
+               (:file "cubemap/cubemap")
+               (:file "cubemap/env-map")
+               ;;(:file "cubemap/clouds")
+               (:file "cubemap/hdr")
+               (:file "ibl")
                ;; (:file "things/box")
                ;; (:file "things/piso")
                ;; (:file "things/pbr-simple")
@@ -310,4 +311,7 @@
                (:file "shadowmap/pcf")
                (:file "things/drifter/defer")
                (:file "things/drifter/the")
+               (:file "things/drifter/route")
+               (:file "things/drifter/obstacle")
+               (:file "things/drifter/ode")
                (:file "things/drifter/scene")))
