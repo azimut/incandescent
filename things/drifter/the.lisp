@@ -13,6 +13,7 @@
 
 (defmethod initialize-instance :after ((obj drifter) &key)
   (with-slots (amotor body) obj
+    (setf *drifter* obj)
     (setf *drifter-pointer* body)
     ;;
     (setf amotor (%ode:joint-create-a-motor *world* 0))
@@ -97,13 +98,13 @@
 
 (defmethod update ((obj drifter) dt)
   (with-slots (pos body) obj
-    (let* ((groundedp (if (< (y pos) .5) t nil))
-           (force (if groundedp 50d0 10d0)))
+    (let* ((groundedp (if (< (y pos) .45) t nil))
+           (force (if groundedp 40d0 10d0)))
       ;; Jump
       (when groundedp
         (when (keyboard-button (keyboard) key.j)
           (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 600d0 0d0)))
+          (%ode:body-add-force body 0d0 400d0 0d0)))
       ;; forward
       (when (keyboard-button (keyboard) key.u)
         (%ode:body-enable body)

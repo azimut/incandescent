@@ -6,6 +6,10 @@
                               (light-pos    :vec3)
                               (light-color  :vec3)
                               (light-dir    :vec3)
+                              ;; IBL
+                              (brdf-lut       :sampler-2d)
+                              (prefilter-map  :sampler-cube)
+                              (irradiance-map :sampler-cube)
                               ;;
                               (albedo-sam   :sampler-2d)
                               (position-sam :sampler-2d)
@@ -39,6 +43,8 @@
          ;;#+nil
          (indirect 0f0)
          (indirect-specular 0f0)
+         (indirect
+           (ambient-ibl v norm irradiance-map rough metallic color ao))
          ;;(indirect-ao 1f0)
          ;;(shadow 1f0)
          ;;
@@ -51,7 +57,7 @@
          ;;#+nil
          (final-color
            (+ (* color emissive)
-              ;;(+ (* ao indirect) indirect-specular)
+              (+ (* ao indirect) indirect-specular)
               #+nil
               (+ (* (* (- 1f0 (fresnel-schlick-roughness
                                (max (dot norm (normalize (- pos cam-pos))) 0f0)
@@ -60,7 +66,7 @@
                        (- 1f0 metallic))
                     (* ao indirect))
                  indirect-specular)
-              (* ao .03 color)
+              ;;(* ao .03 color)
               ;;#+nil
               (* shadow
                  ;;(max shadow .01)

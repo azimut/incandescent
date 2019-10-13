@@ -1,8 +1,10 @@
 (in-package #:incandescent)
 
-(defvar *score* 0)
-(defvar *obstacles-pointers* (list))
-(defvar *drifter-pointer*    nil)
+(defvar *obstacles-pointers*    (list))
+(defvar *collectables-pointers* (list))
+(defvar *drifter-pointer*       nil)
+(defvar *drifter*               nil)
+(defvar *score*                 0)
 
 (defparameter *shadow-camera*
   (let* ((lpos (v! 10 10 10))
@@ -18,25 +20,45 @@
     (setf *light-dir* (q:to-direction ldir))
     cam))
 
+(defmethod update ((obj pers) dt)
+  (with-slots (pos rot) obj
+    (let ((dpos (pos *drifter*)))
+      (setf rot (q:point-at (v! 0 1 0)
+                            pos
+                            (v! 0
+                                (min 4f0 (+ 3 (y dpos)))
+                                (z dpos))))
+      (setf (z pos) (+ 10f0 (z dpos))))))
+
 (progn
   (defun init-scene ()
-    (setf *score* 0)
-    (setf *drifter-pointer* nil)
-    (setf *obstacles-pointers* nil)
+    (setf *score*                 0)
+    (setf *drifter*               nil)
+    (setf *drifter-pointer*       nil)
+    (setf *obstacles-pointers*    nil)
+    (setf *collectables-pointers* nil)
+    ;;
+    (make-text "score")
     ;;
     (free-actors)
-    (make-drifter :color (v! .9 .1 .1) :pos (v! 0 2 0))
+    (make-drifter :color (v! .1 .1 .1)
+                  :dim (v! .9 .9 .9)
+                  :pos (v! 0 3 10))
     ;;
     (make-route :pos (v! 0 -1 0)
                 :dim (v! 10 2 50)
                 :color (v! .7 .7 .7))
     ;;
     ;;#+nil
-    (dotimes (i 5)
+    (dotimes (i 2)
       (reset-obstacle
        (make-obstacle :radius .5
-                      :color (v! .3 1 .7))))
-    ;;(make-text-multi "score 10")
+                      :color (v! .2 .5 .9)))
+      (reset-collectable
+       (make-collectable :radius .5)))
+    ;;(make-env-map *cube-tex* *cube-sam*)
+    (make-clouds)
+    ;;(make-text "asd")
     )
-  (init-scene)
-  )
+  ;;
+  (init-scene))

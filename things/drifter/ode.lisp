@@ -40,9 +40,9 @@
 
                 (when (or (sb-sys:sap= b1 *drifter-pointer*)
                           (sb-sys:sap= b2 *drifter-pointer*))
-                  (when (position b1 *obstacles-pointers* :test #'sb-sys:sap=)
+                  (when (position b1 *collectables-pointers* :test #'sb-sys:sap=)
                     (reset-by-pointer b1))
-                  (when (position b2 *obstacles-pointers* :test #'sb-sys:sap=)
+                  (when (position b2 *collectables-pointers* :test #'sb-sys:sap=)
                     (reset-by-pointer b2))))
 
               (dotimes (i numc)
