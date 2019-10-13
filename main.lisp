@@ -12,6 +12,9 @@
 
 (defvar *unstarted* nil)
 
+(defparameter *dimensions* '(226 363))
+(defparameter *dimensions* '(340 380))
+
 (defparameter *dimensions* '(1366 768))
 ;;(defparameter *dimensions* '(800 600))
 ;;(defparameter *dimensions* '(533 400))
@@ -79,79 +82,87 @@
   (free-actors)
   (free-scenes)
   ;;--------------------------------------------------
+  (ode-init)
   (init-scene)
   (init-shadowmap)
   nil)
 
-(let ((stepper (make-stepper (seconds 1) (seconds 1))))
-  (defmethod draw! ()
-    (let* ((res   (surface-resolution (current-surface)))
-           (now   (get-internal-real-time))
-           (time  (* 1f0 now))
-           (delta (* (- now *last-time*) .001))
-           (delta (if (> delta .16) .00001 delta)))
-      (setf *last-time* now)
-      (setf (resolution (current-viewport)) res)
-      ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
-      ;;--------------------------------------------------
-      (update  *currentcamera* delta)
-      (control *currentcamera* delta 4)
-      ;;--------------------------------------------------
-      (draw-shadowmap)
-      (with-fbo-bound (*fbo*)
-        (clear-fbo *fbo*)
-        (dolist (actor *actors*)
-          (draw actor *currentcamera* time)
-          (update actor delta)))
+(defun draw! ()
+  (let* ((res   (surface-resolution (current-surface)))
+         (now   (get-internal-real-time))
+         (time  (* 1f0 now))
+         (delta (* (- now *last-time*) .001))
+         (delta (if (> delta .16) .00001 delta)))
+    (setf *last-time* now)
+    (setf (resolution (current-viewport)) res)
+    ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
+    ;;--------------------------------------------------
+    ;;(update  *currentcamera* delta)
+    (control *currentcamera* delta 4)
+    ;;--------------------------------------------------
+    (draw-shadowmap)
+    (with-fbo-bound (*fbo*)
+      (clear-fbo *fbo*)
+      (dolist (actor *actors*)
+        (draw actor *currentcamera* time)
+        (update actor delta)))
+    ;;#+nil
+    (with-fbo-bound (*sdfbo*) ;; defer shading
+      (clear-fbo *sdfbo*)
+      (with-setf* ((depth-mask) nil
+                   (cull-face) nil
+                   (depth-test-function) nil)
+        (map-g #'postprocess-defer-pipe *bs*
+               :albedo-sam   *sam*
+               :position-sam *sam1*
+               :normal-sam   *sam2*
+               :metallic-sam *sam3*
+               :shadowmap *shadow-sam*
+               :light-vp (world->clip *shadow-camera*)
+               ;; IBL
+               :brdf-lut *s-brdf*
+               :prefilter-map *s-cubemap-prefilter*
+               :irradiance-map *s-cubemap-live*
+               ;;:voxel-light  *voxel-light-zam*
+               :cam-pos (pos *currentcamera*)
+               :light-dir   *light-dir*
+               :light-color (v3:*s *light-color* *cone-mult*)
+               :light-pos   *light-pos*))
+      ;;(screen-text)
+      )
+    ;;#+nil
+    (as-frame
       ;;#+nil
-      (with-fbo-bound (*sdfbo*) ;; defer shading
-        (clear-fbo *sdfbo*)
-        (with-setf* ((depth-mask) nil
-                     (cull-face) nil
-                     (depth-test-function) nil)
-          (map-g #'postprocess-defer-pipe *bs*
-                 :albedo-sam   *sam*
-                 :position-sam *sam1*
-                 :normal-sam   *sam2*
-                 :metallic-sam *sam3*
-                 :shadowmap *shadow-sam*
-                 :light-vp (world->clip *shadow-camera*)
-                 ;;:voxel-light  *voxel-light-zam*
-                 :cam-pos (pos *currentcamera*)
-                 :light-dir   *light-dir*
-                 :light-color (v3:*s *light-color* *cone-mult*)
-                 :light-pos   *light-pos*)))
-      ;;#+nil
-      (as-frame
-        (with-setf* ((depth-mask) nil
-                     (cull-face)  nil
-                     (depth-test-function) nil)
-          (map-g #'generic-2d-pipe *bs*
-                 ;;:sam  *sam*
-                 ;;:sam2 *god-sam*
-                 ;;:sam2 *sam-ssao*
-                 :sam *sdsam*
-                 :samd *samd*)
-          ;;(draw-tex-bl *sam-ssao*)
-          ;;(draw-tex-tl *sssr*)
-          ;;(draw-tex-tl *god-sam*)
-          ;;
-          ;; (draw-tex-tl *sam3*)
-          ;;(draw-tex-tr *sam*)
-          ;; (draw-tex-br *sam1*)
-          ;; (draw-tex-bl *sam2*)
-          ;;
-          ;;(draw-tex-tr *shadow-sam*)
-          ;;(draw-tex-tr *dssam*)
-          ;;(draw-tex-tl *sdsam*)
-          ;;(draw-tex-bl *god-sam*)
-          )
-        ))
-    (ode-update)
-    ;; Stop on ESC
-    (when (keyboard-button (keyboard) key.escape)
-      (play :stop))
-    (decay-events)))
+      (with-setf* ((depth-mask) nil
+                   (cull-face)  nil
+                   (depth-test-function) nil)
+        (map-g #'generic-2d-pipe *bs*
+               ;;:sam  *sam*
+               ;;:sam2 *god-sam*
+               ;;:sam2 *sam-ssao*
+               :sam *sdsam*
+               :samd *samd*)
+        ;;(draw-tex (cepl.fond::fond-font-sampler *font*))
+        ;;(draw-tex-bl *sam-ssao*)
+        ;;(draw-tex-tl *sssr*)
+        ;;(draw-tex-tl *god-sam*)
+        ;;
+        ;; (draw-tex-tl *sam3*)
+        ;; (draw-tex-tr *sam*)
+        ;; (draw-tex-br *sam1*)
+        ;; (draw-tex-bl *sam2*)
+        ;;
+        ;;(draw-tex-tr *shadow-sam*)
+        ;;(draw-tex-tr *dssam*)
+        ;;(draw-tex-tl *sdsam*)
+        ;;(draw-tex-bl *god-sam*)
+        )
+      ))
+  (ode-update)
+  ;; Stop on ESC
+  (when (keyboard-button (keyboard) key.escape)
+    (play :stop))
+  (decay-events))
 
 (def-simple-main-loop play (:on-start #'init)
   (draw!))

@@ -300,7 +300,7 @@
                (:file "cubemap/render")
                (:file "cubemap/cubemap")
                (:file "cubemap/env-map")
-               ;;(:file "cubemap/clouds")
+               (:file "cubemap/clouds")
                (:file "cubemap/hdr")
                (:file "ibl")
                ;; (:file "things/box")
