@@ -52,21 +52,8 @@
 ;; PBR helpers to apply light - WITH IBL
 ;;--------------------------------------------------
 
-(defun-g pbr-ambient-map ((irradiance-map :sampler-cube)
-                          (albedo         :vec3)
-                          (ao             :float)
-                          (v              :vec3)
-                          (n              :vec3)
-                          (f0             :vec3))
-  (let* ((ks (fresnel-schlick (max (dot n v) 0) f0))
-         (kd (- 1 ks))
-         (irradiance (s~ (texture irradiance-map n)
-                         :xyz))
-         (diffuse (* irradiance albedo)))
-    (* diffuse kd ao)))
-
 (defun-g fresnel-schlick-roughness ((cos-theta :float)
-                                    (f0 :vec3)
+                                    (f0        :vec3)
                                     (roughness :float))
   (+ f0
      (* (- (max (vec3 (- 1 roughness))
@@ -74,56 +61,34 @@
            f0)
         (pow (- 1 cos-theta) 5f0))))
 
-(defun-g pbr-ambient-map-r ((irradiance-map :sampler-cube)
-                            (albedo :vec3)
-                            (ao :float)
-                            (v :vec3)
-                            (n :vec3)
-                            (f0 :vec3)
-                            (roughness :float))
-  (let* ((ks (fresnel-schlick-roughness (max (dot n v) 0)
-                                        f0
-                                        roughness))
-         (kd (- 1 ks))
-         (irradiance (s~ (texture irradiance-map n) :xyz))
-         (diffuse (* irradiance albedo)))
-    (* diffuse kd ao)))
-
-
 ;; AMBIENT no SPECULAR
 (defun-g ambient-ibl ((v              :vec3)
                       (n              :vec3)
+                      (irradiance-map :sampler-cube)
+                      (roughness      :float)
+                      (metallic       :float)
+                      (color          :vec3)
+                      (ao             :float))
+  (let* ((f0 (vec3 0.04))
+         (f0 (mix f0 color metallic))
+         (ks (fresnel-schlick-roughness (max (dot n v) 0) f0 roughness))
+         (kd (- 1 ks))
+         (irradiance (s~ (texture irradiance-map n) :xyz))
+         (diffuse (* irradiance color))
+         (ambient (* kd diffuse ao)))
+    ambient))
+
+;; AMBIENT + SPECULAR
+(defun-g ambient-ibl ((v              :vec3)
+                      (n              :vec3)
                       (f0             :vec3)
+                      (brdf-lut       :sampler-2d)
                       (prefilter-map  :sampler-cube)
                       (irradiance-map :sampler-cube)
                       (roughness      :float)
                       (metallic       :float)
                       (color          :vec3)
                       (ao             :float))
-  (let* ((r (reflect (- v) n))
-         (f (fresnel-schlick-roughness (max (dot n v) 0) f0
-                                       roughness))
-         (ks f)
-         (kd (* (- 1 ks) (- 1 metallic)))
-         (irradiance (s~ (texture irradiance-map n) :xyz))
-         (diffuse (* irradiance color))
-         (prefiltered-color
-           (s~ (texture-lod prefilter-map r (* roughness 4f0))
-               :xyz))
-         (ambient (* kd diffuse ao)))
-    ambient))
-
-;; AMBIENT+SPECULAR
-(defun-g ambient-ibl ((v :vec3)
-                      (n :vec3)
-                      (f0 :vec3)
-                      (brdf-lut :sampler-2d)
-                      (prefilter-map  :sampler-cube)
-                      (irradiance-map :sampler-cube)
-                      (roughness :float)
-                      (metallic  :float)
-                      (color :vec3)
-                      (ao :float))
   (let* ((r (reflect (- v) n))
          (prefiltered-color (s~ (texture-lod prefilter-map
                                              r
