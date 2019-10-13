@@ -14,12 +14,16 @@
     (values (s~ cpos4 :xyww)
             pos3)))
 
-(defun-g cubemap-frag ((tc :vec3)
+(defun-g cubemap-frag ((tc    :vec3)
                        &uniform
                        (color :vec3)
-                       (tex :sampler-cube))
+                       (tex   :sampler-cube))
   (let ((color3 (s~ (texture tex tc) :xyz)))
-    (v! (* color color3) 1)))
+    ;; NOTE: Extra values for defer emmisivity
+    (values (v! (* color color3) 1)
+            (vec4 0)
+            (vec4 0)
+            (v! 0 1f0))))
 
 (defpipeline-g cubemap-pipe ()
   :vertex   (cubemap-vert g-pnt)
