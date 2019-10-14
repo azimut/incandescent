@@ -17,7 +17,6 @@
 
 ;; FIXME: mass is leaking?
 (defmethod free :around ((object physic))
-  (print "freeman")
   (with-slots (body geom orot) object
     (%ode:body-destroy body)
     (%ode:geom-destroy geom)
