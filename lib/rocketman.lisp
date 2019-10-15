@@ -47,6 +47,9 @@
   (when *rocket*
     (rocketman::toggle-pause *rocket*)))
 
+(defun rocket-row ()
+  (slot-value *rocket* 'rocketman::row))
+
 ;;--------------------------------------------------
 
 #+nil
