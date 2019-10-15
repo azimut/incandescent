@@ -58,6 +58,11 @@
         (%ode:world-quick-step *world* 0.0099d0)
         (%ode:joint-group-empty *contactgroup*)))))
 
+;; I mean yikes...but...
+(defmethod body (obj)
+  (cffi:null-pointer))
+
 (defun reset-by-pointer (pointer)
-  (when-let ((obj (find pointer *actors* :key #'body :test #'sb-sys:sap=)))
+  (when-let ((obj (find pointer *actors* :key #'body
+                                         :test #'sb-sys:sap=)))
     (reset-obstacle obj)))

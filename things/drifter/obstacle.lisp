@@ -1,5 +1,7 @@
 (in-package #:incandescent)
 
+;; Moving things that hit the player.
+
 (defclass obstacle (physic-sphere)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
@@ -77,8 +79,7 @@
 
 (defmethod update ((obj obstacle) dt)
   (with-slots (body mass pos) obj
-    (when (or (> (z pos) 5)
-              (> (y pos) 4)
+    (when (or (> (z pos) 20)
               (< (x pos) -6)
               (> (x pos) 6))
       (reset-obstacle obj))

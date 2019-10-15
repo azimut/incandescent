@@ -290,28 +290,32 @@
 (asdf:defsystem #:incandescent/drifter
   :description "A game of sorts"
   :author "azimut <azimut.github@protonmail.com>"
-  :license  "MIT"
+  :license "MIT"
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent
                #:cm
+               ;; #:deeds
+               #:incandescent/assimp
                #:incandescent/ode)
-  :components (
-               (:file "cubemap/render")
+  :components ((:file "cubemap/render")
                (:file "cubemap/cubemap")
                (:file "cubemap/env-map")
                (:file "cubemap/clouds")
                (:file "cubemap/hdr")
                (:file "ibl")
-               ;; (:file "things/box")
-               ;; (:file "things/piso")
-               ;; (:file "things/pbr-simple")
-               ;; (:file "things/pbr")
+               (:file "lib/fog")
                (:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
+               ;;
+               (:file "things/drifter/ode")
                (:file "things/drifter/defer")
+               ;;
                (:file "things/drifter/the")
                (:file "things/drifter/route")
                (:file "things/drifter/obstacle")
-               (:file "things/drifter/ode")
+               (:file "things/drifter/boss")
+               (:file "things/drifter/collectable")
+               (:file "things/drifter/stopper")
+               ;;
                (:file "things/drifter/scene")))

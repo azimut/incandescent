@@ -96,26 +96,31 @@
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))
 
-(defmethod update ((obj drifter) dt)
-  (with-slots (pos body) obj
-    (let* ((groundedp (if (< (y pos) .45) t nil))
-           (force (if groundedp 40d0 10d0)))
-      ;; Jump
-      (when groundedp
+(let ((stepper (make-stepper (seconds 2) (seconds 2))))
+  (defmethod update ((obj drifter) dt)
+    (with-slots (pos body) obj
+      ;; Fase
+      (when (and (< (z pos) -80f0) (not *final-fase*))
+        (setf *final-fase* t))
+      ;; Controls
+      (let* ((groundedp (if (< (y pos) .45) t nil))
+             (force (if groundedp 40d0 10d0)))
+        ;; Jump
         (when (keyboard-button (keyboard) key.j)
+          (if groundedp
+              (progn (%ode:body-enable body)
+                     (%ode:body-add-force body 0d0 400d0 0d0))))
+        ;; forward
+        (when (keyboard-button (keyboard) key.u)
           (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 400d0 0d0)))
-      ;; forward
-      (when (keyboard-button (keyboard) key.u)
-        (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 (- force)))
-      (when (keyboard-button (keyboard) key.m)
-        (%ode:body-enable body)
-        (%ode:body-add-force body 0d0 0d0 force))
-      ;; sides
-      (when (keyboard-button (keyboard) key.h)
-        (%ode:body-enable body)
-        (%ode:body-add-force body (- force) 0d0 0d0))
-      (when (keyboard-button (keyboard) key.k)
-        (%ode:body-enable body)
-        (%ode:body-add-force body force 0d0 0d0)))))
+          (%ode:body-add-force body 0d0 0d0 (- force)))
+        (when (keyboard-button (keyboard) key.m)
+          (%ode:body-enable body)
+          (%ode:body-add-force body 0d0 0d0 force))
+        ;; sides
+        (when (keyboard-button (keyboard) key.h)
+          (%ode:body-enable body)
+          (%ode:body-add-force body (- force) 0d0 0d0))
+        (when (keyboard-button (keyboard) key.k)
+          (%ode:body-enable body)
+          (%ode:body-add-force body force 0d0 0d0))))))

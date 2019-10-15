@@ -76,8 +76,7 @@
 
 (defmethod update ((obj collectable) dt)
   (with-slots (body mass pos) obj
-    (when (or (> (z pos) 5)
-              (> (y pos) 4)
+    (when (or (> (z pos) 20)
               (< (x pos) -6)
               (> (x pos) 6))
       (reset-collectable obj))

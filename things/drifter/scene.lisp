@@ -5,6 +5,8 @@
 (defvar *drifter-pointer*       nil)
 (defvar *drifter*               nil)
 (defvar *score*                 0)
+(defvar *final-fase*            nil)
+
 
 (defparameter *shadow-camera*
   (let* ((lpos (v! 10 10 10))
@@ -23,31 +25,48 @@
 (defmethod update ((obj pers) dt)
   (with-slots (pos rot) obj
     (let ((dpos (pos *drifter*)))
+      (setf (y pos) 3f0)
+      (setf (x pos) 0f0)
       (setf rot (q:point-at (v! 0 1 0)
                             pos
-                            (v! 0
-                                (min 4f0 (+ 3 (y dpos)))
+                            (v! (* .15 (x dpos))
+                                (min 4f0 (+ 1 (y dpos)))
                                 (z dpos))))
-      (setf (z pos) (+ 10f0 (z dpos))))))
+      (setf (z pos) (+ 6f0 (z dpos))))))
 
 (progn
   (defun init-scene ()
+    (setf *final-fase*            nil)
     (setf *score*                 0)
     (setf *drifter*               nil)
     (setf *drifter-pointer*       nil)
     (setf *obstacles-pointers*    nil)
     (setf *collectables-pointers* nil)
     ;;
-    (make-text "score")
+    ;;(make-text "score")
     ;;
     (free-actors)
-    (make-drifter :color (v! .1 .1 .1)
-                  :dim (v! .9 .9 .9)
-                  :pos (v! 0 3 10))
-    ;;
-    (make-route :pos (v! 0 -1 0)
-                :dim (v! 10 2 50)
-                :color (v! .7 .7 .7))
+    (make-boss :pos (v! 0 -23 -100) :scale 10f0 :draw-p nil)
+    (make-drifter :color (v! .1 .1 .1) :dim (v! .9 .9 .9) :pos (v! 0 3 10))
+    ;; Floor
+    (make-route :name :piso :pos (v! 0 -1 0)    :dim (v! 10 2 100) :color (v! .7 .7 .7))
+    (make-route :name :piso :pos (v! 0 -1 -100) :dim (v! 10 2 100) :color (v! .7 .7 .7))
+    (make-route :name :piso :pos (v! 0 -1 -200) :dim (v! 10 2 100) :color (v! .7 .7 .7))
+    ;; Sidebars
+    ;; (make-route :name :rside :pos (v!  5.5 .1 0) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; (make-route :name :lside :pos (v! -5.5 .1 0) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; (make-route :name :rside :pos (v!  5.5 .1 -100) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; (make-route :name :lside :pos (v! -5.5 .1 -100) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; (make-route :name :rside :pos (v!  5.5 .1 -200) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; (make-route :name :lside :pos (v! -5.5 .1 -200) :dim (v! 1 .5 100) :color (v! .7 .7 .7))
+    ;; Invisible walls
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! 5.5 .1 0) :dim (v! 1 .5 100))
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! -5.5 .1 0) :dim (v! 1 .5 100))
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! 5.5 .1 -100) :dim (v! 1 .5 100))
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! -5.5 .1 -100) :dim (v! 1 .5 100))
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! 5.5 .1 -200) :dim (v! 1 .5 100))
+    (make-stopper :color (v3! .8) :draw-p t :pos (v! -5.5 .1 -200) :dim (v! 1 .5 100))
+
     ;;
     ;;#+nil
     (dotimes (i 2)
@@ -61,4 +80,5 @@
     ;;(make-text "asd")
     )
   ;;
-  (init-scene))
+  ;;(init-scene)
+  )

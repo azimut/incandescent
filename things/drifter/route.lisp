@@ -1,19 +1,32 @@
 (in-package #:incandescent)
 
+;; Static thing without physics.
+
 (defclass route (actor) ;;(physic-box)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic"))
+               :documentation "emissive, spec, rough, metallic")
+   (dim :initarg :dim))
   (:default-initargs
    :pos (v! 0 .9 0)))
+
+;; self pos is a mult of lenght (100)
+;; advances in negative z
+;; starts at 0
+
+(defvar *route-length* 100)
+(defvar *route-half*   (/ *route-length* 2))
 
 (defun make-route (&key (pos   (v! 0 .9 0))
                         (color (v! 1 .3 .9))
                         (dim   (v! 1 1 1))
                         (rot   (q:identity))
+                        (name  (gensym))
                         (prop  (v! 0 .7 .7 0))
                         (scale 1f0))
   (let ((obj (make-instance 'route
+                            :name name
+                            :dim dim
                             :prop prop
                             :scale scale :color color
                             :pos pos :rot rot
@@ -48,6 +61,7 @@
   :fragment (route-frag :vec2 :vec3 :vec3))
 
 (defmethod draw ((actor route) camera time)
+  ;;(with-gpu-query-bound (*aquery*))
   (with-slots (buf scale color properties) actor
     (map-g #'route-pipe buf
            :color color
@@ -55,4 +69,21 @@
            :properties  properties
            :model-world (model->world actor)
            :world-view  (world->view camera)
-           :view-clip   (projection  camera))))
+           :view-clip   (projection  camera)))
+  #+nil
+  (let ((thing (pull-gpu-query-result *aquery*)))
+    (print thing)))
+
+;; Is visible?
+(defun behind-drifter-p (self)
+  (let ((drifter-pos  (z (pos *drifter*)))
+        (self-pos     (z (pos self)))
+        (offset       4f0));; offset to hide it from camera
+    (when (> (- self-pos *route-half* offset)
+             drifter-pos)
+      t)))
+
+(defmethod update ((obj route) dt)
+  (when (behind-drifter-p obj)
+    (decf (z (pos obj))
+          (* 2 *route-length*))))

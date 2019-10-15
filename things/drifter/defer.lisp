@@ -33,7 +33,7 @@
          (metal    (texture metallic-sam uv))
          (metallic (x metal))
          (emissive (y metal)); emmisive?
-         (v        (normalize (- pos cam-pos)))
+         (v        (normalize (- cam-pos pos)))
          ;;
          (light-clip-pos (* light-vp (v! pos 1)))
          ;; - VEC3
@@ -44,7 +44,9 @@
          (indirect 0f0)
          (indirect-specular 0f0)
          (indirect
-           (ambient-ibl v norm irradiance-map rough metallic color ao))
+           ;;(ambient-ibl v norm irradiance-map rough metallic color ao)
+           (ambient-ibl v norm brdf-lut prefilter-map irradiance-map rough metallic color ao)
+           )
          ;;(indirect-ao 1f0)
          ;;(shadow 1f0)
          ;;
@@ -90,7 +92,7 @@
                   ;;#+nil
                   (pbr-direct-lum light-pos
                                   pos
-                                  (normalize (- cam-pos pos))
+                                  v
                                   norm
                                   rough
                                   metallic
@@ -109,10 +111,7 @@
                                  spec
                                  .22
                                  .20
-                                 (* 10 (v! .3 .8 .5)))))))
-         ;; (ldr  (tone-map-reinhard final-color 1f0))
-         ;; (luma (rgb->luma-bt601 ldr))
-         )
+                                 (* 10 (v! .3 .8 .5))))))))
     (values final-color
             ;;(v! ldr luma)
             )))
