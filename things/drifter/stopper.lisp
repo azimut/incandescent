@@ -67,3 +67,12 @@
              :model-world (model->world actor)
              :world-view  (world->view camera)
              :view-clip   (projection  camera)))))
+
+(defmethod update ((obj stopper) dt)
+  (when (behind-drifter-p obj)
+    (with-slots (pos) obj
+      (let ((new-pos (v! (x pos)
+                         (y pos)
+                         (- (z (pos obj)) (* 2 *route-length*)))))
+        (setf pos new-pos)
+        (ode-update-pos obj new-pos)))))

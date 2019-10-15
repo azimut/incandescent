@@ -5,6 +5,8 @@
 (defvar *sam1* NIL)
 (defvar *sam2* NIL)
 (defvar *sam3* NIL)
+(defvar *sam4* NIL)
+(defvar *sam5* NIL)
 (defvar *samd* nil)
 (defparameter *exposure* 1f0)
 
@@ -60,12 +62,26 @@
          ;;           (sample-box uv .5 sam2
          ;;                       #.(/ 1f0 (car *dimensions*))
          ;;                       #.(/ 1f0 (car (last *dimensions*))))))
-         (final-color (+ (* (nineveh.vignette:vignette uv)
-                            (s~ (texture sam uv) :xyz)
-                            ;;(x (texture sam2 uv))
-                            )
-                         (* .2 (x (texture sam2 uv)))
-                         ))
+         (final-color
+           (+ (* (nineveh.vignette:vignette uv 15f0 .15)
+                 ;;(s~ (texture sam uv) :xyz)
+                 ;;#+nil
+                 (mix (*
+                       (s~ (texture sam uv) :xyz)
+                       ;;(x (texture sam2 uv))
+                       )
+                      (* (v! .5 .3 .4) (defered-fog uv samd .02))
+                      #+nil
+                      (defered-fog-no-skybox
+                          (v! .5 .4 .5)
+                        uv
+                        sam
+                        samd
+                        .03)
+                      .5))
+              ;;(* 1f0 (x (texture sam2 uv)))
+              ))
+
          ;; (final-color (v! (+ (s~ final-color :xyz)
          ;;                     (s~ bloom       :xyz))))
          ;;(color (texture sam uv))
@@ -91,9 +107,16 @@
          ;; (final-color (+ (s~ fog :xyz)
          ;;                 (* (w fog) final-color)))
          ;; ----------------
+         ;; HDR tonemapping (reinhard does it...)
+         ;;(final-color (/ final-color (+ final-color 1f0)))
+         ;; ----------------
+         ;; Gamma Correction
          ;;(ldr (tone-map-uncharted2 final-color *exposure* 2f0))
          ;;(ldr (tone-map-reinhard final-color *exposure*))
-         (ldr (tonemap-acesfilm (* (linear-to-srgb (* *exposure* final-color)))))
+         ;;(ldr (tone-map-hejl-burgess-dawson final-color *exposure*))
+         ;;(ldr (tone-map-linear final-color *exposure*))
+         (ldr (tone-map-acesfilm final-color *exposure*))
+         ;;(ldr (tone-map-filmic final-color *exposure*))
          (luma (rgb->luma-bt601 ldr))
          )
     ;;(v! (pow ldr (vec3 2.2)) 1)

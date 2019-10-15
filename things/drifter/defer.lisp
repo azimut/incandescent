@@ -45,7 +45,7 @@
          (indirect-specular 0f0)
          (indirect
            ;;(ambient-ibl v norm irradiance-map rough metallic color ao)
-           (ambient-ibl v norm brdf-lut prefilter-map irradiance-map rough metallic color ao)
+           (ambient-ibl-flipped v norm brdf-lut prefilter-map irradiance-map rough metallic color ao)
            )
          ;;(indirect-ao 1f0)
          ;;(shadow 1f0)

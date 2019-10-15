@@ -9,7 +9,7 @@
 
 
 (defparameter *shadow-camera*
-  (let* ((lpos (v! 10 10 10))
+  (let* ((lpos (v! 8 10 5))
          (ldir (q:point-at (v! 0 1 0) lpos (v! 0 0 0)))
          (cam  (make-instance 'orth
                               :name :shadow-camera
@@ -18,7 +18,7 @@
                               :near 10f0
                               :rot ldir
                               :pos lpos)))
-    (setf *light-pos* lpos)
+    (setf *light-pos* (v3:*s lpos 20f0))
     (setf *light-dir* (q:to-direction ldir))
     cam))
 
