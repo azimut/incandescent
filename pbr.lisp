@@ -111,6 +111,38 @@
          (ambient (+ specular (* kd diffuse ao))))
     ambient))
 
+(defun-g ambient-ibl-flipped ((v              :vec3)
+                              (n              :vec3)
+                              (brdf-lut       :sampler-2d)
+                              (prefilter-map  :sampler-cube)
+                              (irradiance-map :sampler-cube)
+                              (roughness      :float)
+                              (metallic       :float)
+                              (color          :vec3)
+                              (ao             :float))
+  (let* (;; f - f0
+         (f0 (vec3 0.04))
+         (f0 (mix f0 color metallic))
+         (f  (fresnel-schlick-roughness (max (dot n v) 0) f0 roughness))
+         ;; Diffuse
+         (ks f)
+         (kd (* (- 1 ks)
+                (- 1 metallic)))
+         (irradiance (s~ (texture irradiance-map n) :xyz))
+         (diffuse    (* irradiance color))
+         ;; Specular
+         (r (reflect v n));; flipped from original...
+         (prefiltered-color
+           (s~ (texture-lod prefilter-map r (* roughness 4f0))
+               :xyz))
+         (env-brdf (s~ (texture brdf-lut (v! (max (dot n v) 0) roughness)) :xy))
+         (specular (* prefiltered-color
+                      (+ (* f (x env-brdf))
+                         (y env-brdf))))
+         ;; AO just diffuse...
+         (ambient (+ specular (* kd diffuse ao))))
+    ambient))
+
 ;;--------------------------------------------------
 ;; PBR helpers to apply lights - NO IBL
 ;;--------------------------------------------------
