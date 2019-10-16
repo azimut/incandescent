@@ -23,6 +23,11 @@
 (defparameter *dimensions* '(683 384))
 (defparameter *dimensions* '(320 240))
 
+(defparameter *dimensions*
+  (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
+                                 2f0)
+                          'list)))
+
 ;;(defparameter *dimensions* '(200 250))
 ;;(defparameter *dimensions* '(613 726))
 ;;(defparameter *dimensions* '(307 360))
@@ -62,10 +67,10 @@
   (setf *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f))
         *sdsam* (sample (attachment-tex *sdfbo* 0) :wrap :clamp-to-edge))
   (setf *fbo*  (make-fbo
-                `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(1 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
-                `(3 :dimensions ,*dimensions*  :element-type :rg16f)
+                `(0 :dimensions ,*dimensions*  :element-type :rgba32f)
+                `(1 :dimensions ,*dimensions*  :element-type :rgba32f)
+                `(2 :dimensions ,*dimensions*  :element-type :rgba32f)
+                `(3 :dimensions ,*dimensions*  :element-type :rg32f)
                 ;;`(:d ,*dstex*)
                 ;;`(:s ,*dstex*)
                 `(:d :dimensions ,*dimensions*)
@@ -79,11 +84,11 @@
   (setf (clear-color) (v! 0 0 0 1))
   (gl:clear-stencil 0)
   ;;--------------------------------------------------
-  (free-actors)
+  ;;(free-actors)
   (free-scenes)
   ;;--------------------------------------------------
   (ode-init)
-  (init-scene)
+  ;;(init-scene)
   (init-shadowmap)
   nil)
 
@@ -97,8 +102,10 @@
     (setf (resolution (current-viewport)) res)
     ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
     ;;--------------------------------------------------
-    ;;(update  *currentcamera* delta)
-    (control *currentcamera* delta 4)
+    (rocket-update)
+    (update  *currentcamera* delta)
+    (update  *shadow-camera* delta)
+    ;;(control *currentcamera* delta 4)
     ;;--------------------------------------------------
     (draw-shadowmap)
     (with-fbo-bound (*fbo*)

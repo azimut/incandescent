@@ -100,7 +100,7 @@
   (defmethod update ((obj drifter) dt)
     (with-slots (pos body) obj
       ;; Fase
-      (when (and (< (z pos) -80f0) (not *final-fase*))
+      (when (and (< (z pos) -60f0) (not *final-fase*))
         (setf *final-fase* t))
       ;; Controls
       (let* ((groundedp (if (< (y pos) .45) t nil))

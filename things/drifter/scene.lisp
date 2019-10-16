@@ -7,32 +7,60 @@
 (defvar *score*                 0)
 (defvar *final-fase*            nil)
 
+(defparameter *shadow-dimensions* '(2048 2048))
+(defparameter *shadow-dimensions* '(1024 1024))
 
 (defparameter *shadow-camera*
-  (let* ((lpos (v! 8 10 5))
-         (ldir (q:point-at (v! 0 1 0) lpos (v! 0 0 0)))
+  (let* ((lpos (v! 8 10 -660))
+         (ldir (q:point-at (v! 0 1 0) lpos (v! 0 0 -665)))
          (cam  (make-instance 'orth
                               :name :shadow-camera
-                              :frame-size (v2! 35) ;; zoom
-                              :far 50f0
-                              :near 10f0
+                              :frame-size (v2! 100) ;; zoom
+                              :far 30f0
+                              :near 1f0
                               :rot ldir
                               :pos lpos)))
-    (setf *light-pos* (v3:*s lpos 20f0))
+    (setf *light-pos* lpos)
     (setf *light-dir* (q:to-direction ldir))
     cam))
+;; From initial cutscene -> infinite runner
+;; From infinite runner -> boss "shooter"
+;; From infinite runner -> platformer
+;;
+;; Platformer:
+;; - camera moves in the -Z direction
+;; - camera reacts to jumps
+;; - controls only jump or move forward
+;; - z-offset 0
+;;
+;; Infinite runner:
+;; - z-offset 6
+;; Boss fight:
+;; - no forward backward
+
+;; (rocket-add "camera:z-offset")
+;; (rocket-add "camera:y")
+
 
 (defmethod update ((obj pers) dt)
+  (setf (fov obj) (rocket-get "camera:fov"))
   (with-slots (pos rot) obj
     (let ((dpos (pos *drifter*)))
-      (setf (y pos) 3f0)
-      (setf (x pos) 0f0)
+      (setf (y pos) (rocket-get "camera:y"))
+      (setf (x pos) (rocket-get "camera:x"))
       (setf rot (q:point-at (v! 0 1 0)
                             pos
-                            (v! (* .15 (x dpos))
-                                (min 4f0 (+ 1 (y dpos)))
-                                (z dpos))))
-      (setf (z pos) (+ 6f0 (z dpos))))))
+                            (v! 0
+                                (+ (* .15 (y dpos)) (rocket-get "camera:y-roffset"))
+                                (+ (z pos) (rocket-get "camera:z-roffset")))))
+      (setf (z pos) (+ (rocket-get "camera:z-offset") (z dpos))))))
+
+;; Shadow camera update
+(defmethod update ((obj orth) dt)
+  (with-slots (pos) obj
+    (let ((dpos (pos *drifter*)))
+      (setf (z pos) (+ 5f0 (z dpos)))
+      (setf *light-pos* (copy-seq pos)))))
 
 (progn
   (defun init-scene ()
@@ -46,7 +74,7 @@
     ;;(make-text "score")
     ;;
     (free-actors)
-    (make-boss :pos (v! 0 -23 -100) :scale 10f0 :draw-p nil)
+    (make-boss :pos (v! 0 -23 -100) :scale 10f0 :draw-p nil :prop (v! 0 .1 .7 .2))
     (make-drifter :color (v! .1 .1 .1) :dim (v! .9 .9 .9) :pos (v! 0 3 10))
     ;; Floor
     (make-route :name :piso :pos (v! 0 -1 0)    :dim (v! 10 2 100) :color (v! .7 .7 .7))

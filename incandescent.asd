@@ -296,6 +296,7 @@
   :depends-on (#:incandescent
                #:cm
                ;; #:deeds
+               #:incandescent/rocketman
                #:incandescent/assimp
                #:incandescent/ode)
   :components ((:file "cubemap/render")
