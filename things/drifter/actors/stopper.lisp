@@ -7,7 +7,6 @@
                :initarg :prop
                :documentation "emissive, spec, rough, metallic"))
   (:default-initargs
-   :pos (v! 0 .9 0)
    :draw-p nil
    :shadow-p nil
    :immovablep t))
@@ -58,15 +57,14 @@
   :fragment (stopper-frag :vec2 :vec3 :vec3))
 
 (defmethod draw ((actor stopper) camera time)
-  (with-slots (buf scale color properties draw-p) actor
-    (when draw-p
-      (map-g #'stopper-pipe buf
-             :color color
-             :scale scale
-             :properties  properties
-             :model-world (model->world actor)
-             :world-view  (world->view camera)
-             :view-clip   (projection  camera)))))
+  (with-slots (buf scale color properties) actor
+    (map-g #'stopper-pipe buf
+           :color color
+           :scale scale
+           :properties  properties
+           :model-world (model->world actor)
+           :world-view  (world->view camera)
+           :view-clip   (projection  camera))))
 
 (defmethod update ((obj stopper) dt)
   (when (behind-drifter-p obj)

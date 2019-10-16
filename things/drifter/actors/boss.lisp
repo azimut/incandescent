@@ -5,8 +5,7 @@
 (defclass boss (actor)
   ((properties :initarg :prop  :documentation "emissive, spec, rough, metallic")
    (scene      :initarg :scene :documentation "assimp scene")
-   (hp         :initform 100)
-   (mode       ))
+   (hp         :initform 100))
   (:default-initargs
    :draw-p nil
    :prop (v! 0 .7 .9 .2)))
@@ -71,9 +70,11 @@
     (when-let ((obj (find-actor-class 'boss)))
       (setf (pos obj) initial-pos)
       (setf *final-fase* nil)))
-  (defmethod update ((obj boss) dt)
+  (defmethod update :around ((obj boss) dt)
     (when *final-fase*
-      (with-slots (pos draw-p) obj
-        (when (< (y pos) final-y)
-          (setf draw-p t)
-          (incf (y pos) (* 2f0 dt)))))))
+      (call-next-method)))
+  (defmethod update ((obj boss) dt)
+    (with-slots (pos draw-p) obj
+      (when (< (y pos) final-y)
+        (setf draw-p t)
+        (incf (y pos) (* 2f0 dt))))))

@@ -43,10 +43,6 @@
 (defparameter *dimensions* '(341 192))
 
 (defvar *light-volumes* (list))
-(defvar *dstex* nil)
-
-(defvar *dsfbo* nil)
-(defvar *dssam* nil)
 
 (defvar *sdfbo* nil)
 (defvar *sdsam* nil)
@@ -62,19 +58,17 @@
   ;; HDR fbo(s)
   (when *fbo*   (free *fbo*))
   (when *sdfbo* (free *sdfbo*))
-  (when *dsfbo* (free *dsfbo*))
   ;;#+nil
   (setf *sdfbo* (make-fbo `(0 :dimensions ,*dimensions* :element-type :rgb16f))
         *sdsam* (sample (attachment-tex *sdfbo* 0) :wrap :clamp-to-edge))
   (setf *fbo*  (make-fbo
-                `(0 :dimensions ,*dimensions*  :element-type :rgba32f)
+                `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
                 `(1 :dimensions ,*dimensions*  :element-type :rgba32f)
-                `(2 :dimensions ,*dimensions*  :element-type :rgba32f)
-                `(3 :dimensions ,*dimensions*  :element-type :rg32f)
+                `(2 :dimensions ,*dimensions*  :element-type :rgba16f)
+                `(3 :dimensions ,*dimensions*  :element-type :rg16f)
                 ;;`(:d ,*dstex*)
                 ;;`(:s ,*dstex*)
-                `(:d :dimensions ,*dimensions*)
-                ))
+                `(:d :dimensions ,*dimensions*)))
   (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
   (setf *sam1* (sample (attachment-tex *fbo*  1) :wrap :clamp-to-edge))
   (setf *sam2* (sample (attachment-tex *fbo*  2) :wrap :clamp-to-edge))
@@ -84,12 +78,14 @@
   (setf (clear-color) (v! 0 0 0 1))
   (gl:clear-stencil 0)
   ;;--------------------------------------------------
-  ;;(free-actors)
+  (free-actors)
   (free-scenes)
   ;;--------------------------------------------------
   (ode-init)
-  ;;(init-scene)
+  (init-scene)
   (init-shadowmap)
+  (init-ibl)
+  (update-ibl *t-cubemap* *s-cubemap*); update from clouds
   nil)
 
 (defun draw! ()
@@ -160,7 +156,6 @@
         ;; (draw-tex-bl *sam2*)
         ;;
         ;;(draw-tex-tr *shadow-sam*)
-        ;;(draw-tex-tr *dssam*)
         ;;(draw-tex-tl *sdsam*)
         ;;(draw-tex-bl *god-sam*)
         )

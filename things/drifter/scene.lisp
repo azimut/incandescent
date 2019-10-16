@@ -23,57 +23,23 @@
     (setf *light-pos* lpos)
     (setf *light-dir* (q:to-direction ldir))
     cam))
-;; From initial cutscene -> infinite runner
-;; From infinite runner -> boss "shooter"
-;; From infinite runner -> platformer
-;;
-;; Platformer:
-;; - camera moves in the -Z direction
-;; - camera reacts to jumps
-;; - controls only jump or move forward
-;; - z-offset 0
-;;
-;; Infinite runner:
-;; - z-offset 6
-;; Boss fight:
-;; - no forward backward
 
-;; (rocket-add "camera:z-offset")
-;; (rocket-add "camera:y")
-
-(defmethod update ((obj pers) dt)
-  (setf (fov obj) (rocket-get "camera:fov"))
-  (with-slots (pos rot) obj
-    (let ((dpos (pos *drifter*)))
-      (setf (y pos) (rocket-get "camera:y"))
-      (setf (x pos) (rocket-get "camera:x"))
-      (setf rot (q:point-at (v! 0 1 0)
-                            pos
-                            (v! 0
-                                (+ (* .15 (y dpos)) (rocket-get "camera:y-roffset"))
-                                (+ (z pos) (rocket-get "camera:z-roffset")))))
-      (setf (z pos) (+ (rocket-get "camera:z-offset") (z dpos))))))
-
-;; Shadow camera update
-(defmethod update ((obj orth) dt)
-  (with-slots (pos) obj
-    (let ((dpos (pos *drifter*)))
-      (setf (z pos) (+ 5f0 (z dpos)))
-      (setf *light-pos* (copy-seq pos)))))
+(defun reset-state ()
+  (setf *final-fase*            nil)
+  (setf *score*                 0)
+  (setf *drifter*               nil)
+  (setf *drifter-pointer*       nil)
+  (setf *obstacles-pointers*    nil)
+  (setf *collectables-pointers* nil))
 
 (progn
   (defun init-scene ()
-    (setf *final-fase*            nil)
-    (setf *score*                 0)
-    (setf *drifter*               nil)
-    (setf *drifter-pointer*       nil)
-    (setf *obstacles-pointers*    nil)
-    (setf *collectables-pointers* nil)
+    (reset-state)
     ;;
     ;;(make-text "score")
     ;;
     (free-actors)
-    (make-boss :pos (v! 0 -23 -100) :scale 10f0 :draw-p nil :prop (v! 0 .1 .7 .2))
+    ;;(make-boss :pos (v! 0 -23 -100) :scale 10f0 :draw-p nil :prop (v! 0 .1 .7 .2))
     (make-drifter :color (v! .1 .1 .1) :dim (v! .9 .9 .9) :pos (v! 0 3 10))
     ;; Floor
     (make-route :name :piso :pos (v! 0 -1 0)    :dim (v! 10 2 100) :color (v! .7 .7 .7))
@@ -95,17 +61,16 @@
     (make-stopper :color (v3! .8) :draw-p t :pos (v! -5.5 .1 -200) :dim (v! 1 .5 100))
 
     ;;
-    ;;#+nil
+    #+nil
     (dotimes (i 2)
       (reset-obstacle
        (make-obstacle :radius .5
                       :color (v! .2 .5 .9)))
       (reset-collectable
        (make-collectable :radius .5)))
-    ;;(make-env-map *cube-tex* *cube-sam*)
     (make-clouds)
     ;;(make-text "asd")
     )
   ;;
-  ;;(init-scene)
+  (init-scene)
   )

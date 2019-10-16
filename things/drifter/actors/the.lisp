@@ -4,9 +4,7 @@
   (amotor
    (properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic"))
-  (:default-initargs
-   :pos (v! 0 .9 0)))
+               :documentation "emissive, spec, rough, metallic")))
 
 (defmethod free ((obj drifter))
   (%ode:joint-destroy (slot-value obj 'amotor)))
@@ -97,19 +95,20 @@
            :view-clip   (projection  camera))))
 
 (let ((stepper (make-stepper (seconds 2) (seconds 2))))
+  (defmethod update :after ((obj drifter) dt)
+    (when (and (not *final-fase*)
+               (< (z (pos obj)) -60f0))
+      (setf *final-fase* t)))
   (defmethod update ((obj drifter) dt)
     (with-slots (pos body) obj
-      ;; Fase
-      (when (and (< (z pos) -60f0) (not *final-fase*))
-        (setf *final-fase* t))
       ;; Controls
       (let* ((groundedp (if (< (y pos) .45) t nil))
-             (force (if groundedp 40d0 10d0)))
+             (force     (if groundedp 40d0 10d0)))
         ;; Jump
-        (when (keyboard-button (keyboard) key.j)
-          (if groundedp
-              (progn (%ode:body-enable body)
-                     (%ode:body-add-force body 0d0 400d0 0d0))))
+        (when (and (keyboard-button (keyboard) key.j)
+                   groundedp)
+          (%ode:body-enable body)
+          (%ode:body-add-force body 0d0 400d0 0d0))
         ;; forward
         (when (keyboard-button (keyboard) key.u)
           (%ode:body-enable body)
@@ -117,7 +116,7 @@
         (when (keyboard-button (keyboard) key.m)
           (%ode:body-enable body)
           (%ode:body-add-force body 0d0 0d0 force))
-        ;; sides
+        ;; Strife
         (when (keyboard-button (keyboard) key.h)
           (%ode:body-enable body)
           (%ode:body-add-force body (- force) 0d0 0d0))

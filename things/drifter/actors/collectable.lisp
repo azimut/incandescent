@@ -3,30 +3,26 @@
 (defclass collectable (physic-sphere)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic"))
-  (:default-initargs
-   :pos (v! 0 .9 0)))
+               :documentation "emissive, spec, rough, metallic")))
 
 (defmethod initialize-instance :after ((obj collectable) &key)
   (push (slot-value obj 'body) *collectables-pointers*))
 
-(defun make-collectable (&key (pos   (v! 0 .9 0))
-                              (color (v! .9 1 .3))
-                              (radius 1f0)
+(defun make-collectable (&key (pos      (v! 0 .9 0))
+                              (color    (v! .9 1 .3))
+                              (radius   1f0)
                               (shadow-p t)
-                              (rot   (q:identity))
-                              (prop  (v! 0 .7 .7 0))
-                              (scale 1f0))
+                              (rot      (q:identity))
+                              (prop     (v! 0 .7 .7 0))
+                              (scale    1f0))
   (let ((obj (make-instance 'collectable
                             :prop prop
                             :shadow-p shadow-p
                             :scale scale
                             :color color
                             :pos pos :rot rot
-                            :radius
-                            (coerce radius 'double-float)
-                            :buf
-                            (sphere (coerce radius 'single-float)))))
+                            :radius (coerce radius 'double-float)
+                            :buf (sphere (coerce radius 'single-float)))))
     (push obj *actors*)
     obj))
 

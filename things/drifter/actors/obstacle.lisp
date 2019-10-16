@@ -5,20 +5,18 @@
 (defclass obstacle (physic-sphere)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic"))
-  (:default-initargs
-   :pos (v! 0 .9 0)))
+               :documentation "emissive, spec, rough, metallic")))
 
 (defmethod initialize-instance :after ((obj obstacle) &key)
   (push (slot-value obj 'body) *obstacles-pointers*))
 
-(defun make-obstacle (&key (pos   (v! 0 .9 0))
-                           (color (v! .3 1 .9))
-                           (radius 1f0)
+(defun make-obstacle (&key (pos      (v! 0 .9 0))
+                           (color    (v! .3 1 .9))
+                           (radius   1f0)
                            (shadow-p t)
-                           (rot   (q:identity))
-                           (prop  (v! 0 .7 .7 0))
-                           (scale 1f0))
+                           (rot      (q:identity))
+                           (prop     (v! 0 .7 .7 0))
+                           (scale    1f0))
   (let ((obj (make-instance 'obstacle
                             :prop prop
                             :shadow-p shadow-p
