@@ -312,11 +312,11 @@
                (:file "things/drifter/ode")
                (:file "things/drifter/defer")
                ;;
-               (:file "things/drifter/the")
-               (:file "things/drifter/route")
-               (:file "things/drifter/obstacle")
-               (:file "things/drifter/boss")
-               (:file "things/drifter/collectable")
-               (:file "things/drifter/stopper")
+               (:file "things/drifter/actors/the")
+               (:file "things/drifter/actors/route")
+               (:file "things/drifter/actors/obstacle")
+               (:file "things/drifter/actors/boss")
+               (:file "things/drifter/actors/collectable")
+               (:file "things/drifter/actors/stopper")
                ;;
                (:file "things/drifter/scene")))

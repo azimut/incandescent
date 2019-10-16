@@ -41,7 +41,6 @@
 ;; (rocket-add "camera:z-offset")
 ;; (rocket-add "camera:y")
 
-
 (defmethod update ((obj pers) dt)
   (setf (fov obj) (rocket-get "camera:fov"))
   (with-slots (pos rot) obj
