@@ -1,5 +1,19 @@
 (in-package #:incandescent)
 
+;; unity_FogParams
+;; float4
+;; Parameters for fog calculation:
+;; X = density / sqrt(ln(2))
+;; Y = density / ln(2)
+;; Z = –1/(end-start)
+;; W = end/(end-start)
+;; X is useful for Exp2 fog mode, y for Exp mode, z and w for Linear mode
+(defun fog-params (&key (density .5) (start 1f0) (end 100f0))
+  (v! (/ density (sqrt (log 2)))
+      (/ density (log 2))
+      (/ (- 1) (- end start))
+      (/ end (- end start))))
+
 ;;--------------------------------------------------
 ;; https://catlikecoding.com/unity/tutorials/rendering/part-14/
 ;; (Euclidean) Distance (aka radial/range) based fog:
@@ -164,11 +178,29 @@
 ;; Defered fog
 ;; https://github.com/Unity-Technologies/PostProcessing/
 ;; Hardcoded to work ONLY with perspective projection
+;; // Z buffer depth to linear 0-1 depth
+;; // Handles orthographic projection correctly
+;; float Linear01Depth(float z)
+;; {
+;;     z *= _ZBufferParams.x;
+;;     return (1.0) /
+;;            (1 * z + _ZBufferParams.y);
+;; }
+;; float4 _ZBufferParams
+;; x: 1-far/near
+;; y: far/near
+;; z: x/far
+;; w: y/far
+;; float4 unity_OrthoParams
+;; // x: width,          y: height,   z: unused,    w: ortho ? 1 : 0
+(defun-g linear-01-depth ((z    :float)
+                          (near :float)
+                          (far  :float))
+  (let ((z (* z (- 1 (/ far near)))))
+    (/ 1f0 (+ z      (/ far near)))))
 (defun-g linear-01-depth ((z :float))
-  (let* ((far 1000f0)
-         (near .1)
-         (z (* z (- 1 (/ far near)))))
-    (/ (+ z (/ far near)))))
+  (linear-01-depth z .1 100f0))
+
 ;; PostProcessing/Shaders/StdLib.hlsl
 ;; PostProcessing/Shaders/Builtins/DeferredFog.shader
 ;; PostProcessing/Shaders/API/OpenGL.hlsl
@@ -198,6 +230,31 @@
          (fog   (- 1f0 (compute-fog-exp2 dist
                                          density))))
     (mix color fog-color fog)))
+
+;; Calculate it but not apply it
+(defun-g defered-fog ((uv :vec2)
+                      (depth-tex :sampler-2d)
+                      (density :float))
+  (let* ((depth (x (texture depth-tex uv)))
+         (depth (linear-01-depth depth))
+         (dist  (compute-fog-distance depth))
+         (fog   (- 1f0 (compute-fog-exp2 dist
+                                         density))))
+    fog))
+
+(defun-g defered-fog-no-skybox ((fog-color :vec3)
+                                (uv :vec2)
+                                (tex :sampler-2d)
+                                (depth-tex :sampler-2d)
+                                (density :float))
+  (let* ((color (s~ (texture tex uv) :xyz))
+         (depth (x (texture depth-tex uv)))
+         (depth (linear-01-depth depth))
+         (dist  (compute-fog-distance depth))
+         (skybox (step depth .9999))
+         (fog   (- 1f0 (compute-fog-exp2 dist
+                                         density))))
+    (mix color fog-color (* fog skybox))))
 
 ;;--------------------------------------------------
 ;; https://github.com/SlightlyMad/VolumetricLights/blob/master/Assets/Shaders/VolumetricLight.shader
