@@ -40,7 +40,7 @@
   (draw actor camera time))
 
 (defgeneric draw (actor camera time))
+(defmethod draw :around (actor camera time)
+  (when (slot-value actor 'draw-p)
+    (call-next-method)))
 (defmethod draw (actor camera time))
-
-
-
