@@ -47,6 +47,14 @@
   (when *rocket*
     (rocketman::toggle-pause *rocket*)))
 
+(defun rocket-pause ()
+  (when *rocket*
+    (rocketman::pause-it *rocket* 1)))
+
+(defun rocket-play ()
+  (when *rocket*
+    (rocketman::pause-it *rocket* 0)))
+
 (defun rocket-row ()
   (slot-value *rocket* 'rocketman::row))
 
