@@ -26,6 +26,7 @@
                (:file "pbr")          ;; gpu
                (:file "lib/misc-gpu") ;; gpu
                (:file "actors")       ;; lisp
+               (:file "event-loop")
                (:file "camera")       ;; lisp
                (:file "controls")     ;; lisp
                (:file "postprocess")  ;; gpu
@@ -297,6 +298,7 @@
                #:cm
                ;; #:deeds
                #:incandescent/rocketman
+               #:incandescent/text
                #:incandescent/assimp
                #:incandescent/ode)
   :components ((:file "cubemap/render")
@@ -311,6 +313,7 @@
                ;;
                (:file "things/drifter/ode")
                (:file "things/drifter/defer")
+               (:file "things/drifter/camera")
                ;;
                (:file "things/drifter/actors/the")
                (:file "things/drifter/actors/route")
