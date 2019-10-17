@@ -6,6 +6,8 @@
 (defvar *space* nil)
 (defvar *contactgroup* nil)
 
+(defmethod collide (o1 o2))
+
 (defun ode-init ()
   (unless *world*
     (%ode:init-ode)
@@ -44,15 +46,15 @@
             (b2 (%ode:geom-get-body o2)))
         (when (and b1 b2 (plusp (%ode:are-connected-excluding b1 b2 %ode:+joint-type-contact+)))
           (return-from gg))
-        (claw:c-with ((contact %ode:contact :calloc t :count 10))
-          (dotimes (i 10)
+        (claw:c-with ((contact %ode:contact :calloc t :count 5))
+          (dotimes (i 5)
             (setf (contact i :surface :mode) (logior %ode:+contact-bounce+
-                                                     ;; %ode:+contact-slip1+
+                                                     %ode:+contact-slip1+
                                                      ;; %ode:+contact-slip2+
                                                      ;; %ode:+contact-approx1+
                                                      ;; %ode:+contact-soft-erp+
                                                      %ode:+contact-soft-cfm+)
-                  ;; (contact i :surface :slip1) .7d0
+                  (contact i :surface :slip1) .7d0
                   ;; (contact i :surface :slip2) .7d0
                   ;;(contact i :surface :soft-erp) .96d0
                   ;; friction parameter
@@ -79,7 +81,7 @@
       "updates the objets within the physics engine"
       (when (and *world* (funcall stepper))
         (%ode:space-collide *space* nil (claw:callback 'near-callback))
-        (%ode:world-quick-step *world* 0.005d0)
+        (%ode:world-quick-step *world* 0.0099d0)
         (%ode:joint-group-empty *contactgroup*)))))
 
 ;; FIME: leaking? c-with would free it...
@@ -181,3 +183,14 @@
         ;;
         (%ode:geom-set-body geom body)
         (%ode:body-set-mass body mass)))))
+
+(defun getbody-force-and-torque (body)
+  "debug helper"
+  (let ((force (%ode:body-get-force body))
+        (torque (%ode:body-get-torque body)))
+    (values (v! (cffi:mem-ref force :double 0)
+                (cffi:mem-ref force :double 1)
+                (cffi:mem-ref force :double 2))
+            (v! (cffi:mem-ref torque :double 0)
+                (cffi:mem-ref torque :double 1)
+                (cffi:mem-ref torque :double 2)))))

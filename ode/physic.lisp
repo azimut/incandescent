@@ -1,5 +1,8 @@
 (in-package #:incandescent)
 
+(defvar *body-to-actor* (list)
+  "associative list between body pointer and lisp object")
+
 (defclass physic (actor)
   ((body       :initarg :body :reader body :documentation "body pointer")
    (mass       :initarg :mass :reader mass :documentation "mass pointer")
@@ -20,8 +23,16 @@
   (with-slots (body geom orot) object
     (%ode:body-destroy body)
     (%ode:geom-destroy geom)
-    (claw:free orot))
+    (claw:free orot)
+    (alexandria:removef *body-to-actor* body
+                        :key #'car :test #'sb-sys:sap=))
   (call-next-method))
+
+(defmethod initialize-instance :after ((obj physic) &key)
+  (push (list (slot-value obj 'body) obj) *body-to-actor*))
+
+(defun pointer-to-actor (pointer)
+  (serapeum:assocadr pointer *body-to-actor* :test #'sb-sys:sap=))
 
 (defun update-ode-rot (orot qrot)
   "set the ODE rotation to the QROT rtg-math quaternion"
