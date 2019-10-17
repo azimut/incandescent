@@ -70,28 +70,31 @@
 ;; Is kind of garbage that I need a source cubemap to begin with
 ;; instead of use the scene. But, It makes it easier so i can just
 ;; use a separate render pipeline just for the source cubemap.
-(defun update-ibl (&optional (src-tex *cube-tex*)
-                             (src-sam *cube-sam*))
-  (declare (type cepl:texture src-tex)
-           (type cepl:sampler src-sam))
-  (assert (texture-cubes-p src-tex))
-  ;; Diffuse
-  (when *t-cubemap-prefilter*
-    (cubemap-render-to-prefilter-cubemap :camera *camera-cubemap*
-                                         :src-cubemap src-tex
-                                         :src-cubemap-sample src-sam
-                                         :dst-cubemap *t-cubemap-prefilter*))
-  ;; IBL - Specular
-  (when *f-brdf*
-    (setf (resolution (current-viewport)) (v! 512 512))
-    (map-g-into *f-brdf* #'brdf-pipe *bs*))
-  ;;
-  (when *t-cubemap-live*
-    (cubemap-render-to-irradiance-cubemap :camera *camera-cubemap*
-                                          :src-cubemap src-tex
-                                          :src-cubemap-sample src-sam
-                                          :dst-cubemap *t-cubemap-live*))
-  t)
+(let ((init nil))
+  (defun update-ibl (&optional (src-tex *cube-tex*)
+                               (src-sam *cube-sam*)
+                               force-p)
+    (declare (type cepl:texture src-tex)
+             (type cepl:sampler src-sam))
+    (assert (texture-cubes-p src-tex))
+    (when (or (not init) force-p)
+      ;; Diffuse
+      (when *t-cubemap-prefilter*
+        (cubemap-render-to-prefilter-cubemap :camera *camera-cubemap*
+                                             :src-cubemap src-tex
+                                             :src-cubemap-sample src-sam
+                                             :dst-cubemap *t-cubemap-prefilter*))
+      ;; IBL - Specular
+      (when *f-brdf*
+        (setf (resolution (current-viewport)) (v! 512 512))
+        (map-g-into *f-brdf* #'brdf-pipe *bs*))
+      ;;
+      (when *t-cubemap-live*
+        (cubemap-render-to-irradiance-cubemap :camera *camera-cubemap*
+                                              :src-cubemap src-tex
+                                              :src-cubemap-sample src-sam
+                                              :dst-cubemap *t-cubemap-live*))
+      (setf init t))))
 
 ;;--------------------------------------------------
 ;; Pipeline to create a BRDF 2d lut
