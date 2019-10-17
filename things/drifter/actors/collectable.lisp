@@ -5,9 +5,6 @@
                :initarg :prop
                :documentation "emissive, spec, rough, metallic")))
 
-(defmethod initialize-instance :after ((obj collectable) &key)
-  (push (slot-value obj 'body) *collectables-pointers*))
-
 (defun make-collectable (&key (pos      (v! 0 .9 0))
                               (color    (v! .9 1 .3))
                               (radius   1f0)
@@ -77,3 +74,10 @@
               (> (x pos) 6))
       (reset-collectable obj))
     (%ode:body-add-force body 0d0 0d0 4d0)))
+
+(defmethod collide ((o1 collectable) (o2 drifter)) (collected o1))
+(defmethod collide ((o1 drifter) (o2 collectable)) (collected o2))
+
+(defun collected (obj)
+  (reset-collectable obj)
+  (incf (state-score *game-state*)))

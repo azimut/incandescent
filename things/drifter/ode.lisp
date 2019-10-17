@@ -37,13 +37,7 @@
                                     (claw:sizeof '%ode:contact))))
             (when (plusp numc)
               (when (and b1 b2)
-
-                (when (or (sb-sys:sap= b1 *drifter-pointer*)
-                          (sb-sys:sap= b2 *drifter-pointer*))
-                  (when (position b1 *collectables-pointers* :test #'sb-sys:sap=)
-                    (reset-by-pointer b1))
-                  (when (position b2 *collectables-pointers* :test #'sb-sys:sap=)
-                    (reset-by-pointer b2))))
+                (collide (pointer-to-actor b1) (pointer-to-actor b2)))
 
               (dotimes (i numc)
                 (%ode:joint-attach (%ode:joint-create-contact *world*
@@ -57,12 +51,3 @@
         (%ode:space-collide *space* nil (claw:callback 'near-callback))
         (%ode:world-quick-step *world* 0.0099d0)
         (%ode:joint-group-empty *contactgroup*)))))
-
-;; I mean yikes...but...
-(defmethod body (obj)
-  (cffi:null-pointer))
-
-(defun reset-by-pointer (pointer)
-  (when-let ((obj (find pointer *actors* :key #'body
-                                         :test #'sb-sys:sap=)))
-    (reset-obstacle obj)))

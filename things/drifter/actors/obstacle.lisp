@@ -7,9 +7,6 @@
                :initarg :prop
                :documentation "emissive, spec, rough, metallic")))
 
-(defmethod initialize-instance :after ((obj obstacle) &key)
-  (push (slot-value obj 'body) *obstacles-pointers*))
-
 (defun make-obstacle (&key (pos      (v! 0 .9 0))
                            (color    (v! .3 1 .9))
                            (radius   1f0)

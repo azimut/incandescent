@@ -59,7 +59,8 @@
          ;;#+nil
          (final-color
            (+ (* color emissive)
-              (+ (* ao indirect) indirect-specular)
+              ;;(+ (* ao indirect) indirect-specular)
+              indirect
               #+nil
               (+ (* (* (- 1f0 (fresnel-schlick-roughness
                                (max (dot norm (normalize (- pos cam-pos))) 0f0)
@@ -112,9 +113,7 @@
                                  .22
                                  .20
                                  (* 10 (v! .3 .8 .5))))))))
-    (values final-color
-            ;;(v! ldr luma)
-            )))
+    final-color))
 
 (defpipeline-g postprocess-defer-pipe (:points)
   :fragment (postprocess-defered :vec2))

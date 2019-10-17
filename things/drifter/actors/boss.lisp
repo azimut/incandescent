@@ -69,8 +69,10 @@
   (defun reset-boss ()
     (when-let ((obj (find-actor-class 'boss)))
       (setf (pos obj) initial-pos)
-      (setf *final-fase* nil)))
+      ;;(setf *final-fase* nil)
+      ))
   (defmethod update :around ((obj boss) dt)
+    #+nil
     (when *final-fase*
       (call-next-method)))
   (defmethod update ((obj boss) dt)

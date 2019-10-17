@@ -65,7 +65,7 @@
 
 ;; Is visible?
 (defun behind-drifter-p (self)
-  (let ((drifter-pos  (z (pos *drifter*)))
+  (let ((drifter-pos  (z (pos (state-drifter *game-state*))))
         (self-pos     (z (pos self)))
         (offset       4f0));; offset to hide it from camera
     (when (> (- self-pos *route-half* offset)

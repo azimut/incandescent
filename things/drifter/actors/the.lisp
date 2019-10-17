@@ -11,8 +11,7 @@
 
 (defmethod initialize-instance :after ((obj drifter) &key)
   (with-slots (amotor body) obj
-    (setf *drifter* obj)
-    (setf *drifter-pointer* body)
+    (setf (state-drifter         *game-state*) obj)
     ;;
     (setf amotor (%ode:joint-create-a-motor *world* 0))
     (%ode:joint-attach amotor body 0)
@@ -96,6 +95,7 @@
 
 (let ((stepper (make-stepper (seconds 2) (seconds 2))))
   (defmethod update :after ((obj drifter) dt)
+    #+nil
     (when (and (not *final-fase*)
                (< (z (pos obj)) -60f0))
       (setf *final-fase* t)))
