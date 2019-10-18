@@ -78,13 +78,20 @@
          *actors*))
   NIL)
 
+(defun delete-all-actor-class (class-name)
+  (when-let ((actors
+              (remove-if-not (op (eq class-name (class-name-of _)))
+                             *actors*)))
+    (mapcar #'free actors)
+    (setf *actors* (set-difference *actors* actors))))
+
 (defun delete-actor-class (class-name)
   "deletes 1 of actor class"
   (declare (type symbol class-name))
   (let ((obj (find-if
               (lambda (x) (eq class-name (serapeum:class-name-of x)))
               *actors*)))
-    (setf *actors* (delete obj *actors*))
+    (setf *actors* (remove obj *actors*))
     (when obj (free obj)))
   NIL)
 
