@@ -23,6 +23,7 @@
 (defparameter *dimensions* '(683 384))
 (defparameter *dimensions* '(320 240))
 
+;;#+nil
 (defparameter *dimensions*
   (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
                                  2f0)
@@ -82,10 +83,13 @@
   (free-scenes)
   ;;--------------------------------------------------
   (ode-init)
-  (init-scene)
   (init-shadowmap)
   (init-ibl)
+  (init-text)
+  (rocket-init)
+  (rocketman:load-file *rocket* "/home/sendai/drifter.rocket")
   (update-ibl *t-cubemap* *s-cubemap*); update from clouds
+  (init-scene)
   nil)
 
 (defun draw! ()
@@ -104,14 +108,12 @@
     ;;(control *currentcamera* delta 4)
     ;;--------------------------------------------------
     (draw-shadowmap)
-    (with-fbo-bound (*fbo*)
+    (with-fbo-bound (*fbo*)   ;; defer render
       (clear-fbo *fbo*)
       (dolist (actor *actors*)
         (draw actor *currentcamera* time)
         (update actor delta)))
-    ;;#+nil
     (with-fbo-bound (*sdfbo*) ;; defer shading
-      (clear-fbo *sdfbo*)
       (with-setf* ((depth-mask) nil
                    (cull-face) nil
                    (depth-test-function) nil)
@@ -131,11 +133,8 @@
                :light-dir   *light-dir*
                :light-color (v3:*s *light-color* *cone-mult*)
                :light-pos   *light-pos*))
-      ;;(screen-text)
-      )
-    ;;#+nil
+      (screen-text))
     (as-frame
-      ;;#+nil
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
                    (depth-test-function) nil)
