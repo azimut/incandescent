@@ -147,7 +147,14 @@
                #:cl-openal
                #:cl-alut
                #:cm)
-  :components ((:file "audio/openal")))
+  :pathname "audio/openal"
+  :components ((:file "nepal")
+               (:file "audio")
+               (:file "event")
+               (:file "music")
+               (:file "positional")
+               (:file "sfx")
+               (:file "listener")))
 
 (asdf:defsystem #:incandescent/audio-sdl2mix
   :description "Describe incandescent here"
@@ -297,6 +304,7 @@
   :depends-on (#:incandescent
                #:cm
                ;; #:deeds
+               #:incandescent/audio-openal
                #:incandescent/rocketman
                #:incandescent/text
                #:incandescent/assimp
