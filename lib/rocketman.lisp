@@ -58,6 +58,9 @@
 (defun rocket-row ()
   (slot-value *rocket* 'rocketman::row))
 
+(defun rocket-load-file (file)
+  (rocketman:load-file *rocket* (truename file)))
+
 ;;--------------------------------------------------
 
 #+nil
