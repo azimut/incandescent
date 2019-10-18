@@ -27,15 +27,15 @@
     (values (calc-text-uvs position extent scale)
             in-tex-coord)))
 
-(defun-g tfrag ((tex-coord  :vec2) &uniform
-                (tex-image  :sampler-2d)
-                (text-color :vec3))
+(defun-g tfrag ((tex-coord :vec2) &uniform
+                (tex-image :sampler-2d)
+                (tex-color :vec3))
   (let ((intensity (x (texture tex-image tex-coord))))
     ;; NOTE: I could use this for transparency, but i would need another
     ;; pass due defered fog...
     ;;(* (v! 5 5 5 1) (v! 1 1 1 intensity))
-    (v! (* text-color (v3! intensity))
-        (step .01 intensity))
+    (v! (* tex-color (v3! intensity))
+        (step .4 intensity))
     ;;(v! 1 0 0 1)
     ;;intensity
     ))

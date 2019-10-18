@@ -48,10 +48,10 @@
   (with-slots (pos color scale) *the-text*
     (with-blending *font-blending*
       (with-setf* ((depth-mask) nil
-                   (depth-test-function) nil
+                   (depth-test-function) #'always
                    (cull-face) nil)
         (map-g #'fondness (cepl.fond::fond-text-stream *text*)
                :extent (v! pos *dimensions*)
                :scale scale
                :tex-image (cepl.fond::fond-font-sampler *font*)
-               :text-color color)))))
+               :tex-color color)))))
