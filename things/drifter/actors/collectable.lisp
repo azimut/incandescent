@@ -1,7 +1,8 @@
 (in-package #:incandescent)
 
 (defclass collectable (physic-sphere)
-  ((properties :initform (v! 0 .7 .9 .2)
+  ((life :initform 10f0)
+   (properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
                :documentation "emissive, spec, rough, metallic")))
 
@@ -56,11 +57,13 @@
 
 (let ((pos (cm:new cm:cycle :of '(-2 0 2))))
   (defun reset-collectable (obj)
-    (with-slots (body) obj
+    (with-slots (body life) obj
       (let ((newpos
               (v! (cm:next pos)
                   .5
-                  (random-in-range -15 -10))))
+                  (+ (z (pos (state-drifter *game-state*)))
+                     (random-in-range -35 -40)))))
+        (setf life (random-in-range 10f0 15f0))
         (ode-update-pos obj newpos)
         (%ode:body-set-force body 0d0 0d0 0d0)
         (%ode:body-set-torque body 0d0 0d0 0d0)
@@ -68,10 +71,9 @@
         (%ode:body-enable body)))))
 
 (defmethod update ((obj collectable) dt)
-  (with-slots (body mass pos) obj
-    (when (or (> (z pos) 20)
-              (< (x pos) -6)
-              (> (x pos) 6))
+  (with-slots (body life) obj
+    (decf life dt)
+    (when (< life 0f0)
       (reset-collectable obj))
     (%ode:body-add-force body 0d0 0d0 4d0)))
 
@@ -80,4 +82,6 @@
 
 (defun collected (obj)
   (reset-collectable obj)
-  (incf (state-score *game-state*)))
+  (incf (state-score *game-state*))
+  (make-text (format nil "score: ~d" (state-score *game-state*))
+             :scale 1.5f0))

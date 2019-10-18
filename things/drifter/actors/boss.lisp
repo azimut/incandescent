@@ -4,25 +4,21 @@
 
 (defclass boss (actor)
   ((properties :initarg :prop  :documentation "emissive, spec, rough, metallic")
-   (scene      :initarg :scene :documentation "assimp scene")
-   (hp         :initform 100))
+   (scene      :initarg :scene :documentation "assimp scene"))
   (:default-initargs
-   :draw-p nil
    :prop (v! 0 .7 .9 .2)))
 
 (defun make-boss (&key (pos   (v! 0 2 0))
                        (color (v! 1 1 1))
                        (rot   (q:identity))
-                       draw-p
                        (name  (gensym))
                        (prop  (v! 0 .7 .7 0))
-                       (scale 1f0))
+                       (scale 10f0))
   (destructuring-bind (&key buf scene &allow-other-keys)
       (first (assimp-load-meshes "static/bunny.obj"))
     (let ((obj (make-instance 'boss
                               :name name
                               :prop prop
-                              :draw-p draw-p
                               :scale scale
                               :color color
                               :scene scene
@@ -62,21 +58,9 @@
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))
 
-(let* ((initial-pos (v! 0 -23 -100))
-       (final-pos   (v! 0 8.6 -100))
-       (initial-y   (y initial-pos))
-       (final-y     (y final-pos)))
-  (defun reset-boss ()
-    (when-let ((obj (find-actor-class 'boss)))
-      (setf (pos obj) initial-pos)
-      ;;(setf *final-fase* nil)
-      ))
-  (defmethod update :around ((obj boss) dt)
-    #+nil
-    (when *final-fase*
-      (call-next-method)))
+(let ((initial-y -23f0)
+      (final-y   8.6f0))
   (defmethod update ((obj boss) dt)
-    (with-slots (pos draw-p) obj
+    (with-slots (pos) obj
       (when (< (y pos) final-y)
-        (setf draw-p t)
         (incf (y pos) (* 2f0 dt))))))

@@ -2,6 +2,7 @@
 
 (defclass drifter (physic-box)
   (amotor
+   (health :initform 100 :accessor health)
    (properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
                :documentation "emissive, spec, rough, metallic")))
@@ -93,33 +94,90 @@
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))
 
+(defgeneric control-drifter (obj phase dt))
+
+(defmethod control-drifter ((obj drifter) (phase (eql :welcome)) dt)
+  (when (keyboard-button (keyboard) key.space)
+    (next-phase)))
+
+(defmethod control-drifter ((obj drifter) (phase (eql :runner)) dt)
+  (when (>= (state-score *game-state*) *runner-score*)
+    (next-phase))
+  (make-text
+   (format nil "Score: ~d/~d" (state-score *game-state*) *runner-score*)
+   :pos (v! -220 -110)
+   :scale 1.5f0)
+  (with-slots (pos body) obj
+    (let* ((groundedp (if (< (y pos) .45) t nil))
+           (force     (if groundedp 40d0 10d0)))
+      ;; Jump
+      (when (and (keyboard-button (keyboard) key.j)
+                 groundedp)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 400d0 0d0))
+      ;; Forward
+      (when (keyboard-button (keyboard) key.u)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 (- force)))
+      (when (keyboard-button (keyboard) key.m)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 force))
+      ;; Strife
+      (when (keyboard-button (keyboard) key.h)
+        (%ode:body-enable body)
+        (%ode:body-add-force body (- force) 0d0 0d0))
+      (when (keyboard-button (keyboard) key.k)
+        (%ode:body-enable body)
+        (%ode:body-add-force body force 0d0 0d0)))))
+
+(defmethod control-drifter ((obj drifter) (phase (eql :boss)) dt)
+  (decf (health obj) (* dt *boss-bleeding*))
+  (when (<= (health obj) 0f0)
+    (next-phase))
+  (make-text
+   (format nil "Health: ~d" (health obj))
+   :pos (v! 100 -110)
+   :scale 1.5f0)
+  (with-slots (pos body) obj
+    ;; Controls
+    (let* ((groundedp (if (< (y pos) .45) t nil))
+           (force     (if groundedp 40d0 10d0)))
+      ;; Jump
+      (when (and (keyboard-button (keyboard) key.j)
+                 groundedp)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 400d0 0d0))
+      ;; Strife
+      (when (keyboard-button (keyboard) key.h)
+        (%ode:body-enable body)
+        (%ode:body-add-force body (- force) 0d0 0d0))
+      (when (keyboard-button (keyboard) key.k)
+        (%ode:body-enable body)
+        (%ode:body-add-force body force 0d0 0d0)))))
+
+(defmethod control-drifter ((obj drifter) (phase (eql :sidescroller)) dt)
+  (make-text
+   (format nil "Distance: ~f" (- (z (pos obj))
+                                 (state-distance *game-state*)))
+   :pos (v! -100 100)
+   :scale 1.5f0)
+  (with-slots (pos body) obj
+    ;; Controls
+    (let* ((groundedp (if (< (y pos) .45) t nil))
+           (force     (if groundedp 40d0 10d0)))
+      ;; Jump
+      (when (and (keyboard-button (keyboard) key.j)
+                 groundedp)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 400d0 0d0))
+      ;; forward
+      (when (keyboard-button (keyboard) key.u)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 (- force)))
+      (when (keyboard-button (keyboard) key.m)
+        (%ode:body-enable body)
+        (%ode:body-add-force body 0d0 0d0 force)))))
+
 (let ((stepper (make-stepper (seconds 2) (seconds 2))))
-  (defmethod update :after ((obj drifter) dt)
-    #+nil
-    (when (and (not *final-fase*)
-               (< (z (pos obj)) -60f0))
-      (setf *final-fase* t)))
   (defmethod update ((obj drifter) dt)
-    (with-slots (pos body) obj
-      ;; Controls
-      (let* ((groundedp (if (< (y pos) .45) t nil))
-             (force     (if groundedp 40d0 10d0)))
-        ;; Jump
-        (when (and (keyboard-button (keyboard) key.j)
-                   groundedp)
-          (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 400d0 0d0))
-        ;; forward
-        (when (keyboard-button (keyboard) key.u)
-          (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 0d0 (- force)))
-        (when (keyboard-button (keyboard) key.m)
-          (%ode:body-enable body)
-          (%ode:body-add-force body 0d0 0d0 force))
-        ;; Strife
-        (when (keyboard-button (keyboard) key.h)
-          (%ode:body-enable body)
-          (%ode:body-add-force body (- force) 0d0 0d0))
-        (when (keyboard-button (keyboard) key.k)
-          (%ode:body-enable body)
-          (%ode:body-add-force body force 0d0 0d0))))))
+    (control-drifter obj (first (state-phase *game-state*)) dt)))

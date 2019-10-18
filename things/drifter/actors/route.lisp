@@ -12,9 +12,6 @@
 ;; advances in negative z
 ;; starts at 0
 
-(defvar *route-length* 100)
-(defvar *route-half*   (/ *route-length* 2))
-
 (defun make-route (&key (pos   (v! 0 .9 0))
                         (color (v! 1 .3 .9))
                         (dim   (v! 1 1 1))
