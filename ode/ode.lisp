@@ -184,6 +184,18 @@
         (%ode:geom-set-body geom body)
         (%ode:body-set-mass body mass)))))
 
+(defun getbody-linear-vel (body)
+  (let ((linear-vel (%ode:body-get-linear-vel body)))
+    (v! (cffi:mem-ref linear-vel :double 0)
+        (cffi:mem-ref linear-vel :double 1)
+        (cffi:mem-ref linear-vel :double 2))))
+
+(defun getbody-force (body)
+  (let ((force (%ode:body-get-force body)))
+    (v! (cffi:mem-ref force :double 0)
+        (cffi:mem-ref force :double 1)
+        (cffi:mem-ref force :double 2))))
+
 (defun getbody-force-and-torque (body)
   "debug helper"
   (let ((force (%ode:body-get-force body))
