@@ -22,7 +22,7 @@
          (cam  (make-instance 'orth
                               :name :shadow-camera
                               :frame-size (v2! 100) ;; zoom
-                              :far 30f0
+                              :far 35f0
                               :near 1f0
                               :rot ldir
                               :pos lpos)))
@@ -54,7 +54,7 @@
 (defvar *game-state* (make-instance 'game-state))
 
 ;;--------------------------------------------------
-(defclass next-phase (event) ())
+(defclass next-phase (event-handler) ())
 
 (defmethod update ((obj next-phase) dt)
   (when (>= (rocket-row) (second (state-phase *game-state*)))

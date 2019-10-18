@@ -12,24 +12,30 @@
 ;; Boss fight:
 ;; - no forward/backward
 
-;; welcome menu -> infinite runner
+;; welcome menu          -> infinite runner
 ;; From infinite runner  -> boss "shooter"
 ;; From infinite runner  -> platformer
+
+(defclass drifter-camera (pers listener) ())
+
+(defmethod initialize-instance :after ((obj drifter-camera) &key)
+  (setf *currentcamera* obj))
+
+(defvar *drifter-camera* (make-instance 'drifter-camera))
 
 ;; Main camera
 (defmethod update ((obj pers) dt)
   (setf (fov obj) (rocket-get "camera:fov"))
-  (with-slots (pos rot) obj
-    (let ((dpos (pos (state-drifter *game-state*))))
-      (setf (y pos) (rocket-get "camera:y"))
-      (setf (x pos) (rocket-get "camera:x"))
-      (setf (z pos) (+ (rocket-get "camera:z-offset") (z dpos)))
-      (setf rot (q:point-at
-                 (v! 0 1 0)
-                 pos
-                 (v! (* .25 (x dpos))
-                     (+ (* .5 (y dpos)) (rocket-get "camera:y-roffset"))
-                     (+ (z pos) (rocket-get "camera:z-roffset"))))))))
+  (let ((dpos (pos (state-drifter *game-state*))))
+    (setf (pos obj) (v! (rocket-get "camera:x")
+                        (rocket-get "camera:y")
+                        (+ (rocket-get "camera:z-offset") (z dpos))))
+    (setf (rot obj) (q:point-at
+                     (v! 0 1 0)
+                     (pos obj)
+                     (v! (* .25 (x dpos))
+                         (+ (* .5 (y dpos)) (rocket-get "camera:y-roffset"))
+                         (+ (z (pos obj)) (rocket-get "camera:z-roffset")))))))
 
 ;; Shadow camera
 (defmethod update ((obj orth) dt)

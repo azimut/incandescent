@@ -2,7 +2,7 @@
 
 ;; seriously consider copy "trial" one
 
-(defclass event (actor)
+(defclass event-handler (actor)
   ()
   (:default-initargs
    :draw-p nil
