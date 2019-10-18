@@ -3,6 +3,9 @@
 (defparameter *shadow-dimensions* '(2048 2048))
 (defparameter *shadow-dimensions* '(1024 1024))
 
+(defparameter *default-charset*
+  (format nil "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-,/:0123456789~% ."))
+
 (defparameter *runner-score* 2
   "score needed to pass the runner phase")
 (defparameter *boss-bleeding* 5
