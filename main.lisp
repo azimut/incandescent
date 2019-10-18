@@ -23,7 +23,7 @@
 (defparameter *dimensions* '(683 384))
 (defparameter *dimensions* '(320 240))
 
-;;#+nil
+#+nil
 (defparameter *dimensions*
   (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
                                  2f0)
@@ -83,13 +83,14 @@
   (free-scenes)
   ;;--------------------------------------------------
   (ode-init)
+  (init-audio)
   (init-shadowmap)
   (init-ibl)
   (init-text)
-  (rocket-init)
-  (rocketman:load-file *rocket* "/home/sendai/drifter.rocket")
-  (update-ibl *t-cubemap* *s-cubemap*); update from clouds
+  (rocket-init t)
+  (rocket-load-file "/home/sendai/drifter.rocket")
   (init-scene)
+  (update-ibl *t-cubemap* *s-cubemap*); update from clouds
   nil)
 
 (defun draw! ()
@@ -162,10 +163,10 @@
   (ode-update)
   ;; Stop on ESC
   (when (keyboard-button (keyboard) key.escape)
-    (play :stop))
+    (play-render :stop))
   (decay-events))
 
-(def-simple-main-loop play (:on-start #'init)
+(def-simple-main-loop play-render (:on-start #'init)
   (draw!))
 
 (defun playit ()
@@ -173,4 +174,4 @@
   ;; (cepl.context::legacy-add-surface (cepl:cepl-context) "CEPL" 341 192 t t
   ;;                                   nil nil t nil)
   ;; (cepl:cls)
-  (play :start))
+  (play-render :start))
