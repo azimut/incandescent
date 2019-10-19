@@ -65,10 +65,9 @@
       (let ((newpos
               (v! (cm:next pos)
                   .5
-                  (random-in-range -15 -10))))
+                  (+ (z (pos (state-drifter *game-state*)))
+                     (random-in-range -35 -40)))))
         (ode-update-pos obj newpos)
-        (%ode:body-set-force body 0d0 0d0 0d0)
-        (%ode:body-set-torque body 0d0 0d0 0d0)
         (%ode:body-set-linear-vel body 0d0 0d0 0d0)
         (%ode:body-enable body)))))
 

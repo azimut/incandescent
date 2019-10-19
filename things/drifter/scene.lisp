@@ -6,8 +6,8 @@
 (defparameter *default-charset*
   (format nil "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-,/:0123456789~% ."))
 
-(defparameter *runner-score* 2
-  "score needed to pass the runner phase")
+(defparameter *runner-score* 16
+  "score needed to pass the runner phase"j)
 (defparameter *boss-bleeding* 5
   "yikes...speed multiplier for boss phase")
 (defparameter *sidescroller-distance* 1000
@@ -85,9 +85,22 @@
     (ode-update-pos drifter (v! 0 2 30))
     (setf (pos drifter) (v! 0 2 30))))
 
+(defmethod (setf state-phase) :before ((value (eql :runner)) (obj game-state))
+  (reset-rock (make-rock :dim (v! 2 5 2)))
+  (reset-rock (make-rock :dim (v! 4 2 4)))
+  (reset-rock (make-rock :dim (v! 3 3 3)))
+  ;;#+nil
+  (dotimes (i 2)
+    #+nil
+    (reset-obstacle
+     (make-obstacle :radius .5 :color (v! .2 .5 .9)))
+    (reset-collectable
+     (make-collectable :radius .5))))
+
 (defmethod (setf state-phase) :before ((value (eql :boss)) (obj game-state))
   (delete-all-actor-class 'obstacle)
   (delete-all-actor-class 'collectable)
+  (delete-all-actor-class 'rock)
   (let ((drifter (state-drifter *game-state*)))
     (%ode:body-set-linear-vel (body drifter) 0d0 0d0 0d0)
     (%ode:body-add-force (body drifter) 0d0 20d0 -40d0)
@@ -144,11 +157,6 @@
 
     ;;
     ;;#+nil
-    (dotimes (i 2)
-      (reset-obstacle
-       (make-obstacle :radius .5 :color (v! .2 .5 .9)))
-      (reset-collectable
-       (make-collectable :radius .5)))
     (make-clouds)
     (reinitialize-instance *game-state*)
     (setf (state-phase *game-state*) :welcome)

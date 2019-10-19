@@ -26,18 +26,12 @@
     (%ode:joint-set-a-motor-angle    amotor 0 0d0)
     (%ode:joint-set-a-motor-param    amotor %ode:+param-f-max+
                                      1000000d0)
-
+    ;;
     (%ode:joint-set-a-motor-axis     amotor 1 0 0d0 1d0 0d0)
     (%ode:joint-set-a-motor-angle    amotor 1 0d0)
     (%ode:joint-set-a-motor-param    amotor (+ %ode:+param-f-max+
                                                %ode:+param-group+)
                                      1000000d0)
-
-    ;; (%ode:joint-set-a-motor-axis     amotor 2 0 0d0 1d0 0d0)
-    ;; (%ode:joint-set-a-motor-angle    amotor 2 0d0)
-    ;; (%ode:joint-set-a-motor-param    amotor (+ %ode:+param-f-max+
-    ;;                                            (* 2 %ode:+param-group+))
-    ;;                                  1000000d0)
     ))
 
 (defun make-drifter (&key (pos   (v! 0 .9 0))

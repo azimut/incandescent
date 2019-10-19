@@ -17,7 +17,7 @@
             (setf (contact i :surface :mode) (logior %ode:+contact-bounce+
                                                      %ode:+contact-slip1+
                                                      ;; %ode:+contact-slip2+
-                                                     ;; %ode:+contact-approx1+
+                                                     ;;%ode:+contact-approx1+
                                                      ;; %ode:+contact-soft-erp+
                                                      %ode:+contact-soft-cfm+)
                   (contact i :surface :slip1) .7d0

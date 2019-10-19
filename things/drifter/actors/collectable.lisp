@@ -65,17 +65,13 @@
                      (random-in-range -35 -40)))))
         (setf life (random-in-range 10f0 15f0))
         (ode-update-pos obj newpos)
-        (%ode:body-set-force body 0d0 0d0 0d0)
-        (%ode:body-set-torque body 0d0 0d0 0d0)
         (%ode:body-set-linear-vel body 0d0 0d0 0d0)
         (%ode:body-enable body)))))
 
 (defmethod update ((obj collectable) dt)
-  (with-slots (body life) obj
-    (decf life dt)
-    (when (< life 0f0)
-      (reset-collectable obj))
-    (%ode:body-add-force body 0d0 0d0 4d0)))
+  (when (behind-drifter-p obj)
+    (reset-collectable obj))
+  (%ode:body-add-force (body obj) 0d0 0d0 4d0))
 
 (defmethod collide ((o1 collectable) (o2 drifter)) (collected o1))
 (defmethod collide ((o1 drifter) (o2 collectable)) (collected o2))
