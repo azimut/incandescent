@@ -1,13 +1,17 @@
 (in-package #:incandescent)
 
+;;
+;; Forward rendering ONLY, for defer rendering calculate the
+;; light-clip-pos in the postprocess pipe
+;;
+
 ;;--------------------------------------------------
 ;; 3d - g-pnt - Replacements for basic vert and frags
 
 (defun-g shadow-vert ((vert g-pnt) &uniform
                       (model-world :mat4) (world-view :mat4) (view-clip :mat4)
-                      (scale :float)
-                      (light-world :mat4)
-                      (light-clip :mat4))
+                      (light-world :mat4) (light-clip :mat4)
+                      (scale       :float))
   (let* ((pos        (* scale (pos vert)))
          (norm       (norm vert))
          (world-norm (* (m4:to-mat3 model-world) norm))
@@ -45,7 +49,6 @@
 (defpipeline-g generic-shadow-pipe ()
   :vertex   (shadow-vert g-pnt)
   :fragment (shadow-frag :vec2 :vec3 :vec3 :vec4))
-
 
 ;;--------------------------------------------------
 ;; 3d - g-pnt tb-data
@@ -93,8 +96,6 @@
             (* tbn cam-pos)
             (* tbn (s~ world-pos :xyz))
             (* light-clip light-world world-pos))))
-
-
 
 ;;--------------------------------------------------
 ;; 3d - Frag replacements
@@ -224,4 +225,3 @@
   :fragment (shadow-pbr-frag :vec2 :vec3 :vec3
                                    :mat3 :vec3 :vec3 :vec3
                                    :vec4))
-

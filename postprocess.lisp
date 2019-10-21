@@ -38,7 +38,6 @@
          ;; (final-color (mix (s~ (texture sam uv) :xyz)
          ;;                   (v! .5 .6 .7)
          ;;                   (defered-fog uv samd .1)))
-         ;;(final-color (s~ (psx-dither sam uv 255f0 sam3) :xyz))
          ;; (final-color (* (x (texture sam2 uv))
          ;;                 (s~ (texture sam uv) :xyz)))
          ;;(final-color (posterize final-color 128))
@@ -62,11 +61,16 @@
          ;;           (sample-box uv .5 sam2
          ;;                       #.(/ 1f0 (car *dimensions*))
          ;;                       #.(/ 1f0 (car (last *dimensions*))))))
+
+         ;;(final-color (s~ (psx-dither sam uv 256f0 sam2) :xyz))
+         ;;(final-color (posterize (s~ (texture sam uv) :xyz) 16))
+         ;;#+nil
          (final-color
            (+ (* (nineveh.vignette:vignette uv 15f0 .15)
                  ;;(s~ (texture sam uv) :xyz)
                  ;;#+nil
                  (mix (*
+                       ;;final-color
                        (s~ (texture sam uv) :xyz)
                        ;;(x (texture sam2 uv))
                        )
@@ -78,7 +82,7 @@
                         sam
                         samd
                         .03)
-                      .5))
+                      .6))
               ;;(* 1f0 (x (texture sam2 uv)))
               ))
 

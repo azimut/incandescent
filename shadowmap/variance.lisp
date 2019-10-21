@@ -97,14 +97,14 @@
                          :view-clip   (projection  *shadow-camera*))))
               ;;(draw-variance-actor actor)
           ))
-  ;;
+  ;;#+nil
   (with-fbo-bound (*variance-fbo*)
     (clear *variance-fbo*)
     (map-g #'variance-blur-pipe *bs*
            :sam *shadow-sam*
            :blur-scale (v! (/ 1 (* br (car *shadow-dimensions*)))
                            0)))
-  ;;
+  ;;#+nil
   (with-fbo-bound (*shadow-fbo*)
     (clear *shadow-fbo*)
     (map-g #'variance-blur-pipe *bs*

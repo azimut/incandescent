@@ -67,8 +67,13 @@
 
 (defun find-actor-class (class-name)
   (declare (type symbol class-name))
-  (find-if (lambda (a) (typep a class-name))
-           (alexandria:shuffle *actors*)))
+  (find class-name *actors*
+        :key #'serapeum:class-name-of))
+
+(defun find-actor-class-random (class-name)
+  (declare (type symbol class-name))
+  (find class-name (alexandria:shuffle *actors*)
+        :key #'serapeum:class-name-of))
 
 (defun delete-actor-name (actor-name)
   (declare (symbol actor-name))

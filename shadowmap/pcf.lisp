@@ -7,7 +7,9 @@
 
 (defun init-shadowmap ()
   (free-shadowmap)
-  (setf *shadow-fbo* (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
+  (setf *shadow-fbo* (make-fbo `(:d :dimensions ,*shadow-dimensions*
+                                    ;;:element-type :depth-component32
+                                    )))
   (setf *shadow-sam* (sample (attachment-tex *shadow-fbo* :d)
                              :wrap           :clamp-to-border
                              :minify-filter  :nearest
@@ -24,7 +26,7 @@
 
 (defmethod draw-shadowmap-actor (actor)
   (with-fbo-bound (*shadow-fbo* :attachment-for-size :d)
-    ;;(with-setf (cull-face) :front)
+    (with-setf (cull-face) :front)
     (with-slots (buf scale draw-p shadow-p) actor
       (when (and draw-p shadow-p)
         (map-g #'simplest-3d-pipe buf
@@ -88,8 +90,8 @@
   (let* ((proj-coords   (/ (s~ pos-in-light-space :xyz)
                            (w  pos-in-light-space)))
          (proj-coords   (+ .5 (* .5 proj-coords)))
-         (bias          .005
-                        ;;#.(* 2f0 (/ 1024f0))
+         (bias          .003f0
+                        ;;#.(* 1f0 (/ 2048f0))
                         )
          (current-depth (z proj-coords))
          (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
@@ -108,7 +110,8 @@
          (proj-coords (+ .5 (* .5 proj-coords)))
          (closest-depth (x (texture light-sampler (s~ proj-coords :xy))))
          (current-depth (z proj-coords))
-         (bias (max (* .005 (- 1 (dot normal light-dir))) .005)))
+         (off .02)
+         (bias (max (* off (- 1 (dot normal light-dir))) off)))
     (if (> (- current-depth bias) closest-depth)
         0f0
         1f0)))
@@ -123,9 +126,9 @@
          (num-samples 3f0)
          (num-samples-start (/ (1- num-samples) 2))
          (shadow 0f0)
-         (bias .005 ;;#.(* 3f0 (/ 1024f0))
+         (bias .001 ;;#.(* 3f0 (/ 1024f0))
                ) ;; 0.005
-         (texel-size (/ (vec2 1f0)
+         (texel-size (/ 1f0
                         (texture-size light-sampler 0)))
          (uv (s~ proj-coords :xy)))
     ;;
@@ -148,7 +151,7 @@
          (proj-coords (+ (* proj-coords 0.5) (vec3 0.5)))
          (our-depth (z proj-coords))
          (shadow 0f0)
-         (bias #.(* 1f0 (/ 1024f0))
+         (bias .009;;#.(* 1f0 (/ 2048f0))
                ) ;; 0.005
          (texel-size (/ (vec2 1f0) (texture-size light-sampler 0)))
          (uv (s~ proj-coords :xy)))

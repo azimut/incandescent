@@ -32,7 +32,7 @@
          (ldir (q:point-at (v! 0 1 0) lpos (v! 0 3 0)))
          (cam  (make-instance 'pers
                               :name :shadow-camera
-                              ;;:frame-size (v2! 10) ;; zoom
+                              :frame-size (v2! 10) ;; zoom
                               :far 80f0
                               :near 20f0
                               :rot ldir
@@ -48,9 +48,41 @@
                               :name :shadow-camera
                               :frame-size (v2! 5) ;; zoom
                               :far 20f0
-                              :near 10f0
+                              :near 2f0
                               :rot ldir
                               :pos lpos)))
+    (setf *light-pos* lpos)
+    (setf *light-dir* (q:to-direction ldir))
+    cam))
+
+(defparameter *shadow-camera*
+  (let* ((lpos (v! 10 20 -10))
+         (spos (v3:*s lpos .1))
+         (ldir (q:point-at (v! 0 1 0) lpos (v! 0 0 0)))
+         (cam  (make-instance 'orth
+                              :name :shadow-camera
+                              :frame-size (v2! 3) ;; zoom
+                              :far 3.7f0
+                              :near 1.1f0
+                              :rot ldir
+                              :pos spos)))
+    (setf *light-pos* lpos)
+    (setf *light-dir* (q:to-direction ldir))
+    cam))
+
+
+;;
+(defparameter *shadow-camera*
+  (let* ((lpos (v! 4 10 4))
+         (spos (v3:*s lpos .1))
+         (ldir (q:point-at (v! 0 1 0) lpos (v! 0 0 0)))
+         (cam  (make-instance 'orth
+                              :name :shadow-camera
+                              :frame-size (v2! 4) ;; zoom
+                              :far 3.5f0
+                              :near 1f0
+                              :rot ldir
+                              :pos spos)))
     (setf *light-pos* lpos)
     (setf *light-dir* (q:to-direction ldir))
     cam))
