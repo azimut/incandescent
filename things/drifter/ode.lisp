@@ -2,6 +2,8 @@
 
 ;; Override callback
 
+(defmethod hit-floor (obj))
+(defvar *ode-stepper* (make-stepper (seconds .01) (seconds .01)))
 (progn
   (block gg
     (claw:defcallback near-callback :void ((data :pointer)
@@ -36,6 +38,8 @@
                                     (contact :geom &)
                                     (claw:sizeof '%ode:contact))))
             (when (plusp numc)
+              (when (or (and (not b1) b2) (and (not b2) b1))
+                (hit-floor (pointer-to-actor (or b1 b2))))
               (when (and b1 b2)
                 (collide (pointer-to-actor b1) (pointer-to-actor b2)))
 
@@ -47,7 +51,7 @@
   (let ((stepper (make-stepper (seconds .01) (seconds .01))))
     (defun ode-update ()
       "updates the objets within the physics engine"
-      (when (and *world* (funcall stepper))
+      (when (and *world* (funcall *ode-stepper*))
         (%ode:space-collide *space* nil (claw:callback 'near-callback))
         (%ode:world-quick-step *world* 0.0099d0)
         (%ode:joint-group-empty *contactgroup*)))))

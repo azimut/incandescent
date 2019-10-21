@@ -78,6 +78,7 @@
 
 (defun collected (obj)
   (reset-collectable obj)
+  (cloud::play-pluck (+ 24 60 12 (cm:pickl '(0 2 3))) 2 :p4 33)
   (incf (state-score *game-state*))
   (make-text (format nil "score: ~d" (state-score *game-state*))
              :scale 1.5f0))

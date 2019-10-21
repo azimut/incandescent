@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<rootElement>
+	<bookmark row="64" />
+	<bookmark row="88" />
+	<bookmark row="112" />
+<tracks rows="10000" startRow="0" endRow="10000" rowsPerBeat="8"
+beatsPerMin="125">
+	<track name="camera:z-offset" folded="0" muteKeyCount="0"
+color="ffb27474">
+		<key row="0" value="0.010000" interpolation="1" />
+		<key row="32" value="0.010000" interpolation="1" />
+		<key row="64" value="5.000000" interpolation="0" />
+		<key row="89" value="5.000000" interpolation="1" />
+		<key row="112" value="-5.000000" interpolation="1" />
+	</track>
+	<track name="camera:y" folded="0" muteKeyCount="0"
+color="ffb28050">
+		<key row="0" value="9.000000" interpolation="1" />
+		<key row="32" value="9.000000" interpolation="1" />
+		<key row="64" value="8.000000" interpolation="1" />
+		<key row="88" value="1.000000" interpolation="1" />
+	</track>
+	<track name="camera:x" folded="0" muteKeyCount="0"
+color="ffa9b250">
+		<key row="0" value="0.000000" interpolation="0" />
+		<key row="32" value="0.000000" interpolation="0" />
+		<key row="89" value="0.000000" interpolation="1" />
+		<key row="112" value="12.000000" interpolation="1" />
+	</track>
+	<track name="camera:z-roffset" folded="0" muteKeyCount="0"
+color="ff60b250">
+		<key row="0" value="0.000000" interpolation="2" />
+		<key row="32" value="0.000000" interpolation="2" />
+		<key row="64" value="-10.000000" interpolation="2" />
+		<key row="89" value="-10.000000" interpolation="1" />
+		<key row="112" value="0.000000" interpolation="2" />
+	</track>
+	<track name="camera:fov" folded="0" muteKeyCount="0"
+color="ff4fb292">
+		<key row="0" value="2.000000" interpolation="3" />
+		<key row="32" value="80.000000" interpolation="1" />
+		<key row="64" value="60.000000" interpolation="1" />
+		<key row="88" value="65.000000" interpolation="1" />
+		<key row="112" value="70.000000" interpolation="1" />
+	</track>
+	<track name="camera:y-roffset" folded="0" muteKeyCount="0"
+color="ff4f71b2">
+		<key row="0" value="0.500000" interpolation="0" />
+		<key row="32" value="0.500000" interpolation="0" />
+		<key row="65" value="0.500000" interpolation="1" />
+		<key row="88" value="4.000000" interpolation="1" />
+	</track>
+</tracks>
+	</rootElement>

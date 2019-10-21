@@ -2,6 +2,7 @@
 
 (defclass rock (physic-box)
   ((life :initarg :life :accessor life)
+   (collidep :initform nil :accessor collidep)
    (properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
                :documentation "emissive, spec, rough, metallic"))
@@ -61,19 +62,21 @@
 
 ;; fake it
 (let ((xpos (cm:new cm:heap :of '(-2 0 2)))
-      (zpos (cm:new cm:heap :of (alexandria:iota 8 :start -40 :step -7))))
+      (zpos (cm:new cm:heap :of (alexandria:iota 8 :start -20 :step -7))))
   (defun reset-rock (obj)
     (let ((newpos
             (v! (cm:next xpos)
                 (cm:pick (* .5 (slot-value obj 'y))
                          (* 2 (slot-value obj 'y)))
-                (+ (z (pos (state-drifter *game-state*)))
-                   (cm:next zpos))))
+                (setf (state-zrock *game-state*)
+                      (+ (min (z (pos (state-drifter *game-state*)))
+                              (state-zrock *game-state*))
+                         (cm:next zpos)))))
           (newrot (cm:pick (q:identity)
                            (q:from-axis-angle (v! 0 1 0) (radians (random 360f0)))
                            (q:from-axis-angle (v! (random 1f0) (random 1f0) (random 1f0))
                                               (radians (random 360f0))))))
-      ;;(setf (life obj) (random-in-range 10f0 20f0))
+      (setf (slot-value obj 'collidep) nil)
       (and (cm:odds .5)
            (%ode:body-add-force (body obj)
                                 (cm:pick 100d0 -100d0)
@@ -83,9 +86,16 @@
       (ode-update-pos obj newpos)
       (%ode:body-enable (body obj)))))
 
+(defmethod collide ((self rock) (obj drifter))
+  (rock-sound self))
+(defmethod collide ((obj drifter) (self rock))
+  (rock-sound self))
+
+(defun rock-sound (rock)
+  (unless (collidep rock)
+    (cloud::play-drums 50 1)
+    (setf (collidep rock) t)))
+
 (defmethod update ((obj rock) dt)
-  (if (and ;;(< (life obj) 0)
-       (behind-drifter-p obj))
-      (reset-rock obj)
-      ;;(decf (life obj) dt)
-      ))
+  (when (behind-drifter-p obj)
+    (reset-rock obj)))

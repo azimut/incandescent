@@ -1,16 +1,16 @@
 (in-package #:incandescent)
 
-(defparameter *shadow-dimensions* '(2048 2048))
 (defparameter *shadow-dimensions* '(1024 1024))
+(defparameter *shadow-dimensions* '(2048 2048))
 
 (defparameter *default-charset*
   (format nil "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-,/:0123456789~% ."))
 
-(defparameter *runner-score* 16
-  "score needed to pass the runner phase"j)
-(defparameter *boss-bleeding* 5
+(defparameter *runner-score* 3
+  "score needed to pass the runner phase")
+(defparameter *boss-bleeding* 4
   "yikes...speed multiplier for boss phase")
-(defparameter *sidescroller-distance* 1000
+(defparameter *sidescroller-distance* 500
   "distance to roll in the sidescrolling phase")
 
 (defparameter *route-length* 200)
@@ -39,13 +39,15 @@
    (phasesc     :reader   state-phasesc)
    (score       :initform 0             :accessor state-score)
    (drifter     :accessor state-drifter)
-   (distance    :initform 0 :accessor state-distance))
+   (distance    :initform 0 :accessor state-distance)
+   (zrock       :initform 0f0 :accessor state-zrock))
   (:default-initargs
    :phase    '(:welcome 0)))
 
 (defmethod initialize-instance :after ((obj game-state) &key)
   (setf (slot-value obj 'phasesc) (cm:new cm:line :of (slot-value obj 'phases))))
 (defmethod reinitialize-instance :after ((obj game-state) &key)
+  (setf (slot-value obj 'zrock) 0f0)
   (setf (slot-value obj 'phase) '(:welcome 0))
   (setf (slot-value obj 'transitionp) nil)
   (setf (slot-value obj 'score) 0)
@@ -76,16 +78,18 @@
 
 (defmethod (setf state-phase) :before ((value (eql :welcome)) (obj game-state))
   (setf (state-score obj) 0)
+  (init-scene)
   (make-text
    (format nil " H,K - Strife~% U,M - Roll~%   J - Jump~%~%SPACE TO START")
    :pos (v! -70 -20)
    :scale 1.5f0)
-  (let ((drifter (state-drifter *game-state*)))
-    (%ode:body-enable (slot-value drifter 'body))
+  (let ((drifter (state-drifter obj)))
+    (%ode:body-enable (body drifter))
     (ode-update-pos drifter (v! 0 2 30))
     (setf (pos drifter) (v! 0 2 30))))
 
 (defmethod (setf state-phase) :before ((value (eql :runner)) (obj game-state))
+  (delete-all-actor-class 'boss)
   (reset-rock (make-rock :dim (v! 2 5 2)))
   (reset-rock (make-rock :dim (v! 4 2 4)))
   (reset-rock (make-rock :dim (v! 3 3 3)))
@@ -101,13 +105,23 @@
   (delete-all-actor-class 'obstacle)
   (delete-all-actor-class 'collectable)
   (delete-all-actor-class 'rock)
-  (let ((drifter (state-drifter *game-state*)))
+  (delete-all-actor-class 'boss)
+  (delete-all-actor-class 'missile)
+  (dotimes (i 5)
+    (reinitialize-instance
+     (make-missile :dim (v! 1 1 1))))
+  (let ((drifter (state-drifter obj)))
+    (setf (health drifter) 100f0)
     (%ode:body-set-linear-vel (body drifter) 0d0 0d0 0d0)
     (%ode:body-add-force (body drifter) 0d0 20d0 -40d0)
+    (and (q:0p (getbody-linear-vel (body drifter)))
+         (ode-update-rot drifter (q:identity)))
     (make-boss :pos (v! 0 -23 (+ -40 (z (pos drifter)))))))
 
 (defmethod (setf state-phase) :before ((value (eql :sidescroller)) (obj game-state))
   (delete-all-actor-class 'boss)
+  (delete-all-actor-class 'missile)
+  (reinitialize-instance (make-missile :dim (v! 1 1 1)))
   (setf (state-distance obj)
         (- (z (pos (state-drifter obj))) *sidescroller-distance*))
   (let* ((drifter (state-drifter *game-state*))
@@ -119,7 +133,7 @@
 (defmethod (setf state-phase) (value (obj game-state))
   (let* ((phases (state-phases obj))
          (alist  (assoc value phases)))
-    (setf (slot-value obj 'phase) alist)
+    (setf (slot-value obj 'phase) (print alist))
     (when (not (state-transitionp obj))
       (rocket-pause)
       (rocket-set-row (second alist))
@@ -159,7 +173,7 @@
     ;;#+nil
     (make-clouds)
     (reinitialize-instance *game-state*)
-    (setf (state-phase *game-state*) :welcome)
+    ;;(setf (state-phase *game-state*) :welcome)
     )
   ;;
   ;;(init-scene)

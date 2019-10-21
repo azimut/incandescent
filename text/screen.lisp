@@ -51,7 +51,7 @@
                    (depth-test-function) #'always
                    (cull-face) nil)
         (map-g #'fondness (cepl.fond::fond-text-stream *text*)
-               :extent (v! pos *dimensions*)
+               :extent (v! pos 341 192);; FIXME
                :scale scale
                :tex-image (cepl.fond::fond-font-sampler *font*)
                :tex-color color)))))

@@ -60,7 +60,7 @@
          (final-color
            (+ (* color emissive)
               ;;(+ (* ao indirect) indirect-specular)
-              indirect
+              (* ao indirect)
               #+nil
               (+ (* (* (- 1f0 (fresnel-schlick-roughness
                                (max (dot norm (normalize (- pos cam-pos))) 0f0)
@@ -106,13 +106,12 @@
                                  (normalize (- cam-pos pos))
                                  norm
                                  rough
-                                 f0
                                  metallic
                                  color
                                  spec
-                                 .22
-                                 .20
-                                 (* 10 (v! .3 .8 .5))))))))
+                                 .022
+                                 .020
+                                 light-color))))))
     final-color))
 
 (defpipeline-g postprocess-defer-pipe (:points)

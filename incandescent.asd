@@ -303,12 +303,19 @@
   :serial t
   :depends-on (#:incandescent
                #:cm
+               #:cloud
                ;; #:deeds
-               #:incandescent/audio-openal
+               ;;#:incandescent/audio-openal
                #:incandescent/rocketman
                #:incandescent/text
                #:incandescent/assimp
                #:incandescent/ode)
+  ;;
+  :defsystem-depends-on (:deploy)
+  :build-operation "deploy-op"
+  :build-pathname "drifter"
+  :entry-point "incandescent::playit"
+  ;;
   :components ((:file "cubemap/render")
                (:file "cubemap/cubemap")
                (:file "cubemap/env-map")
@@ -329,5 +336,9 @@
                (:file "things/drifter/actors/boss")
                (:file "things/drifter/actors/collectable")
                (:file "things/drifter/actors/stopper")
+               (:file "things/drifter/actors/rock")
+               (:file "things/drifter/actors/missiles")
+               ;;
+               (:file "things/drifter/sound")
                ;;
                (:file "things/drifter/scene")))

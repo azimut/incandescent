@@ -42,7 +42,7 @@
 (defparameter *dimensions* '(1366 768))
 (defparameter *dimensions* '(683 384))
 (defparameter *dimensions* '(341 192))
-
+(defparameter *dimensions* '(683 384))
 (defvar *light-volumes* (list))
 
 (defvar *sdfbo* nil)
@@ -88,8 +88,10 @@
   (init-ibl)
   (init-text)
   (rocket-init t)
-  (rocket-load-file "/home/sendai/drifter.rocket")
+  (rocket-load-file (truename "static/drifter.rocket"))
+  (make-text "...")
   (init-scene)
+  (setf (state-phase *game-state*) :welcome)
   (update-ibl *t-cubemap* *s-cubemap*); update from clouds
   nil)
 
@@ -141,6 +143,7 @@
                    (depth-test-function) nil)
         (map-g #'generic-2d-pipe *bs*
                ;;:sam  *sam*
+               ;;:sam2 *dither1*
                ;;:sam2 *god-sam*
                ;;:sam2 *sam-ssao*
                :sam *sdsam*
