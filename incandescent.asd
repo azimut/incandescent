@@ -14,7 +14,7 @@
                #:rtg-math.vari
                #:cepl.sdl2
                #:nineveh
-               #:png
+               ;;#:png
                #:arrow-macros
                #:livesupport
                #:cepl.skitter.sdl2
@@ -29,6 +29,7 @@
                (:file "event-loop")
                (:file "camera")       ;; lisp
                (:file "controls")     ;; lisp
+               (:file "lib/fog")      ;; gpu
                (:file "postprocess")  ;; gpu
                (:file "draw")         ;; lisp
                (:file "render")       ;; gpu - main pipelines
@@ -74,7 +75,7 @@
   :version "0.0.1"
   :serial t
   :depends-on (#:incandescent)
-  :components ((:file "godrays")))
+  :components ((:file "postprocessing/godrays")))
 
 (asdf:defsystem #:incandescent/ssao
   :description "Describe incandescent here"
@@ -251,13 +252,13 @@
                (:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
                ;;(:file "shadowmap/variance")
-               (:file "vxgi")
+               (:file "gi/vxgi")
                (:file "things/defered-ssr/scene")
                (:file "things/defered-ssr/obstacles")
                (:file "things/defered-ssr/lucy")
                (:file "things/defered-ssr/sun")
                ;;(:file "things/defered-ssr/sound")
-               ;;(:file "godrays")
+               ;;(:file "postprocessing/godrays")
                )
   :defsystem-depends-on (:deploy)
   :build-operation "deploy-op"
@@ -272,7 +273,7 @@
   :serial t
   :depends-on (#:incandescent
                ;;#:incandescent/shadowmap
-               #:incandescent/assimp
+               ;;#:incandescent/assimp
                ;;#:incandescent/ode
                ;;#:incandescent/rocketman
                ;;#:incandescent/particles
@@ -281,14 +282,14 @@
                (:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
                ;;(:file "shadowmap/variance")
-               (:file "vxgi")
+               (:file "gi/vxgi")
                (:file "things/defered-ssr/scene")
                (:file "things/defered-ssr/obstacles")
-               (:file "things/defered-ssr/lucy")
+               ;;(:file "things/defered-ssr/lucy")
                (:file "things/defered-ssr/sun")
                (:file "things/defered-ssr/walls")
                ;;(:file "things/defered-ssr/sound")
-               (:file "godrays")
+               (:file "postprocessing/godrays")
                )
   :defsystem-depends-on (:deploy)
   :build-operation "deploy-op"
@@ -322,9 +323,10 @@
                (:file "cubemap/clouds")
                (:file "cubemap/hdr")
                (:file "gi/ibl")
-               (:file "lib/fog")
                (:file "shadowmap/shadowmap")
                (:file "shadowmap/pcf")
+               ;;
+               (:file "things/drifter/main")
                ;;
                (:file "things/drifter/ode")
                (:file "things/drifter/defer")
@@ -342,3 +344,30 @@
                (:file "things/drifter/sound")
                ;;
                (:file "things/drifter/scene")))
+
+;;--------------------------------------------------
+
+(asdf:defsystem #:incandescent/world2
+  :description "Describe incandescent here"
+  :author "azimut <azimut.github@protonmail.com>"
+  :license  "MIT"
+  :version "0.0.1"
+  :serial t
+  :depends-on (#:incandescent
+               #:cloud)
+  :components ((:file "controls")
+               (:file "shadowmap/shadowmap")
+               (:file "shadowmap/pcf")
+               (:file "gi/vxgi")
+               ;;
+               (:file "things/world2/actors/obstacles")
+               (:file "things/world2/actors/walls")
+               ;;
+               (:file "things/world2/defer")
+               (:file "things/world2/postprocess")
+               (:file "things/world2/scene")
+               (:file "things/world2/main"))
+  :defsystem-depends-on (:deploy)
+  :build-operation "deploy-op"
+  :build-pathname "damo-next"
+  :entry-point "incandescent::playit")

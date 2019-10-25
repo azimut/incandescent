@@ -18,8 +18,7 @@
  :otis
  :filename "otis"
  :filepath
- ;;(truename "static/")
- (truename "/home/sendai/quicklisp/local-projects/incandescent/static/"))
+ (truename "static/"))
 
 ;; (make-play bell    "i5"  :freq 60      :amp .032 :ifn  4     :nfreq1 70.006 :nfreq2 169.437)
 ;; (make-play drums   "i7"  :amp  .799    :ifn 3    :freq 203   :ratio  1.416  :idx    4.99    :pan .511)
