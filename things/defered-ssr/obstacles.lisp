@@ -1,24 +1,29 @@
 (in-package #:incandescent)
 
-(defclass obstacle (actor)
+(defclass obstacle (actor) ;;(physic-box)
   ((properties :initform (v! 0 .7 .9 .2)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic")))
+               :documentation "emissive, spec, rough, metallic"))
+  (:default-initargs
+   :pos (v! 0 .9 0)))
 
-(defmethod update ((actor obstacle) dt))
-
-(defun make-obstacle (&key (pos   (v! 0 5 0))
-                        (color (v! 1 .3 .9))
-                        (dim   (v! 1 1 1))
-                        (shadow-p t)
-                        (rot   (q:identity))
-                        (prop  (v! 0 .4 .7 0))
-                        (scale 1f0))
+(defun make-obstacle (&key (pos   (v! 0 .9 0))
+                           (color (v! 1 .3 .9))
+                           (dim   (v! 1 1 1))
+                           (shadow-p t)
+                           (rot   (q:identity))
+                           (prop  (v! 0 .7 .7 0))
+                           (scale 1f0))
   (let ((obj (make-instance 'obstacle
                             :prop prop
                             :shadow-p shadow-p
                             :scale scale :color color
                             :pos pos :rot rot
+                            ;; ODE
+                            ;; :x (coerce (x dim) 'double-float)
+                            ;; :y (coerce (y dim) 'double-float)
+                            ;; :z (coerce (z dim) 'double-float)
+                            ;; ---
                             :buf (box (x dim)
                                       (y dim)
                                       (z dim)))))
@@ -35,9 +40,10 @@
         (spec     (y properties))
         (rough    (z properties))
         (metallic (w properties))
-        (albedo color))
+        (ao       1f0)
+        (albedo   color))
     (values (v! albedo      rough)
-            (v! frag-pos    emissive)
+            (v! frag-pos    ao)
             (v! frag-normal spec)
             (v! metallic    emissive))))
 
@@ -50,7 +56,7 @@
     (map-g #'obstacle-pipe buf
            :color color
            :scale scale
-           :properties (v! properties)
+           :properties  properties
            :model-world (model->world actor)
            :world-view  (world->view camera)
            :view-clip   (projection  camera))))

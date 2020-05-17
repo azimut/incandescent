@@ -1,5 +1,81 @@
 (in-package #:incandescent)
+;;#+nil
 
+;;#+nil
+(progn (defun init-scene ()
+         (let ((c1 (v! .3 .2 .2))
+               (poff (v! -.3 .5 0))
+               (scale .3f0)
+               (dwall (v! 2 2 .5))
+               (cwall (v! .9 .9 .9)))
+           (free-actors)
+           (free-assimp-buffers)
+           ;;(make-obstacle :scale 2f0 :pos (v! 0 0 0) :shadow-p nil)
+           ;;(make-lucy :pos (v3:- (v! 0 0 0) poff) :scale scale)
+           (make-sun :radius 2f0)
+           ;;(make-obstacle :pos (v! 0 0 0) :scale 2f0)
+           ;; BOX
+           (make-obstacle :pos (v! 0 0 -1); backwall
+                          :color cwall
+                          :dim dwall)
+           (make-obstacle :pos (v! 0 0 1) ; nearwall
+                          :color cwall
+                          :dim dwall)
+           (make-obstacle :pos (v! 0 .8 -.5); ceil far
+                          :dim (v! 12 5 2)
+                          :color cwall
+                          :scale .2
+                          :rot (q:from-axis-angle (v! 1 0 0) (radians 90)))
+           (make-obstacle :pos (v! 0 .8 .8) ; ceil near
+                          :dim (v! 12 5 2)
+                          :color cwall
+                          :scale .2
+                          :rot (q:from-axis-angle (v! 1 0 0) (radians 90)))
+           ;; (make-obstacle :pos (v! .95 0 0) ;rwall
+           ;;                :color cwall
+           ;;                :dim dwall
+           ;;                :rot (q:from-axis-angle (v! 0 -1 0) (radians 90)))
+           ;; (make-obstacle :pos (v! -.95 0 0);lwall
+           ;;                :color cwall
+           ;;                :dim dwall
+           ;;                :rot (q:from-axis-angle (v! 0 -1 0) (radians 90)))
+           ;; RED AND BLUE
+           (make-obstacle :pos (v3:- (v! -.8 .11 .55) poff)
+                          :scale scale
+                          :rot (q:from-axis-angle (v! 0 1 0) (radians 90))
+                          :dim (v! .3 2 .3)
+                          :prop (v! 0 .7 .7 0)
+                          :color (v! .1 .1 1))
+           (make-obstacle :pos (v3:- (v! -.2 .1 0) poff)
+                          :color (v! 1 .1 .1)
+                          :prop (v! 0 .1 .2 .9)
+                          :scale scale)
+           ;; floor
+           #+nil
+           (make-obstacle :pos (v! 0 -.8 0)
+                          :dim dwall
+                          :color cwall
+                          :prop (v! 0 .7 .7 0)
+                          :rot (q:from-axis-angle (v! 1 0 0) (radians 90)))
+           ;;#+nil
+           (let ((m .9))
+             (dotimes (i 8)
+               (let ((ii (* .4 (+ i 2))))
+                 (make-obstacle :pos (v3:- (v! -.25
+                                               (* -2 (* .03 ii))
+                                               0)
+                                           poff)
+                                :prop (v! 0 .4 .8 m)
+                                :scale scale
+                                :color (v! .9 .9 .9)
+                                :dim (v! (expt 2 ii) .1 (/ (expt 2 ii) 2)))
+                 (setf m (max 0 (- m .3))))))))
+       ;;#+nil
+       ;;(init-scene)
+       )
+
+
+;;#+nil
 (progn (defun init-scene ()
          (let ((c1 (v! .3 .2 .2))
                (poff (v! -.3 .5 0))
@@ -10,22 +86,24 @@
            (free-assimp-buffers)
            ;;(make-obstacle :scale 2f0 :pos (v! 0 0 0) :shadow-p nil)
            (make-lucy :pos (v3:- (v! 0 0 0) poff) :scale scale)
-           (make-sun :radius 2f0)
+           (make-sun :radius 2f0 :pos *light-pos*)
            ;;(make-obstacle :pos (v! 0 0 0) :scale 2f0)
            ;; BOX
            (make-obstacle :pos (v! 0 0 -.95); back
                           :color cwall
                           :dim dwall)
-           ;; (make-obstacle :pos (v! .4 .95 -.5) ; ceil far
-           ;;                :color cwall
-           ;;                :dim (v3:* dwall (v! 1 .55 1))
-           ;;                :rot (q:from-axis-angle (v! 1 0 0) (radians 90)))
-           #+nil
-           (make-obstacle :pos (v! .4 0 .7) ; ceil near
-                          :color (v! .1 .1 .1)
-                          :dim (v! 12 4 .1)
-                          :rot (q:from-axis-angle (v! 1 0 0) (radians 90))
-                          :scale .2f0)
+           ;; (make-obstacle
+           ;;  ;;:pos (v! .4 .95 -.5) ; ceil far
+           ;;  ;;:dim (v3:* dwall (v! 1 .55 1))
+           ;;  :pos (v! 0 0 -1.9)
+           ;;  :dim (v! 12 4 .1)
+           ;;  :color cwall
+           ;;  :rot (q:from-axis-angle (v! 1 0 0) (radians 90)))
+           ;; (make-obstacle :pos (v! .4 0 .7) ; ceil near
+           ;;                :color (v! .1 .1 .1)
+           ;;                :dim (v! 12 4 .4)
+           ;;                :rot (q:from-axis-angle (v! 1 0 0) (radians 90))
+           ;;                :scale .2f0)
            ;; (make-obstacle :pos (v! .95 -.4 0) ;rwall
            ;;                :color cwall
            ;;                :dim (v! 12 4 .4)
@@ -61,7 +139,7 @@
                                 :dim (v! (expt 2 ii) .1 (/ (expt 2 ii) 2)))
                  (setf m (max 0 (- m .3))))))))
        ;;#+nil
-       ;;(init-scene)
+       (init-scene)
        )
 
 (defclass lucy (actor)

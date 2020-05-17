@@ -3,7 +3,9 @@
 (defclass sun (actor)
   ((properties :initform (v! 0 .7 .9 .9)
                :initarg :prop
-               :documentation "emissive, spec, rough, metallic")))
+               :documentation "emissive, spec, rough, metallic"))
+  (:default-initargs
+   :shadow-p nil))
 
 (defmethod update ((actor sun) dt)
   #+nil
@@ -53,7 +55,6 @@
   :vertex   (vert g-pnt)
   :fragment (sun-frag :vec2 :vec3 :vec3))
 
-(defmethod draw-variance-actor ((actor sun)))
 (defmethod draw ((actor sun) camera time)
   (with-slots (buf scale color properties) actor
     (map-g #'sun-pipe buf

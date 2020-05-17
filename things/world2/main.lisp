@@ -54,6 +54,9 @@
   (init-shadowmap)
   (init-scene)
   (init-voxel)
+  ;;--------------------------------------------------
+  (slynk-mrepl::send-prompt (find (bt:current-thread) (slynk::channels)
+                                  :key #'slynk::channel-thread))
   nil)
 
 (defun draw! ()

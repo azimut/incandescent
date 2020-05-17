@@ -11,7 +11,8 @@
                     :dim (v! 20 1 20)
                     :uv-scale (v! 10 10)
                     :metallic .2f0))
-       (init-scene))
+       ;;(init-scene)
+       )
 
 
 

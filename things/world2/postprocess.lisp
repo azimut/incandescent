@@ -16,10 +16,10 @@
          ;; ----------------
          ;; Gamma Correction
          ;;(ldr (tone-map-uncharted2 final-color *exposure* 2f0))
-         ;;(ldr (tone-map-reinhard final-color *exposure*))
+         (ldr (tone-map-reinhard final-color *exposure*))
          ;;(ldr (tone-map-hejl-burgess-dawson final-color *exposure*))
          ;;(ldr (tone-map-linear final-color *exposure*))
-         (ldr (tone-map-acesfilm final-color *exposure*))
+         ;;(ldr (tone-map-acesfilm final-color *exposure*))
          ;;(ldr (tone-map-filmic final-color *exposure*))
          (luma (rgb->luma-bt601 ldr)))
     (v! ldr luma)))

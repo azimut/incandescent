@@ -89,16 +89,6 @@
 
 ;;--------------------------------------------------
 
-;; Unity (it works!)
-;; just send it from the vertex shader to the fragment
-;; and there XY/W to get some uvs
-;; and then substract Z
-(defun-g compute-screen-pos ((clip-pos :vec4))
-  (let ((o (* .5 clip-pos)))
-    (v! (+ (v! (x o) (* (y o) 1)) ;; or -1
-           (w o))
-        (s~ clip-pos :zw))))
-
 (defun-g water-vert ((pos :vec3)
                      &uniform
                      (scale       :float)

@@ -28,6 +28,7 @@
     (setf metallic  .2
           specular  .0
           roughness .4))
+  #+nil
   (with-slots (pos seed) actor
     (let ((time (* 2 (mynow))))
       (setf (y pos) (* 25 seed (sin (* seed .5 time))))
@@ -99,7 +100,7 @@
                                 color
                                 specular)
                 (* 5 (pbr-point-lum (v! 0
-                                        -2
+                                        18
                                         0)
                                     frag-pos
                                     v n

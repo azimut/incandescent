@@ -43,9 +43,9 @@
            ;; Directional light (for the most part)
            :light-color *light-color*
            :light-pos   *light-pos*
-           :brdf-luf *s-brdf*
-           :irradiance-map *s-cubemap-live*
-           :prefilter-map *s-cubemap-prefilter*
+           ;; :brdf-luf *s-brdf*
+           ;; :irradiance-map *s-cubemap-live*
+           ;; :prefilter-map *s-cubemap-prefilter*
            )))
 
 (defmethod update ((actor box) dt))

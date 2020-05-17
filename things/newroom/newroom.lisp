@@ -65,8 +65,6 @@
            :world-view  (world->view camera)
            :view-clip   (projection camera)
            ;;
-           :ssao *sam-ssbo*
-           ;;
            :specular   specular
            :parallax   parallax
            ;; PBR
@@ -90,8 +88,6 @@
                              (tan-frag-pos  :vec3)
                              (light-clip-pos :vec4)
                              &uniform
-                             (ssao :sampler-2d)
-                             ;;
                              (shadowmap  :sampler-2d)
                              ;;
                              (uv-speed   :float)
@@ -169,7 +165,7 @@
                         (x (texture specular uv))))
                 ;;#+nil
                 (* 5 (pbr-point-lum (v! 0
-                                        -2
+                                        10
                                         0)
                                     frag-pos
                                     v n
@@ -178,7 +174,8 @@
                                     metallic
                                     color
                                     (x (texture specular uv))
-                                    .35 .44))))
+                                    .7 1.8))))
+         #+nil
          (ambient (ambient-ibl v n f0
                                brdf-lut
                                prefilter-map
@@ -187,13 +184,15 @@
                                metallic
                                color
                                ao))
+         #+nil
          (final-color (+ ambient lo)))
     ;;(v! final-color 1)
     ;;(v3! (x (texture height-map uv)))
     ;;ambient
     ;;normal
-    ;;color
-    (* (shadow-factor shadowmap light-clip-pos) lo)
+    color
+    ;;(* (shadow-factor shadowmap light-clip-pos) lo)
+    ;;(* (shadow-factor shadowmap light-clip-pos) lo)
     ;;(* (shadow-factor shadowmap light-clip-pos) color)
     ;;tan-cam-pos
     ;;(v3! (x (texture specular uv)))
@@ -203,7 +202,7 @@
     ))
 
 
-
+;;#+nil
 (defpipeline-g pbr-room-piso-pipe ()
   :vertex   (shadow-vert-with-tbdata g-pnt
                                      tb-data)
@@ -211,3 +210,10 @@
                                 :vec3 :vec3
                                 :mat3 :vec3 :vec3 :vec3
                                 :vec4))
+#+nil
+(defpipeline-g pbr-room-piso-pipe ()
+  :vertex   (vert-with-tbdata g-pnt
+                              tb-data)
+  :fragment (pbr-room-piso-frag :vec2
+                                :vec3 :vec3
+                                :mat3 :vec3 :vec3 :vec3))

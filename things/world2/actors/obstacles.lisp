@@ -1,11 +1,21 @@
 (in-package #:incandescent)
 
-(defclass obstacle (actor) ;;(physic-box)
+;; TODO: I should use euler angles!!!!!!!!!!!!
+(defun get-polar-aaa (source listener)
+  (let ((azimut   (- (* (atan (- (x (pos source)) (x (pos listener)))
+                              (- (z (pos source)) (z (pos listener))))
+                        (/ 180f0 +PI+))
+                     (y (rot listener))))
+        (altitude (- (* (atan (- (y (pos source)) (y (pos listener)))
+                              (- (z (pos source)) (z (pos listener))))
+                        (/ 180f0 +PI+))
+                     (x (rot listener)))))
+    (v! azimut altitude)))
+
+(defclass obstacle (actor)
   ((properties :initform (v! 0 .7 .9 .2)
-               :initarg :prop
-               :documentation "emissive, spec, rough, metallic"))
-  (:default-initargs
-   :pos (v! 0 .9 0)))
+               :initarg :properties
+               :documentation "emissive, spec, rough, metallic")))
 
 (defun make-obstacle (&key (pos   (v! 0 .9 0))
                            (color (v! 1 .3 .9))
@@ -15,15 +25,10 @@
                            (prop  (v! 0 .7 .7 0))
                            (scale 1f0))
   (let ((obj (make-instance 'obstacle
-                            :prop prop
+                            :properties prop
                             :shadow-p shadow-p
                             :scale scale :color color
                             :pos pos :rot rot
-                            ;; ODE
-                            ;; :x (coerce (x dim) 'double-float)
-                            ;; :y (coerce (y dim) 'double-float)
-                            ;; :z (coerce (z dim) 'double-float)
-                            ;; ---
                             :buf (box (x dim)
                                       (y dim)
                                       (z dim)))))
