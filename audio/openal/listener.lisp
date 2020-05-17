@@ -40,11 +40,12 @@
 (defmethod (setf pos) :before (value (obj listener))
   (check-type value rtg-math.types:vec3)
   (with-slots (prev-pos pos prev-ts) obj
-    (let* ((ts (* .1f0 (get-internal-real-time)))
+    (let* ((ts (* .01f0 (get-internal-real-time)))
            (dt (- ts prev-ts)))
-      (setf prev-pos       pos)
-      (setf (velocity obj) (v3:/s (v3:- value prev-pos) dt))
-      (setf prev-ts        ts))))
+      (when (not (v3:= prev-pos pos))
+        (setf prev-pos       pos)
+        (setf (velocity obj) (v3:/s (v3:- value prev-pos) dt))
+        (setf prev-ts        ts)))))
 (defmethod (setf pos) :after (value (obj listener))
   (al:listener :position value))
 

@@ -1,5 +1,6 @@
 (in-package #:incandescent)
 
+;; NOTE: bugs on upstream
 ;; TODO: this kind of limits usage...
 ;; TODO: for music it would be nice to have a weighted or boolean gated graph (? so i could see add more "generative" music sequences
 ;; TODO: heap, cycle additionally to random pick

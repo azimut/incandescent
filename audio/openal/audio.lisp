@@ -1,14 +1,12 @@
 (in-package #:incandescent)
 
-;; Base class
-;; distance models
 (defclass audio ()
-  ((buffers  :initarg :buffers  :reader   audio-buffers)
-   (paths    :initarg :paths    :reader   audio-paths)
-   (source   :initarg :source   :reader   audio-source)
-   (relative :initarg :relative :reader   audio-relative)
-   (name     :initarg :name     :reader   audio-name)
-   (pos      :initarg :pos      :accessor pos))
+  ((buffers  :reader   audio-buffers)
+   (paths    :reader   audio-paths    :initarg :paths)
+   (source   :reader   audio-source   :initarg :source)
+   (relative :reader   audio-relative :initarg :relative)
+   (name     :reader   audio-name     :initarg :name)
+   (pos      :accessor pos            :initarg :pos))
   (:default-initargs
    :pos (v! 0 0 0)  ; position in local space
    :relative t      ; make basic audio in local space, not world space
@@ -42,17 +40,13 @@
 (defmethod play :around ((obj audio))
   "ignore order to play if source is busy"
   (let ((state (al:get-source (audio-source obj) :source-state)))
-    (unless (eq :PLAYING state)
+    (when (not (eq :PLAYING state))
       (call-next-method))))
 
 (defmethod play ((obj audio))
-  "Simplest play, plays the first buffer in buffers"
-  (with-accessors ((buffers audio-buffers)
-                   (source  audio-source))
-      obj
-    (let ((buffer (first buffers)))
-      (al:source source :buffer buffer)
-      (al:source-play source))))
+  (let ((buffer (first (audio-buffers obj))))
+    (al:source (audio-source obj) :buffer buffer)
+    (al:source-play (audio-source obj))))
 
 (defmethod stop ((obj audio))
   (al:source-stop (audio-source obj)))
