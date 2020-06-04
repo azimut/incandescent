@@ -17,6 +17,14 @@
 (defun-g posterize ((color :vec3))
   (posterize color 64f0))
 
+(defun-g posterize ((color :vec3)
+                    (red   :int)
+                    (green :int)
+                    (blue  :int))
+  (v! (/ (floor (* (x color) red))   red)
+      (/ (floor (* (y color) green)) green)
+      (/ (floor (* (z color) blue))  blue)))
+
 ;;-----------------------------------------------------------
 
 (defun-g posterize ((color     :vec3)
