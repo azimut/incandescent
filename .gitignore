@@ -5,3 +5,5 @@
 
 # lisp
 *.fasl
+bin/*
+static/*
