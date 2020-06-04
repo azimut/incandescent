@@ -54,3 +54,9 @@
   (let* ((col (* color1 exposure))
          (r   (/ col (+ 1f0 col))))
     (expt r #.(/ 2.2))))
+
+;; https://gamedev.stackexchange.com/questions/88285/how-does-vector3-angle-compute-the-resulting-angle
+(defun v3-angle (v1 v2)
+  "angle between vectors...not signed?"
+  (declare (type rtg-math.types:vec3 v1 v2))
+  (acos (v3:dot (v3:normalize v1) (v3:normalize v2))))
