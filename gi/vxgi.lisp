@@ -231,8 +231,8 @@
         (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
   (setf *voxel-light-sam*
         (sample *voxel-light* :magnify-filter :nearest :wrap :clamp-to-border))
-  ;; (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
-  ;; (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
+  (setf (cepl.samplers::border-color *voxel-light-sam*) (v! 0 0 0 1))
+  (setf (cepl.samplers::border-color *voxel-light-zam*) (v! 0 0 0 1))
   (setf (%cepl.types::%sampler-imagine *voxel-light-sam*) t))
 
 (declaim (inline clear-voxel))
@@ -309,8 +309,8 @@
   (let* ((voxel-size #.(/ 1f0 64f0))
          (mipmap-hardcap 5.4)
          (max-dist
-           ;;#.(sqrt 2)
-           #.(sqrt 3)
+           #.(sqrt 2)
+           ;;#.(sqrt 3)
            );F 1.414213=(sqrt 2);A 1.73205080757=(sqrt 3)
          ;;
          (direction (normalize direction))
@@ -322,7 +322,7 @@
          ;; Controls bleeding from close surfaces.
          ;; Low values look rather bad if using shadow cone tracing.
          ;; Might be a better choice to use shadow maps and lower this value.
-         (dist #.(* 3f0 (/ 1f0 64f0))
+         (dist #.(* 3.5f0 (/ 1f0 64f0))
                ); F .1953125 ; A 0.04 * voxelgiOffset("1"*100/100)
          (diam (* dist aperture)))
     ;; Trace
