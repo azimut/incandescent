@@ -8,7 +8,7 @@
 
 (defparameter *cone-inner* 1f0)
 (defparameter *cone-outer* 1.5f0)
-(defparameter *cone-mult*  1f0)
+(defparameter *cone-mult*  2f0)
 
 (defvar *unstarted* nil)
 
@@ -82,17 +82,12 @@
   (free-actors)
   (free-scenes)
   ;;--------------------------------------------------
-  (ode-init)
-  (init-audio)
   (init-shadowmap)
-  (init-ibl)
-  (init-text)
-  (rocket-init t)
-  (rocket-load-file (truename "static/drifter.rocket"))
-  (make-text "...")
   (init-scene)
-  (setf (state-phase *game-state*) :welcome)
-  (update-ibl *t-cubemap* *s-cubemap*); update from clouds
+  (init-voxel)
+  ;;--------------------------------------------------
+  (slynk-mrepl::send-prompt (find (bt:current-thread) (slynk::channels)
+                                  :key #'slynk::channel-thread))
   nil)
 
 (defun draw! ()
@@ -105,10 +100,9 @@
     (setf (resolution (current-viewport)) res)
     ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
     ;;--------------------------------------------------
-    (rocket-update)
-    (update  *currentcamera* delta)
+    ;;(update  *currentcamera* delta)
     (update  *shadow-camera* delta)
-    ;;(control *currentcamera* delta 4)
+    (control *currentcamera* delta 1)
     ;;--------------------------------------------------
     (draw-shadowmap)
     (with-fbo-bound (*fbo*)   ;; defer render
@@ -127,16 +121,15 @@
                :metallic-sam *sam3*
                :shadowmap *shadow-sam*
                :light-vp (world->clip *shadow-camera*)
-               ;; IBL
-               :brdf-lut *s-brdf*
-               :prefilter-map *s-cubemap-prefilter*
-               :irradiance-map *s-cubemap-live*
-               ;;:voxel-light  *voxel-light-zam*
+               ;; ;; IBL
+               ;; :brdf-lut *s-brdf*
+               ;; :prefilter-map *s-cubemap-prefilter*
+               ;; :irradiance-map *s-cubemap-live*
+               :voxel-light  *voxel-light-zam*
                :cam-pos (pos *currentcamera*)
                :light-dir   *light-dir*
                :light-color (v3:*s *light-color* *cone-mult*)
-               :light-pos   *light-pos*))
-      (screen-text))
+               :light-pos   *light-pos*)))
     (as-frame
       (with-setf* ((depth-mask) nil
                    (cull-face)  nil
@@ -163,7 +156,6 @@
         ;;(draw-tex-bl *god-sam*)
         )
       ))
-  (ode-update)
   ;; Stop on ESC
   (when (keyboard-button (keyboard) key.escape)
     (play-render :stop))
