@@ -1,0 +1,46 @@
+(in-package #:incandescent)
+
+(let ((stepper (make-stepper (seconds .05) (seconds .05))))
+  (defmethod draw! :after ()
+    (update-rocket)
+    ;;(control *currentcamera* .1f0  10)
+    ;;#+nil
+    (when (and (funcall stepper)
+               ;;(< (slot-value *rocket* 'rocketman::row) 500)
+               )
+
+      ;;#+nil
+      (when (key-down-p key.space)
+        (rocketman::toggle-pause *rocket*))
+      (setf *scene-index* (mod (floor (get-rocket "scene:index")) 5))
+      (setf (pos *camera*) (get-rocket-campos *camera*))
+      (setf (rot *camera*) (q:point-at (v! 0 1 0) (pos *camera*) (v! 0 5 0))))))
+
+(defun get-rocket-campos (&optional (camera *camera*))
+  (let ((x (get-rocket "camera:move.x"))
+        (y (get-rocket "camera:move.y"))
+        (z (get-rocket "camera:move.z")))
+    (declare (type single-float x y z))
+    (v! (if (zerop x) (x (pos camera)) x)
+        (if (zerop y) (y (pos camera)) y)
+        (if (zerop z) (z (pos camera)) z))))
+
+(defun make-scene ()
+  (add-rocket "scene:index")
+  (add-rocket "camera:move.x")
+  (add-rocket "camera:move.y")
+  (add-rocket "camera:move.z")
+  ;;(rocketman:load-file *rocket* "/home/sendai/welcome.rocket")
+  (reset-camera :camera *camera*)
+  (shot-add 0 :camera *camera* :pos (v! 0 0 0)   :rot (q:identity))
+  (shot-add 1 :camera *camera* :pos (v! 20 0 20) :rot (q:identity))
+  (in-scene 0
+    (make-clouds)
+    (make-box :pos (v! 0 5 0)
+              :rot (q:from-axis-angle (v! (random 1f0) (random 1f0) (random 1f0))
+                                      (radians (random 360))))
+    (make-piso :buf (lattice 20 20 4 4 t)))
+  (in-scene 1
+    (make-clouds)
+    (make-pbr-simple :pos (v! 0 5 0))
+    (make-piso :buf (lattice 20 20 4 4 t))))
