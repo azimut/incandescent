@@ -145,13 +145,14 @@
          (distance    (length (- light-pos frag-pos)))
          (attenuation (/ 1f0 (+ constant
                                 (* linear distance)
-                                (* quadratic distance distance))))
+                                (* quadratic distance))))
+         (light-color (* light-color attenuation))
          ;;
          (theta     (dot l (normalize (- light-dir))))
          (epsilon   (- cut-off outer-cut-off))
          ;;(intensity (/ (- theta outer-cut-off) epsilon))
          (intensity (clamp (/ (- theta outer-cut-off) epsilon) 0 1)))
-    (* color attenuation intensity diff light-color)))
+    (* color intensity diff light-color)))
 
 ;;--------------------------------------------------
 ;; Flashlight
@@ -311,24 +312,38 @@
 ;; "Pushing pixels" code
 
 (defun-g norm-from-map ((normal-map :sampler-2d)
-                        (uv :vec2))
+                        (uv         :vec2))
   (let* ((normal (s~ (texture normal-map uv) :xyz))
-         (normal (normalize (1- (* 2 normal)))))
-    (v! (x normal)
-        (y normal)
-        (z normal))))
+         (normal (normalize (- (* 2f0 normal) 1f0))))
+    normal))
 
-;; Sometimes "y" component is wrong on the normal map.
 (defun-g norm-from-map-flipped ((normal-map :sampler-2d)
-                                (uv :vec2))
+                                (uv         :vec2))
+  "Sometimes y component is wrong on the normal map."
   (let* ((normal (s~ (texture normal-map uv) :xyz))
+         (normal (v! (x normal) (- (y normal)) (z normal)))
          (normal (normalize (1- (* 2 normal)))))
-    (v! (x normal)
-        (- (y normal))
-        (z normal))))
+    normal))
+
+;; If there is no parallax mapping, we need to convert normals to tangent space
+
+(defun-g norm-from-map ((normal-map :sampler-2d)
+                        (uv         :vec2)
+                        (tbn        :mat3))
+  (* tbn (norm-from-map normal-map uv)))
+
+(defun-g norm-from-map-flipped ((normal-map :sampler-2d)
+                                (uv         :vec2)
+                                (tbn        :mat3))
+  "Sometimes y component is wrong on the normal map."
+  (* tbn (norm-from-map-flipped normal-map uv)))
 
 ;; https://github.com/JoeyDeVries/LearnOpenGL/blob/master/src/6.pbr/1.2.lighting_textured/1.2.pbr.fs
-;; To get the tangent normal to world-space IN the fragment shader
+;; "Easy trick to get tangent-normals to world-space to keep PBR code simplified.
+;;  Don't worry if you don't get what's going on; you generally want to do normal
+;;  mapping the usual way for performance anways; I do plan make a note of this
+;;  technique somewhere later in the normal mapping tutorial."
+;; NT: To get the tangent normal to world-space IN the fragment shader
 (defun-g norm-from-map ((normal-map :sampler-2d)
                         (uv :vec2)
                         (world-pos :vec3)
@@ -375,30 +390,38 @@
 ;;--------------------------------------------------
 ;; https://learnopengl.com/Advanced-Lighting/Parallax-Mapping
 ;; vec3 viewDir   = normalize(fs_in.TangentViewPos - fs_in.TangentFragPos);
-(defun-g parallax-mapping ((uv :vec2)
-                           (view-dir :vec3)
-                           (depth-map :sampler-2d)
+(defun-g parallax-mapping ((uv           :vec2)
+                           (view-dir     :vec3)
+                           (depth-map    :sampler-2d)
                            (height-scale :float))
   (let* ((height (x (texture depth-map uv)))
-         (p      (* (* height height-scale)
-                    (/ (s~ view-dir :xy)
-                       (z view-dir)))))
+         (p      (* height height-scale (/ (s~ view-dir :xy)
+                                           (z view-dir)))))
+    (- uv p)))
+
+(defun-g parallax-mapping-flipped ((uv           :vec2)
+                                   (view-dir     :vec3)
+                                   (depth-map    :sampler-2d)
+                                   (height-scale :float))
+  (let* ((height (- 1 (x (texture depth-map uv))))
+         (p      (* height height-scale (/ (s~ view-dir :xy)
+                                           (z view-dir)))))
     (- uv p)))
 
 ;; https://catlikecoding.com/unity/tutorials/rendering/part-20/
 ;; Limit lenght of 1
-(defun-g parallax-mapping-offset ((uv :vec2)
-                                  (view-dir :vec3)
-                                  (depth-map :sampler-2d)
+(defun-g parallax-mapping-offset ((uv           :vec2)
+                                  (view-dir     :vec3)
+                                  (depth-map    :sampler-2d)
                                   (height-scale :float))
   (let* ((height (x (texture depth-map uv)))
          (height (- height .5))
          (p      (* height height-scale)))
     (+ uv (* (s~ view-dir :xy) p))))
 
-(defun-g parallax-mapping-offset-flipped ((uv :vec2)
-                                          (view-dir :vec3)
-                                          (depth-map :sampler-2d)
+(defun-g parallax-mapping-offset-flipped ((uv           :vec2)
+                                          (view-dir     :vec3)
+                                          (depth-map    :sampler-2d)
                                           (height-scale :float))
   (let* ((height (- 1 (x (texture depth-map uv))))
          (height (- height .5))
@@ -566,18 +589,28 @@
 ;;--------------------------------------------------
 
 (defun-g linear-to-srgb ((c :vec3))
-  (let ((igamma (/ 2.2f0)))
+  (let ((igamma #.(/ 1f0 2.2f0)))
     (pow c (vec3 igamma))))
 
 ;; Usage:
 ;; - (tonemap-acesfilm (* (linear-to-srgb (* *exposure* final-color))))
 ;; https://knarkowicz.wordpress.com/2016/01/06/aces-filmic-tone-mapping-curve/
-(defun-g tonemap-acesfilm ((x :vec3))
-  (let ((a 2.51)
+(defun-g tone-map-acesfilm ((x :vec3) (exposure :float))
+  (let ((x (* exposure x))
+        (a 2.51)
         (b 0.03)
         (c 2.43)
         (d 0.59)
         (e 0.14))
-    (clamp (/ (* x (+ (* a x) b))
-              (+ e (* x (+ d (* c x)))))
-           0 1)))
+    (pow (clamp (/ (* x (+ b (* a x)))
+                   (+ e (* x (+ d (* c x)))))
+                0f0 1f0)
+         (vec3 #.(/ 1f0 2.2f0)))))
+
+;; Based on Filmic Tonemapping Operators http://filmicgames.com/archives/75
+(defun-g tone-map-filmic ((color :vec3) (exposure :float))
+  (let ((color (* exposure color))
+        (x (max (vec3 0f0) (- color 0.004))))
+    (/ (* x (+ 0.5 (* x 6.2)))
+       (+ 0.06 (* x (+ 1.7 (* x 6.2)))))))
+
