@@ -190,6 +190,12 @@
         (cffi:mem-ref linear-vel :double 1)
         (cffi:mem-ref linear-vel :double 2))))
 
+(defun getbody-angular-vel (body)
+  (let ((linear-vel (%ode:body-get-angular-vel body)))
+    (v! (cffi:mem-ref linear-vel :double 0)
+        (cffi:mem-ref linear-vel :double 1)
+        (cffi:mem-ref linear-vel :double 2))))
+
 (defun getbody-force (body)
   (let ((force (%ode:body-get-force body)))
     (v! (cffi:mem-ref force :double 0)
