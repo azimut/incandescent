@@ -379,7 +379,7 @@
 (defun assimp-load-meshes (file)
   "returns a list of meshes, each one being a plist. Everything should
    be cached."
-  (let* ((path   (resolve-path file))
+  (let* ((path   (truename file))
          (scene  (assimp-safe-import-into-lisp path))
          (meshes (ai:meshes scene)))
     (loop :for mesh :across meshes

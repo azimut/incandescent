@@ -130,10 +130,11 @@
        ;;(m4:scale (ai:value (aref sca-keys 0)))
        ))))
 ;;
-(defgeneric get-nodes-transforms (scene node-type &key)
+(defgeneric get-nodes-transforms (scene node-type &key time frame)
   (:documentation "returns a hash of mat4's with each node transform
 for value and node name for the key")
-  (:method ((scene ai:scene) (node-type (eql :static)) &key)
+  (:method ((scene ai:scene) (node-type (eql :static)) &key time frame)
+    (declare (ignore time frame)); ? there is a call with these params
     (let ((nodes-transforms (make-hash-table :test #'equal)))
       (labels ((walk-node (node parent-transform)
                  (declare (type ai:node node)

@@ -26,7 +26,6 @@
          ;;
          (norm      (norm vert))
          (norm      (* (m4:to-mat3 model-world) norm));;?? FIXME: again
-         ;;(world-pos (* model-world world-pos))
          (t0  (normalize
                (s~ (* model-world (v! (tb-data-tangent tb) 0))
                    :xyz)))
@@ -64,11 +63,8 @@
          (norm      (norm vert))
          (uv        (treat-uvs (tex vert)))
          (norm      (* (m4:to-mat3 model-world) norm))
-         ;;#+nil
          (world-pos (* (m4:scale (v3! scale)) ;; FIXME
                        model-world
-                       ;; (* (aref (assimp-bones-weights bones) 0)
-                       ;;    (aref offsets (int (aref (assimp-bones-ids bones) 0))))
                        (+ (* (aref (assimp-bones-weights bones) 0)
                              (aref offsets (int (aref (assimp-bones-ids bones) 0))))
                           (* (aref (assimp-bones-weights bones) 1)
@@ -76,8 +72,7 @@
                           (* (aref (assimp-bones-weights bones) 2)
                              (aref offsets (int (aref (assimp-bones-ids bones) 2))))
                           (* (aref (assimp-bones-weights bones) 3)
-                             (aref offsets (int (aref (assimp-bones-ids bones) 3))))
-                          )
+                             (aref offsets (int (aref (assimp-bones-ids bones) 3)))))
                        (v! pos 1)))
          ;;(world-pos (* model-world world-pos))
          ;;(world-pos (* model-world (v! (* scale pos) 1)))
@@ -123,21 +118,24 @@
   (let* ((color (expt (s~ (texture albedo uv) :xyz)
                       (vec3 2.2)))
          ;;(normal (norm-from-map normals uv frag-pos frag-norm))
-         (normal (norm-from-map normals uv))
-         (normal (normalize (* tbn normal)))
+         (normal (norm-from-map normals uv tbn))
          (frag-pos  tan-frag-pos)
          (light-pos tan-light-pos)
          (cam-pos   tan-cam-pos)
+         ;;(normal frag-norm)
          (final-color  (dir-light-apply color
                                         light-color
                                         light-pos
                                         frag-pos
                                         frag-norm
-                                        cam-pos .8 .2)))
+                                        cam-pos
+                                        .9
+                                        (x (texture specular uv)))))
     (v! final-color 1)
     ;;color
     ;;normal
     ;;frag-norm
+    ;;(v4! (x (texture specular uv)))
     ;;(v! 1 0 0 1)
     ))
 
