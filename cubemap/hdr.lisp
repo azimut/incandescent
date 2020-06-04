@@ -13,6 +13,12 @@
 ;; (make-env-map *cube-tex* *cube-sam*)
 ;; (free-hdr)
 
+(defclass hdr (actor)
+  ()
+  (:default-initargs
+   :shadow-p nil
+   :voxelize-p nil))
+
 (defvar *t-hdr* nil)
 (defvar *s-hdr* nil)
 
@@ -40,8 +46,6 @@
     (setf *t-hdr* (load-hdr-2d filename))
     (setf *s-hdr* (sample *t-hdr* :wrap :clamp-to-edge
                                   :minify-filter :linear))))
-
-(defclass hdr (actor) ())
 
 (defun make-hdr (&optional (color (v! 1 1 1)))
   (let ((obj (make-instance 'hdr :color color)))
@@ -72,10 +76,11 @@
          (uv (+ uv .5)))
     uv))
 
-(defun-g hdr-frag ((pos :vec3) &uniform (sam :sampler-2d) (color :vec3))
+(defun-g hdr-frag ((pos   :vec3) &uniform
+                   (sam   :sampler-2d)
+                   (color :vec3))
   (let* ((uv (sample-spherical-map (normalize pos)))
-         (color3 (s~ (texture sam uv)
-                     :xyz)))
+         (color3 (s~ (texture sam uv) :xyz)))
     (v! (* color3 color) 1)))
 
 (defpipeline-g hdr-pipe ()

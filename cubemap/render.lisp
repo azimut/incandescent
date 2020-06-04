@@ -14,8 +14,7 @@
     (values (s~ cpos4 :xyww)
             pos3)))
 
-(defun-g cubemap-frag ((tc    :vec3)
-                       &uniform
+(defun-g cubemap-frag ((tc    :vec3) &uniform
                        (color :vec3)
                        (tex   :sampler-cube))
   (let ((color3 (s~ (texture tex tc) :xyz)))
