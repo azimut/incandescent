@@ -8,11 +8,11 @@ newmtl leaf04
 Ka 1 1 1
 Kd 1 1 1
 Ks 0 0 0
-map_Kd leaf04.dds
+map_Kd leaf04.png
 
 newmtl leaf06
 Ka 1 1 1
 Kd 1 1 1
 Ks 0 0 0
-map_Kd leaf06.dds
+map_Kd leaf06.png
 
