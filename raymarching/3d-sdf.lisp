@@ -121,12 +121,6 @@
 ;;--------------------------------------------------
 ;; http://mercury.sexy/hg_sdf/
 ;;--------------------------------------------------
-(defun-g fmod ((x :float) (y :float))
-  (- x (* y (trunc (/ x y)))))
-(defun-g fmod ((x :vec2) (y :vec2))
-  (- x (* y (trunc (/ x y)))))
-(defun-g fmod ((x :vec3) (y :vec3))
-  (- x (* y (trunc (/ x y)))))
 (defun-g vmax ((v :vec2)) (max (x v) (y v)))
 (defun-g vmax ((v :vec3)) (max (max (x v) (y v)) (z v)))
 (defun-g vmax ((v :vec4)) (max (max (x v) (y v))

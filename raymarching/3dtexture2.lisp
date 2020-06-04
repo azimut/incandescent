@@ -1,9 +1,17 @@
 (in-package :incandescent)
 
 ;; Volume rendering - Texture based
+
+;; https://www.ronja-tutorials.com/2018/10/13/baking_shaders.html
+;;
+;; Code below translates the tutorial to create a 3d texture from
+;; layers of noise.
+
+;; Usage:
 ;; (init-cube)
 ;; (load-into-3d)
 ;; (make-cubetexture)
+
 (defvar *blend-cube* (make-blending-params))
 
 (defvar *2dfbo* nil)
@@ -14,7 +22,9 @@
 (defclass noise2d (actor) ())
 (defmethod draw ((actor noise2d) camera time)
   (map-g #'noise2d-pipe *bs* :height .9f0))
-
+#+nil
+(progn (free-actors)
+       (push (make-instance 'noise2d) *actors*))
 (defclass cubetexture (actor)
   ((cubetex :initarg :cubetex)))
 
@@ -81,16 +91,18 @@
              :view-clip   (projection  camera)
              :scale scale
              :time time
+             :samd *samd*
              :cubetex cubetex))))
 
 (defun-g cube-frag ((uv :vec2) (frag-pos :vec3) (frag-normal :vec3)
-                    &uniform (cubetex :sampler-3d) (time :float))
+                    &uniform (cubetex :sampler-3d) (time :float)
+                    (samd :sampler-2d))
   ;;#+nil
-  (v! (v3! (x (texture cubetex (v! uv (* .001 time)))))
+  (v! (v3! (x (texture cubetex (v! uv (* .001 time))))
+           (cellular-noise (* uv .001 time)))
       1)
   ;;(x (texture cubetex (v! uv (* .0001 time))))
   )
-
 
 (defpipeline-g cube-pipe ()
   :vertex (vert g-pnt)
