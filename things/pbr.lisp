@@ -26,7 +26,7 @@
 (defun make-pbr (&key (pos (v! 0 0 0)))
   (let ((obj (make-instance
               'pbr
-              :buf (sphere 1 30 30 t)
+              :buf (box 1 1 1 t)
               :pos pos)))
     (push obj *actors*)
     obj))
@@ -56,6 +56,7 @@
            :cam-pos (pos camera)
            :cam-dir (q:to-direction (rot camera)) ;; flashlight
            :light-pos *light-pos*
+           :light-col *light-color*
            ;;
            :model-world (model->world actor)
            :world-view  (world->view camera)
@@ -89,6 +90,7 @@
                    (color      :vec3)
                    ;; Lighting
                    (light-pos  :vec3)
+                   (light-col  :vec3)
                    (cam-pos    :vec3)
                    (cam-dir    :vec3) ;; flashlight
                    (shape      :sampler-2d) ;; flashlight
@@ -117,11 +119,11 @@
               (normalize (- tan-cam-pos tan-frag-pos))
               height-map
               parallax))
-         ;; (frag-pos  tan-frag-pos)
-         ;; (cam-pos   tan-cam-pos)
+         ;;(frag-pos  tan-frag-pos)
+         ;;(cam-pos   tan-cam-pos)
          ;;(light-pos tan-light-pos)
          ;;
-         (roughness (+ .5 (x (texture rough-map uv))))
+         (roughness (x (texture rough-map uv)));; FIXME + .5???
          (ao        (x (texture ao-map uv)))
          (color     (* color (expt (s~ (texture albedo uv) :xyz)
                                    (vec3 2.2))))
@@ -134,12 +136,6 @@
          ;; metallic
          (n normal)
          (v (normalize (- cam-pos frag-pos)))
-         ;;(metallic .1)
-         ;;(roughness .9)
-         (f0 (vec3 .04))
-         ;;(f0 color)
-         (f0 (mix f0 color metallic))
-         ;;(f0 (v3! 0))
          ;; pbr - reflectance equation
          (lo (vec3 0f0))
          ;; lights START
@@ -148,11 +144,11 @@
                                    v
                                    n
                                    roughness
-                                   f0
                                    metallic
                                    color
-                                   specular)))
-         (ambient (ambient-ibl v n f0
+                                   specular
+                                   light-col)))
+         (ambient (ambient-ibl v n
                                brdf-lut
                                prefilter-map
                                irradiance-map
@@ -166,6 +162,7 @@
     ;;normal
     ;;color
     ;;lo
+    ;;(v3! roughness)
     ;;(v3! roughness)
     ;;(v3! ao)
     ;;(v! uv 0 1)
