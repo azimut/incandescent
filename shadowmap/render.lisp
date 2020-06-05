@@ -117,6 +117,7 @@
                           (shadowmap :sampler-2d)
                           ;; Lighting
                           (light-pos :vec3)
+                          (light-col :vec3)
                           (cam-pos :vec3)
                           ;; PBR
                           (metallic :float)
@@ -132,75 +133,55 @@
   (let* (;; First change UV, then parallax!
          ;; (uv (+ (* uv uv-repeat)
          ;;        (v! 0 (* uv-speed time))))
-         ;; (uv (parallax-mapping-offset-flipped
-         ;;      uv
-         ;;      (normalize (- tan-cam-pos tan-frag-pos))
-         ;;      height-map
-         ;;      .03))
+         (uv (parallax-mapping-offset-flipped
+              uv
+              (normalize (- tan-cam-pos tan-frag-pos))
+              height-map
+              .03))
          (roughness (x (texture rough-map uv)))
          (ao        (x (texture ao-map uv)))
          (color (* color (expt (s~ (texture albedo uv) :xyz)
                                (vec3 2.2))))
          ;; Normal Mapping
-         (normal (normalize frag-norm))
-         ;; (normal (norm-from-map normal-map uv))
-         ;; (normal (normalize (* tbn normal)))
+         ;;(normal (normalize frag-norm))
+         (normal (norm-from-map normal-map uv frag-pos frag-norm))
+         ;;(normal (normalize (* tbn normal)))
          ;;----------------------------------------
          ;; PBR
          ;; metallic
          (n normal)
          (v (normalize (- cam-pos frag-pos)))
-         (metallic .1)
-         (f0 (vec3 .04))
-         ;;(f0 color)
-         (f0 (mix f0 color metallic))
+         (specular (* roughness .03))
          ;; pbr - reflectance equation
          (lo (vec3 0f0))
          ;; lights START
+         ;;#+nil
          (lo (+ lo (pbr-direct-lum light-pos
                                    frag-pos
                                    v
                                    n
                                    roughness
-                                   f0
                                    metallic
-                                   color)))
-         ;; (lo (+ lo (pbr-point-lum light-pos
-         ;;                          frag-pos
-         ;;                          v
-         ;;                          n
-         ;;                          roughness
-         ;;                          f0
-         ;;                          metallic
-         ;;                          color)))
+                                   color
+                                   specular
+                                   light-col)))
          ;; ---------- END
          ;;(ambient (* color ao (vec3 .03)))
-         ;; (ambient (pbr-ambient-map-r irradiance-map
-         ;;                             color
-         ;;                             ao n v f0
-         ;;                             roughness))
-         (r (reflect (- v) n))
-         (f (fresnel-schlick-roughness (max (dot n v) 0)
-                                       f0
-                                       roughness))
-         (ks f)
-         (kd (* (- 1 ks) (- 1 metallic)))
-         (irradiance (s~ (texture irradiance-map n) :xyz))
-         (diffuse (* irradiance color))
-         (prefiltered-color (s~ (texture-lod prefilter-map
-                                             r
-                                             (* roughness 4f0))
-                                :xyz))
-         (env-brdf    (texture brdf-lut (v! (max (dot n v) 0) (* roughness 4f0))))
-         (specular    (* prefiltered-color (+ (* f (x env-brdf)) (y env-brdf))))
-         (ambient     (* (+ specular (* kd diffuse)) ao))
          ;;(final-color (+ ambient lo))
-         (final-color (+ ambient (* (shadow-factor shadowmap light-clip-pos)
-                                    ;;lo
-                                    )))
+         (ambient (ambient-ibl v n
+                               brdf-lut
+                               prefilter-map
+                               irradiance-map
+                               roughness
+                               metallic
+                               color
+                               ao))
+         (final-color (+ ambient
+                         (* (shadow-factor shadowmap light-clip-pos)
+                            lo)))
          ;; (final-color (+ ambient (* (- 1 (shadow-factor shadowmap light-clip-pos))
          ;;                            lo)))
-         ;;(final-color (v3! (shadow-factor shadowmap light-clip-pos)))
+         ;;(final-color (v3! (- 1 (shadow-factor shadowmap light-clip-pos))))
          ;; Fog
          ;; (final-color
          ;;  (fog-exp2-apply final-color
@@ -217,6 +198,7 @@
     (v! final-color 1)
     ;;(v! uv 0 1)
     ;;(v! color 1)
+    ;;lo
     ))
 
 ;;--------------------------------------------------

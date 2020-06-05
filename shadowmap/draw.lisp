@@ -19,7 +19,7 @@
            :light-color *light-color*
            :light-pos   *light-pos*)))
 
-(defmethod draw ((actor piso) camera (time single-float))
+(defmethod draw ((actor pbr) camera (time single-float))
   (with-slots (buf scale color
                albedo normal height roughness
                ;;uv-speed uv-repeat
@@ -28,12 +28,13 @@
     (map-g #'shadow-pbr-pipe buf
            :scale scale
            :color color
-           :uv-repeat 1f0
+           :uv-repeat (v2! 1f0)
            :uv-speed 1f0
            :samd *samd*
            ;; Lighting
            :cam-pos (pos camera)
            :light-pos *light-pos*
+           :light-col *light-color*
            ;;
            :model-world (model->world actor)
            :world-view (world->view camera)

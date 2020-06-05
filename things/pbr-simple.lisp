@@ -23,11 +23,11 @@
 ;;--------------------------------------------------
 
 (defmethod update ((actor pbr-simple) dt)
-  #+n
+  ;;#+n
   (with-slots (metallic specular roughness) actor
-    (setf metallic  .2
+    (setf metallic  .04
           specular  .0
-          roughness .4))
+          roughness .9))
   #+nil
   (with-slots (pos seed) actor
     (let ((time (* 2 (mynow))))
@@ -46,6 +46,7 @@
            ;; Lighting
            :cam-pos (pos camera)
            :light-pos *light-pos*
+           :light-col *light-color*
            ;;
            :model-world (model->world actor)
            :world-view  (world->view  camera)
@@ -66,6 +67,7 @@
                           (time      :float)
                           (cam-pos   :vec3)
                           (light-pos :vec3)
+                          (light-col :vec3)
                           ;; Material
                           (color     :vec3)
                           (roughness :float)
@@ -95,16 +97,16 @@
                                 color
                                 specular)
                 #+nil
-                (* 2 (pbr-point-lum (v! 4 4 -4)
+                (* 2 (pbr-point-lum light-pos
                                     frag-pos
                                     v n
                                     roughness
                                     metallic
                                     color
                                     specular
-                                    .35
-                                    .44
-                                    (v! .2 .9 .1)))))
+                                    #.(y (nth 2 *point-light-params*))
+                                    #.(z (nth 2 *point-light-params*))
+                                    light-col))))
          ;;(ambient (v3! .0))
          ;;#+nil
          (ambient (ambient-ibl v
@@ -117,7 +119,8 @@
                                color
                                ao))
          ;;(ambient (* color ao (vec3 .3)))
-         (final-color (+ ambient lo)))
+         (final-color (+ ambient lo))
+         )
     (v! final-color 1)))
 
 ;;----------------------------------------
