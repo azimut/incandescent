@@ -67,9 +67,11 @@
   (when *cube-tex* (free *cube-tex*))
   (setf *cube-tex* NIL))
 
-(defun init-scene-cubemap (&key (pos (v! 0 0 0)))
+(defun init-scene-cubemap (&key (pos (v! 0 0 0)) (clear-color *light-color*))
+  (declare (type (or nil rtg-math.types:vec3) clear-color))
   (free-scene-cubemap)
-  (setf *cube-tex* (%make-scene-cubemap :pos pos))
+  (with-setf (clear-color) (v! clear-color 1)
+    (setf *cube-tex* (%make-scene-cubemap :pos pos)))
   (setf *cube-sam* (sample *cube-tex* :wrap :clamp-to-edge
                                       :magnify-filter :linear))
   t)
