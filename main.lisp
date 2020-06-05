@@ -17,9 +17,6 @@
   (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge)))
 
-(defclass main ()
-  ((background :initform (v! 0 0 0 1) :accessor background)))
-
 (defun init ()
   ;; Init Lisp
   (setf *random-state* (make-random-state t))
@@ -34,7 +31,7 @@
   ;; Create HDR fbo(s) and samplers
   (reload-base-fbos)
   ;;--------------------------------------------------
-  (setf (clear-color) (v! 0 0 0 1))
+  (setf (clear-color) (v! .5 .4 .4 1))
   (gl:clear-stencil 0)
   ;;--------------------------------------------------
   #+slynk
@@ -60,12 +57,12 @@
         (draw actor *currentcamera* time)
         (update actor delta)))
     (as-frame
-     (with-setf* ((depth-mask) nil
-                  (cull-face)  nil
-                  (depth-test-function) nil)
-       (map-g #'generic-2d-pipe *bs*
-              :sam *sam*
-              :samd *samd*))))
+      (with-setf* ((depth-mask) nil
+                   (cull-face)  nil
+                   (depth-test-function) nil)
+        (map-g #'generic-2d-pipe *bs*
+               :sam *sam*
+               :samd *samd*))))
   ;; Stop on ESC
   (when (keyboard-button (keyboard) key.escape)
     (play-render :stop))
