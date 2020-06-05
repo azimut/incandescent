@@ -32,12 +32,12 @@
                (:file "postprocess")  ;; gpu
                (:file "draw")         ;; lisp
                (:file "render")       ;; gpu - main pipelines
-               ;; (:file "cubemap/render")
-               ;; (:file "cubemap/cubemap")
-               ;; (:file "cubemap/env-map")
-               ;; (:file "cubemap/clouds")
-               ;; (:file "cubemap/hdr")
-               ;;(:file "gi/ibl")
+               (:file "cubemap/render")
+               (:file "cubemap/cubemap")
+               (:file "cubemap/env-map")
+               (:file "cubemap/clouds")
+               (:file "cubemap/hdr")
+               (:file "gi/ibl")
                ;; (:file "things/box")
                ;; (:file "things/piso")
                ;; (:file "things/pbr-simple")
