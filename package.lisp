@@ -9,6 +9,7 @@
         #:cepl.skitter
         #:with-setf
         #:livesupport)
+  (:export #:main #:init)
   (:import-from #:temporal-functions
                 #:make-stepper
                 #:seconds)
