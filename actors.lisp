@@ -14,7 +14,8 @@
    (seed       :initarg :seed       :initform (random 1f0))
    (voxelize-p :initarg :voxelize-p)
    (shadow-p   :initarg :shadow-p   :documentation "casts shadow?")
-   (draw-p     :initarg :draw-p))
+   (draw-p     :initarg :draw-p)
+   (priority   :initarg :priority   :documentation "2 gets processed before 0"))
   (:default-initargs
    :draw-p t
    :shadow-p t
@@ -24,7 +25,8 @@
    :rot   (q:identity)
    :buf   (box)
    :color (v! 1 1 1)
-   :scale 1f0))
+   :scale 1f0
+   :priority 0))
 
 (defmethod free (object) t)
 
