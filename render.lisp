@@ -100,6 +100,20 @@
   :vertex (vert g-pnt)
   :fragment (frag-tex :vec2 :vec3 :vec3))
 
+;;----------------------------------------
+
+(defpipeline-g flat-3d-pipe ()
+  :vertex (vert g-pnt)
+  :fragment (flat-3d-frag :vec2 :vec3 :vec3))
+
+(defun-g flat-3d-frag ((uv :vec2)
+                       (frag-norm :vec3)
+                       (frag-pos :vec3)
+                       &uniform
+                       (time :float)
+                       (color :vec3))
+  (v! color 1))
+
 ;;--------------------------------------------------
 ;; PBR
 ;;--------------------------------------------------
