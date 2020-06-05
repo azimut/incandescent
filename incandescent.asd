@@ -40,8 +40,8 @@
                (:file "gi/ibl")
                ;; (:file "things/box")
                ;; (:file "things/piso")
-               ;; (:file "things/pbr-simple")
-               ;; (:file "things/pbr")
+               (:file "things/pbr-simple")
+               (:file "things/pbr")
                ;;(:file "shadowmap/render")
                (:file "main")))
 
@@ -228,11 +228,11 @@
                #:incandescent/assimp
                #:incandescent/particles
                #:incandescent/text)
-  :components ((:file "things/grass")
-               (:file "things/radio")
-               (:file "things/forestthing")
-               (:file "things/dirt")
-               (:file "things/book")))
+  :components ((:file "things/renderman/grass")
+               (:file "things/renderman/radio")
+               (:file "things/renderman/forestthing")
+               (:file "things/renderman/dirt")
+               (:file "things/renderman/book")))
 
 (asdf:defsystem #:incandescent/damo
   :description "Describe incandescent here"
