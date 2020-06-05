@@ -1,6 +1,6 @@
 (in-package #:incandescent)
 
-;; (make-clouds)
+;; (make-clouds) OR (init-scene-cubemap) with a sensitive (clear-color) set
 ;; (init-ibl)
 ;; (update-ibl *t-cubemap* *s-cubemap*)
 
