@@ -80,28 +80,22 @@
          (color  color)
          ;;----------------------------------------
          ;; PBR
-         ;; metallic
-         (f0 (vec3 .04))
-         ;;(f0 color)
-         (f0 (mix f0 color metallic))
          ;; pbr - reflectance equation
          (n  normal)
          (v  (normalize (- cam-pos frag-pos)))
          (lo (vec3 0f0))
          ;; lights START
          (lo (+ lo
-                #+nil
+                ;;#+nil
                 (pbr-direct-lum light-pos frag-pos
                                 v
                                 n
                                 roughness
-                                f0
                                 metallic
                                 color
                                 specular)
-                (* 5 (pbr-point-lum (v! 0
-                                        18
-                                        0)
+                #+nil
+                (* 2 (pbr-point-lum (v! 4 4 -4)
                                     frag-pos
                                     v n
                                     roughness
@@ -109,11 +103,12 @@
                                     color
                                     specular
                                     .35
-                                    .44))))
-         ;;(ambient (v3! .03))
+                                    .44
+                                    (v! .2 .9 .1)))))
+         ;;(ambient (v3! .0))
+         ;;#+nil
          (ambient (ambient-ibl v
                                n
-                               f0
                                brdf-lut
                                prefilter-map
                                irradiance-map
@@ -122,11 +117,8 @@
                                color
                                ao))
          ;;(ambient (* color ao (vec3 .3)))
-         (final-color (+ ambient lo))
-         )
-    (v! final-color 1)
-    ;;lo
-    ))
+         (final-color (+ ambient lo)))
+    (v! final-color 1)))
 
 ;;----------------------------------------
 ;; Functions to apply the Irradiance Map ONLY
