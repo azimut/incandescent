@@ -6,19 +6,18 @@
   :license  "MIT"
   :version "0.0.1"
   :serial t
-  :depends-on (#:cepl
-               #:alexandria
+  :depends-on (#:alexandria
+               #:arrow-macros
+               #:cepl
+               #:cepl.sdl2
+               #:cepl.skitter.sdl2
+               #:dirt
+               #:livesupport
+               #:nineveh
+               #:rtg-math.vari
                #:serapeum
                #:temporal-functions
-               #:with-setf
-               #:rtg-math.vari
-               #:cepl.sdl2
-               #:nineveh
-               ;;#:png
-               #:arrow-macros
-               #:livesupport
-               #:cepl.skitter.sdl2
-               #:dirt)
+               #:with-setf)
   :components ((:file "package")
                (:file "incandescent")
                ;;(:file "lib/rocketman") ;;!!!!!!!
