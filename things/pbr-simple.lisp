@@ -105,11 +105,11 @@
                                     frag-pos
                                     v n
                                     roughness
-                                    f0
                                     metallic
                                     color
                                     specular
-                                    .35 .44))))
+                                    .35
+                                    .44))))
          ;;(ambient (v3! .03))
          (ambient (ambient-ibl v
                                n
