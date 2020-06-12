@@ -602,3 +602,23 @@
     (/ (* x (+ 0.5 (* x 6.2)))
        (+ 0.06 (* x (+ 1.7 (* x 6.2)))))))
 
+
+(defun-g point-light-attenuation ((linear    :float)
+                                  (quadratic :float)
+                                  (light-pos :vec3)
+                                  (frag-pos  :vec3))
+  "Can be usefult to apply distance attenuation to the ambient of a pointlight"
+  (let ((distance (length (- light-pos frag-pos))))
+    (/ 1f0 (+ 1f0
+              (* linear distance)
+              (* quadratic distance)))))
+
+(defun-g point-light-attenuation-nohdr ((linear    :float)
+                                        (quadratic :float)
+                                        (light-pos :vec3)
+                                        (frag-pos  :vec3))
+  "Can be usefult to apply distance attenuation to the ambient of a pointlight"
+  (let ((distance (length (- light-pos frag-pos))))
+    (/ 1f0 (+ 1f0
+              (* linear distance)
+              (* quadratic distance distance)))))
