@@ -1,26 +1,9 @@
 (in-package #:incandescent)
 
-(defvar *last-time* nil)
-(defvar *bs* nil)
-(defvar *dimensions* (list (* 16 20) (* 16 15)))
-
-(defun set-dimensions-to-winsize ()
-  (setf *dimensions*
-        (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
-                                       2f0)
-                                'list))))
-
-(defun reload-base-fbos ()
-  (when *fbo*  (free *fbo*))
-  (setf *fbo*  (make-fbo `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
-                         `(:d :dimensions ,*dimensions*)))
-  (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
-  (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge)))
-
 (defun init ()
   ;; Init Lisp
   (setf *random-state* (make-random-state t))
-  (setf *last-time* (get-internal-real-time))
+  (setf *last-time*    (get-internal-real-time))
   (set-dimensions-to-winsize)
   (free-actors)
   (free-scenes)
@@ -31,8 +14,8 @@
   ;; Create HDR fbo(s) and samplers
   (reload-base-fbos)
   ;;--------------------------------------------------
-  (setf (clear-color) (v! .5 .4 .4 1))
-  (gl:clear-stencil 0)
+  (setf (clear-color) (v! 0 0 0 1))
+  ;;(gl:clear-stencil 0)
   ;;--------------------------------------------------
   #+slynk
   (slynk-mrepl::send-prompt (find (bt:current-thread) (slynk::channels)
@@ -49,9 +32,10 @@
     (setf (resolution (current-viewport)) res)
     ;;(setf (viewport-dimensions (current-viewport)) *dimensions*)
     ;;(update  *currentcamera* delta)
-    (control *currentcamera* delta 1)
+    (control *currentcamera* delta 3)
     ;;--------------------------------------------------
-    (with-fbo-bound (*fbo*)   ;; defer render
+    ;;(draw-shadowmap)
+    (with-fbo-bound (*fbo*)
       (clear-fbo *fbo*)
       (dolist (actor *actors*)
         (draw actor *currentcamera* time)

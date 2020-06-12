@@ -50,12 +50,12 @@
             world-norm
             (s~ world-pos :xyz))))
 
-(defun-g frag ((uv :vec2)
+(defun-g frag ((uv        :vec2)
                (frag-norm :vec3)
-               (frag-pos :vec3)
+               (frag-pos  :vec3)
                &uniform
-               (time :float)
-               (color :vec3)
+               (time    :float)
+               (color   :vec3)
                (cam-pos :vec3)
                ;; Directional light (for the most part)
                (light-color    :vec3)
@@ -63,18 +63,17 @@
                (brdf-luf       :sampler-2d)
                (irradiance-map :sampler-cube)
                (prefilter-map  :sampler-cube))
-  (let* ((roughness .7)
-         (metallic .01)
+  (let* ((roughness .8)
+         (metallic .03)
          (ambient (* color .03))
-         (f0 (v3! .04))
-         (f0 (mix f0 color metallic))
          (final-color color)
          (final-color (dir-light-apply final-color
                                        light-color
                                        light-pos
                                        frag-pos
                                        frag-norm
-                                       cam-pos 32 1)))
+                                       cam-pos roughness 1
+                                       )))
     (v! (+ ambient final-color) 1)))
 
 (defpipeline-g generic-pipe ()
@@ -102,10 +101,6 @@
 
 ;;----------------------------------------
 
-(defpipeline-g flat-3d-pipe ()
-  :vertex (vert g-pnt)
-  :fragment (flat-3d-frag :vec2 :vec3 :vec3))
-
 (defun-g flat-3d-frag ((uv :vec2)
                        (frag-norm :vec3)
                        (frag-pos :vec3)
@@ -113,6 +108,10 @@
                        (time :float)
                        (color :vec3))
   (v! color 1))
+
+(defpipeline-g flat-3d-pipe ()
+  :vertex (vert g-pnt)
+  :fragment (flat-3d-frag :vec2 :vec3 :vec3))
 
 ;;--------------------------------------------------
 ;; PBR

@@ -7,11 +7,13 @@
 (defun make-box (&key (pos (v! 0 0 0)) (rot (q:identity))
                       (x 2) (y 2) (z 2)
                       (scale 1f0)
+                      (color (v! 1 1 1))
                       (name (gensym)))
   (let ((obj (make-instance 'box :buf (box x y z)
                                  :name name
                                  :pos pos
                                  :rot rot
+                                 :color color
                                  :scale scale)))
     (push obj *actors*)
     obj))
@@ -21,14 +23,16 @@
   (declare (type single-float range))
   (let ((half (* .5 range)))
     (dotimes (i 20)
-      (make-box :pos (v! (- (random range) half)
-                         (- (random range) half)
-                         (- (random range) half))
-                :scale (random 1f0)
-                :rot (q:from-axis-angle (v! (random 1f0)
-                                            (random 1f0)
-                                            (random 1f0))
-                                        (radians (random 360)))))))
+      (make-box
+       :pos (v! (- (random range) half)
+                (- (random range) half)
+                (- (random range) half))
+       :scale (+ .1 (random 1f0))
+       :rot (q:from-axis-angle
+             (v! (random 1f0)
+                 (random 1f0)
+                 (random 1f0))
+             (radians (random 360)))))))
 
 (defmethod draw ((actor box) camera (time single-float))
   (with-slots (buf scale color) actor

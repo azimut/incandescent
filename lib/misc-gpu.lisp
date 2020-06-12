@@ -34,23 +34,6 @@
     (* intensity (max 0 n-dot-l) (/ (+ a (/ (* b s) tt)) +pi+))))
 
 ;;--------------------------------------------------
-(defvar *point-light-params*
-  (list (v! 3250 0.0014 0.000007)
-        (v!  600 0.007  0.0002)
-        (v!  325 0.014  0.0007)
-        (v!  200 0.022  0.0019)
-        (v!  160 0.027  0.0028)
-        (v!  100 0.045  0.0075)
-        (v!   65 0.07   0.017)
-        (v!   50 0.09   0.032)
-        (v!   32 0.14   0.07)
-        (v!   20 0.22   0.20)
-        (v!   13 0.35   0.44)
-        (v!   7  0.7    1.8))
-  "Length=12
-   X=Distance
-   Y=Linear
-   Z=Quadratic")
 
 (defun-g point-light-apply ((color :vec3)
                             (light-color :vec3)
@@ -269,14 +252,14 @@
     (* color (+ ambient diffuse))))
 
 ;; Only oren diffuse
-(defun-g dir-light-apply ((color :vec3)
+(defun-g dir-light-apply ((color       :vec3)
                           (light-color :vec3)
-                          (light-pos :vec3)
-                          (frag-pos :vec3)
-                          (normal :vec3)
-                          (cam-pos :vec3)
-                          (roughness :float)
-                          (intensity :float))
+                          (light-pos   :vec3)
+                          (frag-pos    :vec3)
+                          (normal      :vec3)
+                          (cam-pos     :vec3)
+                          (roughness   :float)
+                          (intensity   :float))
   (let* ((light-dir (normalize (- light-pos frag-pos)))
          (view-dir  (normalize (- cam-pos frag-pos)))
          ;; Diffuse shading

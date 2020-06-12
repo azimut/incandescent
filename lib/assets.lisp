@@ -1,5 +1,11 @@
 (in-package #:incandescent)
 
+(defvar *meshes* (make-hash-table :test #'equal))
+(defvar *samplers* (make-hash-table :test #'equal)
+  "GPU objects loaded")
+(defvar *c-samplers* (make-hash-table :test #'equal)
+  "C array objects loaded")
+
 ;; CEPL HELPERS
 
 (defun mynow ()
@@ -90,8 +96,6 @@
 ;; We cache the data based on the the arguments so we don't
 ;; get lots of instances in memory
 
-(defvar *meshes* (make-hash-table :test #'equal))
-
 (defun sphere
     (&optional (radius 1f0)
                (lines-of-latitude 30)
@@ -179,8 +183,6 @@
 ;;----------------------------------------
 ;; Dirt - image loader into CEPL sampler
 
-(defvar *samplers* (make-hash-table :test #'equal)
-  "GPU objects loaded")
 (defun list-tex ()
   (alexandria:maphash-keys #'print *samplers*))
 
@@ -209,8 +211,6 @@
 
 ;;--------------------------------------------------
 
-(defvar *c-samplers* (make-hash-table :test #'equal)
-  "C array objects loaded")
 (defun free-all-c-tex ()
   (maphash-values #'free *c-samplers*)
   (clrhash *c-samplers*))

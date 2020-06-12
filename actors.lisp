@@ -1,9 +1,5 @@
 (in-package #:incandescent)
 
-(defvar *actors* nil)
-(defvar *scenes* (make-array 5 :initial-element nil))
-(defvar *scene-index* 0)
-
 (defclass actor ()
   ((name       :initarg :name       :reader   actor-name)
    (pos        :initarg :pos        :accessor pos)

@@ -2,6 +2,25 @@
 
 (in-package #:incandescent)
 
+(defvar *last-time* nil)
+(defvar *bs* nil)
+(defvar *dimensions* (list (* 16 20) (* 16 15)))
+
+(defvar *actors* nil)
+(defvar *scenes* (make-array 5 :initial-element nil))
+(defvar *scene-index* 0)
+
+(defvar *fbo*  nil)
+(defvar *sam*  nil)
+(defvar *sam1* NIL)
+(defvar *sam2* NIL)
+(defvar *sam3* NIL)
+(defvar *sam4* NIL)
+(defvar *sam5* NIL)
+(defvar *samd* nil)
+
+(defparameter *exposure* 2f0)
+
 (defvar *vec3-right*   (v!  1  0  0))
 (defvar *vec3-left*    (v! -1  0  0))
 (defvar *vec3-up*      (v!  0  1  0))
@@ -16,6 +35,24 @@
         (v! -1.0   1.0 0)
         (v!  1.0  -1.0 0)
         (v!  1.0   1.0 0)))
+
+(defvar *point-light-params*
+  (list (v! 3250 0.0014 0.000007)
+        (v!  600 0.007  0.0002)
+        (v!  325 0.014  0.0007)
+        (v!  200 0.022  0.0019)
+        (v!  160 0.027  0.0028)
+        (v!  100 0.045  0.0075)
+        (v!   65 0.07   0.017)
+        (v!   50 0.09   0.032)
+        (v!   32 0.14   0.07)
+        (v!   20 0.22   0.20)
+        (v!   13 0.35   0.44)
+        (v!   7  0.7    1.8))
+  "Length=12
+   X=Distance
+   Y=Linear
+   Z=Quadratic")
 
 (let ((stream nil))
   (defun get-quad-stream-v3 ()
@@ -60,3 +97,16 @@
   "angle between vectors...not signed?"
   (declare (type rtg-math.types:vec3 v1 v2))
   (acos (v3:dot (v3:normalize v1) (v3:normalize v2))))
+
+(defun set-dimensions-to-winsize ()
+  (setf *dimensions*
+        (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
+                                       2f0)
+                                'list))))
+
+(defun reload-base-fbos ()
+  (when *fbo*  (free *fbo*))
+  (setf *fbo*  (make-fbo `(0 :dimensions ,*dimensions*  :element-type :rgba16f)
+                         `(:d :dimensions ,*dimensions*)))
+  (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
+  (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge)))

@@ -1,15 +1,5 @@
 (in-package #:incandescent)
 
-(defvar *fbo*  nil)
-(defvar *sam*  nil)
-(defvar *sam1* NIL)
-(defvar *sam2* NIL)
-(defvar *sam3* NIL)
-(defvar *sam4* NIL)
-(defvar *sam5* NIL)
-(defvar *samd* nil)
-(defparameter *exposure* 2f0)
-
 ;;--------------------------------------------------
 ;; 2D - Post Processing
 
