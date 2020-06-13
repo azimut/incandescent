@@ -48,11 +48,40 @@
         (v!   32 0.14   0.07)
         (v!   20 0.22   0.20)
         (v!   13 0.35   0.44)
-        (v!   7  0.7    1.8))
+        (v!    7 0.7    1.8))
   "Length=12
    X=Distance
    Y=Linear
    Z=Quadratic")
+
+(defparameter *sample-colors*
+  (list
+   :light-candle                    (v!  1.0       0.5764706  0.16078432)
+   :light-tungsten-40               (v!  1.0       0.7725491  0.56078434)
+   :light-tungsten-100              (v!  1.0       0.83921576 0.6666667)
+   :light-halogen                   (v!  1.0       0.9450981  0.87843144)
+   :light-carbon-arc                (v!  1.0       0.9803922  0.9568628)
+   :light-high-noon-sun             (v!  1.0       1.0        0.9843138)
+   :light-direct-sunlight           (v!  1.0       1.0        1.0)
+   :light-sky-overcast              (v!  0.7882353 0.8862746  1.0)
+   :light-sky-clear-blue            (v!  0.2509804 0.6117647  1.0)
+   :light-fluorescent-warm          (v!  1.0       0.9568628  0.8980393)
+   :light-fluorescent-standard      (v!  0.9568628 1.0        0.9803922)
+   :light-fluorescent-cool-white    (v!  0.8313726 0.9215687  1.0)
+   :light-fluorescent-full-spectrum (v!  1.0       0.9568628  0.9490197)
+   :light-fluorescent-grow-light    (v!  1.0       0.93725497 0.9686275)
+   :light-fluorescent-black-light   (v!  0.654902  0.0        1.0)
+   :light-vapor-mercury             (v!  0.8470589 0.9686275  1.0)
+   :light-vapor-sodium              (v!  1.0       0.8196079  0.69803923)
+   :light-metal-halide              (v!  0.9490197 0.98823535 1.0)
+   :light-high-pressure-sodium      (v!  1.0       0.7176471  0.29803923))
+  "http://planetpixelemporium.com/tutorialpages/light.html")
+
+(defun get-color (color)
+  (getf *sample-colors* color))
+
+(defparameter *light-color* (get-color :light-tungsten-100))
+(defparameter *light-pos* (v! 17.545997 12.553596 115.4780827))
 
 (let ((stream nil))
   (defun get-quad-stream-v3 ()
