@@ -77,11 +77,11 @@
    :light-high-pressure-sodium      (v!  1.0       0.7176471  0.29803923))
   "http://planetpixelemporium.com/tutorialpages/light.html")
 
-(defun get-color (color)
+(defun get-light-color (color)
   (getf *sample-colors* color))
 
-(defparameter *light-color* (get-color :light-tungsten-100))
-(defparameter *light-pos* (v! 17.545997 12.553596 115.4780827))
+(defparameter *light-color* (get-light-color :light-tungsten-100))
+(defparameter *light-pos*   (v! 0 0 0))
 
 (let ((stream nil))
   (defun get-quad-stream-v3 ()
@@ -127,10 +127,10 @@
   (declare (type rtg-math.types:vec3 v1 v2))
   (acos (v3:dot (v3:normalize v1) (v3:normalize v2))))
 
-(defun set-dimensions-to-winsize ()
+(defun set-dimensions-to-winsize (&optional (divisor 2f0))
   (setf *dimensions*
         (mapcar #'round (coerce (v2:/s (surface-resolution (current-surface))
-                                       2f0)
+                                       divisor)
                                 'list))))
 
 (defun reload-base-fbos ()
@@ -139,3 +139,18 @@
                          `(:d :dimensions ,*dimensions*)))
   (setf *sam*  (sample (attachment-tex *fbo*  0) :wrap :clamp-to-edge))
   (setf *samd* (sample (attachment-tex *fbo* :d) :wrap :clamp-to-edge)))
+
+(defun random-qrotation ()
+  (q:from-axis-angle
+   (v! (random 1f0)
+       (random 1f0)
+       (random 1f0))
+   (radians (random 360))))
+
+(defun random-in-range-poked (low high poke-size)
+  (assert (> high low))
+  (assert (> (- high low) poke-size))
+  (let ((r (random (- high (* poke-size .5)))))
+    (if (> (random 1f0) .5)
+        (+ low r)
+        (- high r))))
