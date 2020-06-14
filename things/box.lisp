@@ -18,21 +18,17 @@
     (push obj *actors*)
     obj))
 
-(defun init-box (&optional (range 8f0))
+(defun init-box (&key (range 8f0) (n-boxes 20) (poke-size 0f0))
   "helper to create a bunch of boxes at random pos/rot/scale"
-  (declare (type single-float range))
-  (let ((half (* .5 range)))
-    (dotimes (i 20)
-      (make-box
-       :pos (v! (- (random range) half)
-                (- (random range) half)
-                (- (random range) half))
-       :scale (+ .1 (random 1f0))
-       :rot (q:from-axis-angle
-             (v! (random 1f0)
-                 (random 1f0)
-                 (random 1f0))
-             (radians (random 360)))))))
+  (declare (type alexandria:positive-real range)
+           (type alexandria:positive-fixnum n-boxes))
+  (dotimes (i n-boxes)
+    (make-box
+     :pos (v! (random-in-range-poked (- range) range poke-size)
+              (random-in-range-poked (- range) range poke-size)
+              (random-in-range-poked (- range) range poke-size))
+     :scale (+ .1 (random 1f0))
+     :rot (random-qrotation))))
 
 (defmethod draw ((actor box) camera (time single-float))
   (with-slots (buf scale color) actor
