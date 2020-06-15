@@ -4,37 +4,50 @@
 ;; - https://learnopengl.com/Advanced-Lighting/Shadows/Point-Shadows
 ;; - https://github.com/cbaggers/cepl/issues/320
 
-(defvar *t-shadow-cube* nil)
-(defvar *s-shadow-cube* nil)
-(defvar *point-mats*    nil)
-(defvar *far-plane*     50f0)
+(defvar *t-shadow-cube*   nil)
+(defvar *s-shadow-cube*   nil)
+(defvar *projection-mats* nil)
+(defvar *sample-dirs*     nil "used to sample smartly pcf shadows")
+(defvar *far-plane*       50f0)
 
 (defun free-pointlight ()
-  (when *t-shadow-cube* (free *t-shadow-cube*))
-  (when *shadow-fbo*    (free *shadow-fbo*))
-  (when *point-mats*    (free *point-mats*)))
+  (when *t-shadow-cube*   (free *t-shadow-cube*))
+  (when *shadow-fbo*      (free *shadow-fbo*))
+  (when *projection-mats* (free *projection-mats*))
+  (when *sample-dirs*     (free *sample-dirs*)))
 
-(defun init-pointlight-mat (light-pos)
-  (list
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  1  0  0))))
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v! -1  0  0))))
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0  0  1) light-pos (v3:+ light-pos (v!  0  1  0))))
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0  0 -1) light-pos (v3:+ light-pos (v!  0 -1  0))))
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  0  0  1))))
-   (m4:* (rtg-math.projection:perspective 1f0 1f0 .1f0 *far-plane* 90f0) (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  0  0 -1))))))
+(defun projection-mats (light-pos far-plane)
+  (let ((projection (rtg-math.projection:perspective 1f0 1f0 .1f0 far-plane 90f0)))
+    (list
+     (m4:* projection (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  1  0  0))))
+     (m4:* projection (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v! -1  0  0))))
+     (m4:* projection (m4:look-at (v! 0  0  1) light-pos (v3:+ light-pos (v!  0  1  0))))
+     (m4:* projection (m4:look-at (v! 0  0 -1) light-pos (v3:+ light-pos (v!  0 -1  0))))
+     (m4:* projection (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  0  0  1))))
+     (m4:* projection (m4:look-at (v! 0 -1  0) light-pos (v3:+ light-pos (v!  0  0 -1)))))))
+
+(defun offset-directions ()
+  (list (v!  1  1  1) (v!  1 -1  1) (v! -1 -1  1) (v! -1  1  1)
+        (v!  1  1 -1) (v!  1 -1 -1) (v! -1 -1 -1) (v! -1  1 -1)
+        (v!  1  1  0) (v!  1 -1  0) (v! -1 -1  0) (v! -1  1  0)
+        (v!  1  0  1) (v! -1  0  1) (v!  1  0 -1) (v! -1  0 -1)
+        (v!  0  1  1) (v!  1 -1  1) (v!  0 -1 -1) (v!  0  1 -1)))
 
 (defun init-pointlight ()
   (free-pointlight)
-  (setf *shadow-fbo*    (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
-  (setf *t-shadow-cube* (make-texture nil :dimensions *shadow-dimensions*
-                                          :element-type :depth-component24
-                                          :cubes t))
-  (setf *s-shadow-cube* (sample *t-shadow-cube* :minify-filter  :nearest
-                                                :magnify-filter :nearest
-                                                :wrap           :clamp-to-edge))
-  (setf *point-mats*    (make-c-array (init-pointlight-mat *light-pos*)
-                                      :dimensions 6
-                                      :element-type :mat4))
+  (setf *shadow-fbo*      (make-fbo `(:d :dimensions ,*shadow-dimensions*)))
+  (setf *t-shadow-cube*   (make-texture nil :dimensions *shadow-dimensions*
+                                            :element-type :depth-component24
+                                            :cubes t))
+  (setf *s-shadow-cube*   (sample *t-shadow-cube* :minify-filter  :nearest
+                                                  :magnify-filter :nearest
+                                                  :wrap           :clamp-to-edge))
+  (setf *projection-mats* (make-c-array (projection-mats *light-pos* *far-plane*)
+                                        :dimensions 6
+                                        :element-type :mat4))
+  (setf *sample-dirs*     (make-c-array (offset-directions)
+                                        :dimensions 20
+                                        :element-type :vec3))
   (setf (attachment *shadow-fbo* :d) (texref *t-shadow-cube* :layer nil))
   t)
 
@@ -87,6 +100,7 @@
                        :far-plane *far-plane*
                        :shadow-matrices *point-mats*)))))
 
+;; Naive approach, works fast
 (defun-g shadow-factor ((light-sampler :sampler-cube)
                         (frag-pos      :vec3)
                         (light-pos     :vec3)
@@ -102,4 +116,25 @@
     ;;(/ closest-depth far-plane)
     ))
 
-(reset-camera)
+;; Smooth shadows - needs sample directions and cam-pos
+(defun-g shadow-factor ((light-sampler :sampler-cube)
+                        (frag-pos      :vec3)
+                        (light-pos     :vec3)
+                        (far-plane     :float)
+                        (cam-pos       :vec3)
+                        (sample-disk   (:vec3 20)))
+  (let* ((frag-to-light (- frag-pos light-pos))
+         (current-depth (length frag-to-light))
+         (shadow 0f0)
+         (bias 0.15)
+         (samples (int 20))
+         (view-distance (length (- cam-pos frag-pos)))
+         (disk-radius (/ (+ 1 (/ view-distance far-plane)) 25)))
+    (dotimes (i samples)
+      (let ((closest-depth (* (x (texture light-sampler
+                                          (+ frag-to-light
+                                             (* (aref sample-disk i) disk-radius))))
+                              far-plane)))
+        (when (> (- current-depth bias) closest-depth)
+          (incf shadow))))
+    (/ shadow (float samples))))
