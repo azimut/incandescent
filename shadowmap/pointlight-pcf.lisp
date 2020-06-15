@@ -51,16 +51,6 @@
   (setf (attachment *shadow-fbo* :d) (texref *t-shadow-cube* :layer nil))
   t)
 
-#+nil
-(progn
-  (with-fbo-bound (*shadow-fbo* :attachment-for-size :d))
-  (clear-fbo *shadow-fbo*)
-  (%gl:framebuffer-texture :read-framebuffer
-                           (cepl.fbos::gl-enum :depth-attachment)
-                           (texture-id *t-shadow-cube*)
-                           0)
-  (cepl.fbos::%update-fbo-state))
-
 ;; NOTE: needs patched cbaggers/glsl-spec to make gl-layer a "place"
 (defun-g shadowmap-point-vert ((vert g-pnt) &uniform (model->world :mat4))
   (* model->world (v! (pos vert) 1)))
@@ -83,6 +73,7 @@
          (light-distance (/ light-distance far-plane)))
     (setf gl-frag-depth light-distance)
     (values)))
+
 (defpipeline-g shadowmap-point-pipe ()
   :vertex   (shadowmap-point-vert g-pnt)
   :geometry (shadowmap-point-geom)
