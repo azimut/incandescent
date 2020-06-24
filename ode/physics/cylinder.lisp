@@ -38,25 +38,3 @@
                             :density density)))
     (push obj *actors*)
     obj))
-
-(defmethod update ((actor physic-cylinder) dt)
-  (when *world*
-    (with-slots (pos rot orot geom) actor
-      (setf pos (ode-geom-get-position geom))
-      (setf rot (ode-geom-get-quaternion2 orot geom)))))
-
-(defmethod draw ((actor physic-cylinder) camera (time single-float))
-  (with-slots (buf scale color) actor
-    (map-g #'generic-pipe buf
-           :scale scale
-           :color color
-           ;; :shadowmap *shadow-sam*
-           ;; :light-world (world->view *shadow-camera*)
-           ;; :light-clip  (projection *shadow-camera*)
-           :cam-pos (pos camera)
-           :model-world (model->world actor)
-           :world-view  (world->view camera)
-           :view-clip   (projection  camera)
-           ;; Directional light (for the most part)
-           :light-color *light-color*
-           :light-pos   *light-pos*)))

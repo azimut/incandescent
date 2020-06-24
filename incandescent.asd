@@ -210,11 +210,12 @@
                #:ode-blob)
   :components ((:file "ode/ode")
                (:file "ode/physic")
+               (:file "ode/draw")
                (:file "ode/camera")
-               (:file "ode/cube")
-               (:file "ode/sphere")
-               (:file "ode/cone")
-               (:file "ode/newcyl")))
+               (:file "ode/physics/cube")
+               (:file "ode/physics/sphere")
+               (:file "ode/physics/cone")
+               (:file "ode/physics/newcyl")))
 
 (asdf:defsystem #:incandescent/renderman
   :description "Describe incandescent here"

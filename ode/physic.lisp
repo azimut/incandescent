@@ -57,3 +57,4 @@
                           (coerce (x v) 'double-float)
                           (coerce (y v) 'double-float)
                           (coerce (z v) 'double-float)))
+
