@@ -7,7 +7,7 @@
   ((body       :initarg :body :reader body :documentation "body pointer")
    (mass       :initarg :mass :reader mass :documentation "mass pointer")
    (geom       :initarg :geom :reader geom :documentation "geometry pointer") ;; RM?
-   (orot       :initarg :orot)
+   (orot       :initarg :orot              :documentation "ODE rotation pointer")
    (density    :initarg :density)
    (immovablep :initarg :immovablep
                :documentation "ode immovable object (aka without body or mass) but that still interacts with other objects"))

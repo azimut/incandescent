@@ -1,7 +1,7 @@
 (in-package :incandescent)
 
 (defclass physic-sphere (physic)
-  ((radius  :initarg :radius  :documentation "double, for mass and geometry"))
+  ((radius  :initarg :radius :documentation "double, for mass and geometry"))
   (:default-initargs
    :radius .5d0))
 
