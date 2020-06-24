@@ -8,8 +8,8 @@
    (ode-vertices :initarg :ode-vertices))
   (:default-initargs
    :data nil
-   :radius 0.5d0
-   :height 1.0d0
+   :radius 0.5f0
+   :height 1.0f0
    :ode-indices nil
    :ode-vertices nil))
 
@@ -31,19 +31,18 @@
 (defun make-physic-newcyl (&key (pos (v! 0 0 0))
                                 (rot (q:identity))
                                 (color (v! 1 1 1))
-                                (density 1d0)
-                                (radius .5d0)
-                                (height 1d0)
+                                (density 1f0)
+                                (radius .5f0)
+                                (height 1f0)
                                 immovablep)
-  (declare (type double-float density radius height))
+  (declare (type single-float density radius height))
   (let ((obj (make-instance 'physic-newcyl
                             :pos pos :rot rot
                             :color color
                             :immovablep immovablep
                             :radius radius
                             :height height
-                            :buf (cylinder (coerce radius 'single-float)
-                                           (coerce height 'single-float))
+                            :buf (cylinder radius height)
                             :density density)))
     (push obj *actors*)
     obj))

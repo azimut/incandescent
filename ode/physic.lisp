@@ -12,7 +12,7 @@
    (immovablep :initarg :immovablep
                :documentation "ode immovable object (aka without body or mass) but that still interacts with other objects"))
   (:default-initargs
-   :density 1.0d0
+   :density 1.0f0
    :body (%ode:body-create *world*)
    :mass (claw:alloc '%ode:mass)
    :orot (claw:alloc '%ode:real 4)
@@ -38,10 +38,10 @@
   "set the ODE rotation to the QROT rtg-math quaternion"
   (declare (type rtg-math.types:quaternion qrot))
   (claw:c-let ((ode-rot %ode:real :ptr orot))
-    (setf (ode-rot 0) (coerce (x qrot) 'double-float))
-    (setf (ode-rot 1) (coerce (y qrot) 'double-float))
-    (setf (ode-rot 2) (coerce (z qrot) 'double-float))
-    (setf (ode-rot 3) (coerce (w qrot) 'double-float))))
+    (setf (ode-rot 0) (x qrot))
+    (setf (ode-rot 1) (y qrot))
+    (setf (ode-rot 2) (z qrot))
+    (setf (ode-rot 3) (w qrot))))
 
 (defun ode-update-rot (physic q)
   "Ideally only called once at initialization"
@@ -53,8 +53,5 @@
 (defun ode-update-pos (physic v)
   "Ideally only called once at initialization"
   (declare (type rtg-math.types:vec3 v))
-  (%ode:geom-set-position (slot-value physic 'geom)
-                          (coerce (x v) 'double-float)
-                          (coerce (y v) 'double-float)
-                          (coerce (z v) 'double-float)))
+  (%ode:geom-set-position (slot-value physic 'geom) (x v) (y v) (z v)))
 

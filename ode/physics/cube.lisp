@@ -1,9 +1,9 @@
 (in-package :incandescent)
 
 (defclass physic-box (physic)
-  ((x :initform 1d0 :initarg :x)
-   (y :initform 1d0 :initarg :y)
-   (z :initform 1d0 :initarg :z)))
+  ((x :initform 1f0 :initarg :x)
+   (y :initform 1f0 :initarg :y)
+   (z :initform 1f0 :initarg :z)))
 
 (defmethod initialize-instance :after ((obj physic-box) &key)
   (with-slots (mass body geom density immovablep x y z pos rot) obj
@@ -19,11 +19,11 @@
 (defun make-physic-box (&key (pos (v! 0 0 0))
                              (rot (q:identity))
                              (color (v! 1 1 1))
-                             (density 1d0)
-                             (x 1d0) (y 1d0) (z 1d0)
+                             (density 1f0)
+                             (x 1f0) (y 1f0) (z 1f0)
                              (draw-p t)
                              immovablep)
-  (declare (type double-float density x y z)
+  (declare (type single-float density x y z)
            (type boolean immovablep draw-p))
   (let ((obj (make-instance 'physic-box
                             :pos pos
@@ -32,9 +32,7 @@
                             :draw-p draw-p
                             :x x :y y :z z
                             :immovablep immovablep
-                            :buf (box (coerce x 'single-float)
-                                      (coerce y 'single-float)
-                                      (coerce z 'single-float))
+                            :buf (box x y z)
                             :density density)))
     (push obj *actors*)
     obj))

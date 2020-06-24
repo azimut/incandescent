@@ -45,8 +45,7 @@
                             :immovablep immovablep
                             :radius radius
                             :height height
-                            :buf (cone (coerce radius 'single-float)
-                                       (coerce height 'single-float))
+                            :buf (cone radius height)
                             :density density)))
     (push obj *actors*)
     obj))

@@ -5,10 +5,10 @@
 #+nil
 (progn (free-actors)
        (make-piso)
-       (make-physic-newcyl :radius .9d0
-                           :height 3d0
+       (make-physic-newcyl :radius .9f0
+                           :height 3f0
                            :pos (v! -3 1 -3)
-                           :density 3d0
+                           :density 3f0
                            :rot (q:from-axis-angle (v! 0 0 1) (radians 89))
                            )
        (make-physic-cone :pos (v! 0 1 0))
@@ -103,7 +103,7 @@
 (progn (defun test ()
          (free-actors)
          (make-piso)
-         (make-physic-box :pos (v! 0 5.5 0) :x 8d0 :z 8d0)
+         (make-physic-box :pos (v! 0 5.5 0) :x 8f0 :z 8f0)
          (make-physic-cone :pos (v! 0 2 0))
          (loop :for y :from .5 :by 1 :to 5
                :do (make-physic-box :pos (v! 3 y 3)))
@@ -127,11 +127,11 @@
   (make-physic-box
    :immovablep t
    :pos (v! -4 10 0)
-   :y 10d0
-   :z 20d0)
+   :y 10f0
+   :z 20f0)
   (dotimes (i 10)
     (make-physic-sphere
-     :radius .75d0
+     :radius .75f0
      :pos (v! (serapeum:random-in-range 0f0 -2f0)
               (serapeum:random-in-range 15f0 30f0)
               (serapeum:random-in-range -10f0 0f0))))
@@ -141,8 +141,8 @@
                   :for wide :from -10 :by 2.5 :to 10
                   :do (make-physic-newcyl
                        :immovablep t
-                       :radius .25d0
-                       :height 3d0
+                       :radius .25f0
+                       :height 3f0
                        :pos (v! 0 (+ 4 y-offset) (+ wide-offset wide))
                        :rot (q:from-axis-angle (v! 0 0 1)
                                                (radians 90)))))
@@ -150,8 +150,8 @@
   (loop :for i :from -8.5 :by 2.5  :to 10
         :do (make-physic-newcyl
              :immovablep t
-             :radius .25d0
-             :height 3d0
+             :radius .25f0
+             :height 3f0
              :pos (v! 0 6 i)
              :rot (q:from-axis-angle (v! 0 0 1) (radians 90)))))
 

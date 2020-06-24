@@ -89,7 +89,7 @@
     (claw:c-let ((ode-mrot %ode:matrix3 :ptr omrot))
       (dotimes (i 9)
         (setf (ode-mrot i)
-              (coerce (row-major-aref m3 i) 'double-float))))))
+              (row-major-aref m3 i))))))
 
 (defun make-composite (&key (pos (v! 0 5 0))
                             (rot (q:identity)))
@@ -140,9 +140,9 @@
     ;;
     (update-ode-rot orot rot)
     (%ode:body-set-position body
-                            (coerce (x pos) 'double-float)
-                            (coerce (y pos) 'double-float)
-                            (coerce (z pos) 'double-float))
+                            (x pos)
+                            (y pos)
+                            (z pos))
     (%ode:body-set-quaternion body orot)
     ;;
     (claw:c-let ((m  %ode:mass :ptr mass)
@@ -152,14 +152,14 @@
         ;; poss, bufs
         (vector-push-extend (%ode:create-box
                              *space*
-                             (coerce (x (aref sides k)) 'double-float)
-                             (coerce (y (aref sides k)) 'double-float)
-                             (coerce (z (aref sides k)) 'double-float))
+                             (x (aref sides k))
+                             (y (aref sides k))
+                             (z (aref sides k)))
                             geoms)
-        (%ode:mass-set-box (m2 &) 1d0
-                           (coerce (x (aref sides k)) 'double-float)
-                           (coerce (y (aref sides k)) 'double-float)
-                           (coerce (z (aref sides k)) 'double-float))
+        (%ode:mass-set-box (m2 &) 1f0
+                           (x (aref sides k))
+                           (y (aref sides k))
+                           (z (aref sides k)))
         ;;
         (vector-push-extend (claw:alloc '%ode:matrix3) ode-rots)
         (vector-push-extend (claw:alloc '%ode:real 4)  ode-qrots)
@@ -171,9 +171,9 @@
         (%ode:mass-rotate (m2 &) (aref ode-rots k))
         ;;#+nil
         (%ode:mass-translate (m2 &)
-                             (coerce (x (aref poss k)) 'double-float)
-                             (coerce (y (aref poss k)) 'double-float)
-                             (coerce (z (aref poss k)) 'double-float))
+                             (x (aref poss k))
+                             (y (aref poss k))
+                             (z (aref poss k)))
         ;;
         (%ode:mass-add (m &) (m2 &))))
     ;; For each geom...after the mass is absolute i guess
@@ -183,9 +183,9 @@
         ;;#+nil
         (%ode:geom-set-offset-position
          (aref geoms k)
-         (- (coerce (x (aref poss k)) 'double-float) (m :c 0))
-         (- (coerce (y (aref poss k)) 'double-float) (m :c 1))
-         (- (coerce (z (aref poss k)) 'double-float) (m :c 2)))
+         (- (x (aref poss k)) (m :c 0))
+         (- (y (aref poss k)) (m :c 1))
+         (- (z (aref poss k)) (m :c 2)))
         ;;(%ode:geom-set-offset-quaternion (aref geoms k) (aref ode-qrots k))
         (%ode:geom-set-rotation (aref geoms k) (aref ode-rots k))
         )

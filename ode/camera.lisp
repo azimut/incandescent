@@ -19,8 +19,8 @@
     (%ode:geom-destroy geom)))
 
 (defmethod initialize-instance :after ((obj physic-camera) &key)
-  (let ((radius .5d0)
-        (density 1d0))
+  (let ((radius .5f0)
+        (density 1f0))
     (with-slots (mass body geom pos) obj
       (setf geom (%ode:create-sphere *space* radius))
       (claw:c-let ((m %ode:mass :from mass))
@@ -32,17 +32,17 @@
 
 (defmethod (setf pos) (value (object physic-camera))
   (%ode:body-set-position (slot-value object 'body)
-                          (coerce (x value) 'double-float)
-                          (coerce (y value) 'double-float)
-                          (coerce (z value) 'double-float))
+                          (x value)
+                          (y value)
+                          (z value))
   (setf (slot-value object 'pos) value))
 
 (defmethod update :before ((camera physic-camera) dt)
   (with-slots (pos) camera
     (%ode:body-set-position (slot-value camera 'body)
-                            (coerce (x pos) 'double-float)
-                            (coerce (y pos) 'double-float)
-                            (coerce (z pos) 'double-float))))
+                            (x pos)
+                            (y pos)
+                            (z pos))))
 
 (defun toggle-solid-camera ()
   (if (eq 'physic-camera (serapeum:class-name-of *currentcamera*))

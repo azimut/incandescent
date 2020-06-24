@@ -7,9 +7,9 @@
    (radius  :initarg :radius)
    (height  :initarg :height))
   (:default-initargs
-   :density 1d0
-   :radius .5d0
-   :height 1d0))
+   :density 1f0
+   :radius .5f0
+   :height 1f0))
 
 (defmethod initialize-instance :after ((obj physic-cylinder) &key)
   (with-slots (mass body geom density pos rot radius height) obj
@@ -24,17 +24,16 @@
 
 (defun make-physic-cylinder (&key (pos (v! 0 0 0))
                                   (rot (q:identity))
-                                  (density 1d0)
-                                  (radius .5d0)
-                                  (height 1d0))
-  (declare (type double-float density radius height))
+                                  (density 1f0)
+                                  (radius .5f0)
+                                  (height 1f0))
+  (declare (type single-float density radius height))
   (let ((obj (make-instance 'physic-cylinder
                             :pos pos
                             :rot rot
                             :radius radius
                             :height height
-                            :buf (cylinder (coerce radius 'single-float)
-                                           (coerce height 'single-float))
+                            :buf (cylinder radius height)
                             :density density)))
     (push obj *actors*)
     obj))

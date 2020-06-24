@@ -14,16 +14,16 @@
     (setf *world*        (%ode:world-create)
           *space*        (%ode:hash-space-create nil)
           *contactgroup* (%ode:joint-group-create 0))
-    (%ode:create-plane *space* 0d0 1d0 0d0 0d0))
-  (%ode:world-set-gravity *world* 0d0 -9.8d0 0d0)
+    (%ode:create-plane *space* 0f0 1f0 0f0 0f0))
+  (%ode:world-set-gravity *world* 0f0 -9.8f0 0f0)
   ;; CFM = Constraint Force Mixing
   ;; changes stiffness of a joint.
   (%ode:world-set-cfm                       *world* 1d-5)
   ;; ERP = Error Reduction Parameter = [0,1]
   ;; corrects  joint error
-  (%ode:world-set-erp                       *world* .1d0)
+  (%ode:world-set-erp                       *world* .1f0)
   (%ode:world-set-auto-disable-flag         *world* 1)
-  (%ode:world-set-quick-step-w              *world* 1.3d0)
+  (%ode:world-set-quick-step-w              *world* 1.3f0)
   (%ode:world-set-quick-step-num-iterations *world* 40)
   t)
 
@@ -54,18 +54,18 @@
                                                      ;; %ode:+contact-approx1+
                                                      ;; %ode:+contact-soft-erp+
                                                      %ode:+contact-soft-cfm+)
-                  (contact i :surface :slip1) .7d0
-                  ;; (contact i :surface :slip2) .7d0
-                  ;;(contact i :surface :soft-erp) .96d0
+                  (contact i :surface :slip1) .7f0
+                  ;; (contact i :surface :slip2) .7f0
+                  ;;(contact i :surface :soft-erp) .96f0
                   ;; friction parameter
                   (contact i :surface :mu) ode:+infinity+
-                  (contact i :surface :mu2) 0d0
+                  (contact i :surface :mu2) 0f0
                   ;; bounce is the amount of "bouncyness"
-                  (contact i :surface :bounce) .1d0
+                  (contact i :surface :bounce) .1f0
                   ;; bounce_vel is the minimum incoming velocity to cause a bounce
-                  (contact i :surface :bounce-vel) .1d0
+                  (contact i :surface :bounce-vel) .1f0
                   ;; constraint force mixing parameter
-                  (contact i :surface :soft-cfm) .01d0))
+                  (contact i :surface :soft-cfm) .01f0))
           (let ((numc (%ode:collide o1 o2 10
                                     (contact :geom &)
                                     (claw:sizeof '%ode:contact))))
@@ -81,7 +81,7 @@
       "updates the objets within the physics engine"
       (when (and *world* (funcall stepper))
         (%ode:space-collide *space* nil (claw:callback 'near-callback))
-        (%ode:world-quick-step *world* 0.0099d0)
+        (%ode:world-quick-step *world* 0.0099f0)
         (%ode:joint-group-empty *contactgroup*)))))
 
 ;; FIME: leaking? c-with would free it...
@@ -95,38 +95,38 @@
   (declare (type sb-sys:system-area-pointer orot geom))
   (%ode:geom-get-quaternion geom orot)
   (claw:c-let ((ode-rot %ode:real :ptr orot))
-    (q! (coerce (ode-rot 0) 'single-float)
-        (coerce (ode-rot 1) 'single-float)
-        (coerce (ode-rot 2) 'single-float)
-        (coerce (ode-rot 3) 'single-float))))
+    (q! (ode-rot 0)
+        (ode-rot 1)
+        (ode-rot 2)
+        (ode-rot 3))))
 
 #+nil
 (defun ode-geom-get-quaternion-from-mat3 (geom)
   (claw:c-let ((mrot %ode:matrix3 :ptr (%ode:geom-get-rotation geom)))
     #+nil
-    (q:from-mat3 (m3:make (coerce (mrot 0) 'single-float)
-                          (coerce (mrot 3) 'single-float)
-                          (coerce (mrot 6) 'single-float)
+    (q:from-mat3 (m3:make (mrot 0)
+                          (mrot 3)
+                          (mrot 6)
                           ;;
-                          (coerce (mrot 1) 'single-float)
-                          (coerce (mrot 4) 'single-float)
-                          (coerce (mrot 7) 'single-float)
+                          (mrot 1)
+                          (mrot 4)
+                          (mrot 7)
                           ;;
-                          (coerce (mrot 2) 'single-float)
-                          (coerce (mrot 5) 'single-float)
-                          (coerce (mrot 8) 'single-float)))
+                          (mrot 2)
+                          (mrot 5)
+                          (mrot 8)))
     ;;#+nil
-    (q:from-mat3 (m3:make (coerce (mrot 0) 'single-float)
-                          (coerce (mrot 1) 'single-float)
-                          (coerce (mrot 2) 'single-float)
+    (q:from-mat3 (m3:make (mrot 0)
+                          (mrot 1)
+                          (mrot 2)
                           ;;
-                          (coerce (mrot 3) 'single-float)
-                          (coerce (mrot 4) 'single-float)
-                          (coerce (mrot 5) 'single-float)
+                          (mrot 3)
+                          (mrot 4)
+                          (mrot 5)
                           ;;
-                          (coerce (mrot 6) 'single-float)
-                          (coerce (mrot 7) 'single-float)
-                          (coerce (mrot 8) 'single-float)))))
+                          (mrot 6)
+                          (mrot 7)
+                          (mrot 8)))))
 
 (defun buffer-stream-to-ode (buf)
   "creates a new trimesh geometry on ODE from a cepl buffer stream"

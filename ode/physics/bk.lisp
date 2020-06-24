@@ -88,8 +88,7 @@
         ;;
         (loop :for vertex :in *bk-vertices*
               :for vindex :from 0
-              :do (setf (ode-vertices vindex)
-                        (coerce vertex 'single-float)))
+              :do (setf (ode-vertices vindex) vertex))
         ;;
         (%ode:geom-tri-mesh-data-build-single (mesh-data &)
                                               (ode-vertices &)
